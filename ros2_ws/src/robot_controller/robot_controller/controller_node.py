@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""
+controller_node.py
+
+Mobile robot differential-drive navigation controller for AERO.
+Subscribes to `/odom` and `/scan`, calculates steering angle and linear velocity,
+and publishes `geometry_msgs/Twist` commands to `/cmd_vel`.
+"""
+
+import math
+from typing import Optional
+
+import rclpy
+from rclpy.node import Node
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import Twist
+
+
+def euler_from_quaternion(x: float, y: float, z: float, w: float) -> float:
+    """Extract planar yaw orientation from quaternion."""
+    siny_cosp = 2.0 * (w * z + x * y)
+    cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+    return math.atan2(siny_cosp, cosy_cosp)
+
+
+class DifferentialDriveController(Node):
+    """
+    Differential drive navigation controller that drives toward a target coordinate
+    while avoiding obstacles detected by LiDAR.
+    """
+
+    def __init__(self) -> None:
+        super().__init__('robot_controller_node')
+
+        # Target parameters
+        self.declare_parameter('target_x', 3.0)
+        self.declare_parameter('target_y', 3.0)
+        self.declare_parameter('max_linear_speed', 0.22)
+        self.declare_parameter('max_angular_speed', 1.0)
+        self.declare_parameter('goal_tolerance', 0.10)
+
+        self.target_x = float(self.get_parameter('target_x').value)
+        self.target_y = float(self.get_parameter('target_y').value)
+        self.max_linear_speed = float(self.get_parameter('max_linear_speed').value)
+        self.max_angular_speed = float(self.get_parameter('max_angular_speed').value)
+        self.goal_tolerance = float(self.get_parameter('goal_tolerance').value)
+
+        # Robot state
+        self.current_x = 0.0
+        self.current_y = 0.0
+        self.current_yaw = 0.0
+        self.has_odom = False
+
+        # Obstacle state (clearances in meters)
+        self.front_clearance = float('inf')
+        self.left_clearance = float('inf')
+        self.right_clearance = float('inf')
+
+        # Publishers and Subscribers
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.create_subscription(Odometry, '/odom', self._odom_callback, 10)
+        self.create_subscription(LaserScan, '/scan', self._scan_callback, 10)
+
+        # Control loop at 10 Hz
+        self.control_timer = self.create_timer(0.1, self._control_step)
+
+        self.get_logger().info(
+            f"DifferentialDriveController started. Target: ({self.target_x}, {self.target_y})"
+        )
+
+    def _odom_callback(self, msg: Odometry) -> None:
+        """Update robot pose and orientation."""
+        pos = msg.pose.pose.position
+        ori = msg.pose.pose.orientation
+        self.current_x = pos.x
+        self.current_y = pos.y
+        self.current_yaw = euler_from_quaternion(ori.x, ori.y, ori.z, ori.w)
+        self.has_odom = True
+
+    def _scan_callback(self, msg: LaserScan) -> None:
+        """Extract directional obstacle clearances from LaserScan."""
+        num_ranges = len(msg.ranges)
+        if num_ranges == 0:
+            return
+
+        # Divide scan into front (+-30 deg), left (30..90 deg), and right (-90..-30 deg)
+        def clean_min(ranges):
+            valid = [r for r in ranges if msg.range_min < r < msg.range_max]
+            return min(valid) if valid else float('inf')
+
+        deg30_idx = int((30.0 / 360.0) * num_ranges)
+        deg90_idx = int((90.0 / 360.0) * num_ranges)
+
+        # Front is centered around index 0 (and end of array)
+        front_ranges = msg.ranges[:deg30_idx] + msg.ranges[-deg30_idx:]
+        left_ranges = msg.ranges[deg30_idx:deg90_idx]
+        right_ranges = msg.ranges[-deg90_idx:-deg30_idx]
+
+        self.front_clearance = clean_min(front_ranges)
+        self.left_clearance = clean_min(left_ranges)
+        self.right_clearance = clean_min(right_ranges)
+
+    def _control_step(self) -> None:
+        """Compute and publish control command."""
+        if not self.has_odom:
+            return
+
+        # Calculate Euclidean distance and angle to target
+        dx = self.target_x - self.current_x
+        dy = self.target_y - self.current_y
+        distance = math.hypot(dx, dy)
+
+        twist = Twist()
+
+        # Check if already within goal tolerance
+        if distance <= self.goal_tolerance:
+            twist.linear.x = 0.0
+            twist.angular.z = 0.0
+            self.cmd_vel_pub.publish(twist)
+            return
+
+        desired_angle = math.atan2(dy, dx)
+        angle_diff = desired_angle - self.current_yaw
+
+        # Normalize angle difference to [-pi, pi]
+        angle_diff = (angle_diff + math.pi) % (2.0 * math.pi) - math.pi
+
+        # Obstacle avoidance override
+        obstacle_threshold = 0.45  # meters
+        if self.front_clearance < obstacle_threshold:
+            # Turn away from closest obstacle
+            twist.linear.x = 0.02
+            if self.left_clearance > self.right_clearance:
+                twist.angular.z = self.max_angular_speed * 0.75
+            else:
+                twist.angular.z = -self.max_angular_speed * 0.75
+        else:
+            # Proportional heading and linear speed controller
+            kp_angular = 1.2
+            angular_cmd = kp_angular * angle_diff
+            angular_cmd = max(-self.max_angular_speed, min(self.max_angular_speed, angular_cmd))
+
+            # Reduce linear speed when angle error is large
+            if abs(angle_diff) > 0.6:  # ~35 degrees
+                linear_cmd = 0.05
+            else:
+                linear_cmd = min(self.max_linear_speed, 0.15 * distance)
+
+            twist.linear.x = float(linear_cmd)
+            twist.angular.z = float(angular_cmd)
+
+        self.cmd_vel_pub.publish(twist)
+
+
+def main(args: Optional[list] = None) -> None:
+    rclpy.init(args=args)
+    node = DifferentialDriveController()
+    try:
+        rclpy.spin(node)
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

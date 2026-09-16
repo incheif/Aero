@@ -1,0 +1,30 @@
+{
+  "name": "AERO ROS 2 DevContainer",
+  "build": {
+    "dockerfile": "../docker/Dockerfile",
+    "context": ".."
+  },
+  "runArgs": [
+    "--ipc=host",
+    "--net=host"
+  ],
+  "containerEnv": {
+    "TURTLEBOT3_MODEL": "waffle",
+    "LIBGL_ALWAYS_SOFTWARE": "1",
+    "QT_QPA_PLATFORM": "offscreen",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-iot.vscode-ros"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      }
+    }
+  },
+  "postCreateCommand": "bash -c 'source /opt/ros/humble/setup.bash && cd ros2_ws && colcon build --symlink-install'"
+}
