@@ -1,4 +1,4 @@
-# 🤖 ROS 2 Agentic Navigation Harness
+# ⚡ AERO: Agentic Environment for Robotic Operations
 
 > **Autonomous closed-loop synthesis, compilation, testing, and self-debugging of ROS 2 control nodes in headless Gazebo simulation.**
 
@@ -12,9 +12,9 @@
 
 ## 📌 Overview
 
-**ROS 2 Agentic Navigation Harness** is a deterministic evaluation harness and self-correcting agent loop designed for autonomous robotics research and LLM code generation. 
+**AERO (Agentic Environment for Robotic Operations)** is a deterministic evaluation harness and self-correcting agent loop designed for autonomous robotics research and LLM code generation.
 
-Traditional robotic code generation often stops at static code generation without closed-loop verification. This project implements a **closed-loop feedback system**:
+Traditional robotic code generation often stops at static code generation without closed-loop verification. AERO implements a **complete closed-loop feedback system**:
 1. An autonomous agent inspects or generates a ROS 2 robot controller (`controller_node.py`).
 2. The harness builds the workspace using `colcon`.
 3. If compilation fails, isolated compiler/linter error traces are fed directly back into the agent.
@@ -128,7 +128,7 @@ The Oracle node (`agent_evaluator/oracle_node.py`) runs as an impartial supervis
 │           │   └── controller_node.py
 │           ├── package.xml
 │           └── setup.py
-├── agent_harness/                  # Agent Tool Interface & Harness
+├── agent_harness/                  # AERO Tool Interface & Harness
 │   ├── __init__.py
 │   ├── builder.py                  # Colcon build executor & error isolation
 │   ├── runner.py                   # Subprocess lifecycle & headless sim manager
@@ -158,7 +158,7 @@ Build and enter the deterministic sandbox environment:
 
 ```bash
 # Build Docker image
-docker build -t ros2-agent-harness -f docker/Dockerfile .
+docker build -t aero-ros2 -f docker/Dockerfile .
 
 # Run container with headless display support
 docker run -it --rm \
@@ -166,7 +166,7 @@ docker run -it --rm \
   --net=host \
   -v $(pwd):/workspace \
   -w /workspace \
-  ros2-agent-harness bash
+  aero-ros2 bash
 ```
 
 ### 3. Native Setup
@@ -189,7 +189,7 @@ source install/setup.bash
 cd ..
 ```
 
-### 4. Running the Autonomous Agent Loop
+### 4. Running the AERO Loop
 
 To run the iterative feedback loop:
 
