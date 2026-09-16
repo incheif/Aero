@@ -1,0 +1,60 @@
+# ROS 2 Build Artifacts
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+*.colcon/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Gazebo / Simulation logs and caches
+*.log
+.gazebo/
+.ignition/
+.gz/
+
+# Test Results and Artifacts generated during runs
+test_results.json
+*.bag
+*.db3
+
+# Environment and Secrets
+.env
+.env.local
+*.key
+*.pem
+
+# IDE & OS
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
