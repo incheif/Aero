@@ -137,7 +137,12 @@ The Oracle node (`agent_evaluator/oracle_node.py`) runs as an impartial supervis
 │   └── introspector.py             # ROS 2 static/mock graph validator
 ├── benchmarks/                     # Benchmark definitions & worlds
 │   └── worlds/
-│       └── obstacle_course.world
+│       └── navigation_arena.world
+├── dashboard/                      # Interactive Web Dashboard
+│   ├── server.py                   # FastAPI WebSocket telemetry server
+│   ├── sim_engine.py               # Real-time kinematic simulation & raycast LiDAR
+│   └── static/                     # Dark glassmorphism frontend (Canvas, gauges, diffs)
+├── run_dashboard.py                # Dashboard launcher (opens browser at :8000)
 ├── run_agent_loop.py               # Main autonomous iterative feedback driver
 ├── requirements.txt                # Python host / harness requirements
 ├── .gitignore
@@ -204,6 +209,15 @@ To run a single deterministic benchmark evaluation manually:
 python -m agent_harness.runner --timeout 30
 ```
 
+### 5. Launching the Interactive Web Dashboard
+
+To launch the real-time 60 FPS simulation canvas, live telemetry gauges, and code diff editor:
+
+```bash
+python run_dashboard.py
+```
+This starts the local FastAPI server and opens **`http://127.0.0.1:8000`** in your browser automatically.
+
 ---
 
 ## 🛡 Process Hygiene & Determinism
@@ -223,7 +237,7 @@ The `agent_harness.process_cleaner` module guarantees a clean slate before and a
 - [x] **Phase 1**: Deterministic Python execution harness, Ground Truth Oracle, headless Gazebo runner, and process cleaner.
 - [ ] **Phase 2**: Static ROS graph linting and dynamic LiDAR topic introspection (`/scan` obstacle density scoring).
 - [ ] **Phase 3**: Multi-agent benchmarking suite with dynamic obstacle generators and varying friction/slip parameters.
-- [ ] **Phase 4**: Web dashboard for real-time trial playback, metric visualization, and code diff history.
+- [x] **Phase 4**: Interactive Web Dashboard with 60 FPS simulation canvas, real-time WebSocket telemetry, and live code diffs.
 
 ---
 
