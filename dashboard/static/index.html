@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AERO — Autonomous closed-loop synthesis, compilation, testing, and self-debugging of ROS 2 control nodes in simulation.">
+  <title>AERO — Agentic Environment for Robotic Operations</title>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#080d16" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title">AERO</h1>
+      </div>
+      <div class="brand-subtitle">Agentic Environment for Robotic Operations</div>
+    </div>
+
+    <!-- Real-time Status Badge -->
+    <div id="status-pill" class="status-pill idle">
+      <span class="status-dot"></span>
+      <span id="status-text">CONNECTING...</span>
+    </div>
+
+    <!-- Model & Settings Controls -->
+    <div class="nav-controls">
+      <select id="model-select" class="select-model" aria-label="Select AI Model">
+        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+        <option value="claude-3-7-sonnet">Claude 3.7 Sonnet</option>
+        <option value="gpt-4o">GPT-4o</option>
+        <option value="mock">Offline Deterministic Mock</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Main 3-Column Dashboard Grid -->
+  <main class="dashboard-grid">
+
+    <!-- Column 1: Problem Input & Live Code Diff -->
+    <section class="panel">
+      <!-- Natural Language Problem Statement Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Problem Statement
+          </h2>
+        </div>
+        <div class="card-body">
+          <textarea id="problem-prompt" class="prompt-area" aria-label="Natural Language Problem Statement" placeholder="Describe the navigation objective for the autonomous agent...">Navigate to (3.0, 3.0) avoiding obstacles with max speed 0.22 m/s</textarea>
+
+          <!-- Preset Benchmark Chips -->
+          <div class="preset-row">
+            <button class="preset-chip" data-preset="standard">Standard Navigation</button>
+            <button class="preset-chip" data-preset="corridor">Tight Corridor</button>
+            <button class="preset-chip" data-preset="precision">Precision Docking</button>
+          </div>
+
+          <!-- Run Actions -->
+          <div class="btn-row">
+            <button id="btn-run-loop" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              Run Agent Loop
+            </button>
+            <button id="btn-run-single" class="btn" style="background: rgba(255,255,255,0.08); color: #fff;">
+              Single Trial
+            </button>
+            <button id="btn-stop" class="btn btn-danger" disabled>
+              Stop
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Code Diff Card -->
+      <div class="card code-diff-card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            Python Controller Diffs
+          </h2>
+          <button id="btn-toggle-diff" class="preset-chip" style="margin: 0;">Diff View</button>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <div id="code-container" class="code-container">Loading controller_node.py...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Column 2: Live Simulation Arena Viewport -->
+    <section class="sim-viewport">
+      <!-- Overlay Information Badges -->
+      <div class="sim-overlay">
+        <div class="sim-badge">
+          <span style="color: var(--accent-cyan);">●</span> 10m × 10m Arena
+        </div>
+        <div class="sim-badge">
+          <span style="color: var(--accent-emerald);">●</span> Target: (3.0, 3.0)
+        </div>
+      </div>
+
+      <!-- 60 FPS HTML5 Canvas -->
+      <canvas id="sim-canvas" class="sim-canvas"></canvas>
+
+      <!-- Viewport Floating Controls Toolbar -->
+      <div class="sim-controls-toolbar">
+        <button id="btn-reset-cam" class="tool-btn" title="Reset Viewport">Reset Cam</button>
+      </div>
+    </section>
+
+    <!-- Column 3: Ground Truth Oracle & Telemetry -->
+    <section class="panel">
+      <!-- Oracle Telemetry Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            Ground Truth Oracle
+          </h2>
+          <span id="iteration-badge" style="font-size: 0.75rem; font-weight: 700; color: var(--accent-cyan);">Iteration 1 / 5</span>
+        </div>
+        <div class="card-body">
+          <!-- Circular SVG Gauges -->
+          <div class="telemetry-grid">
+            <!-- Gauge 1: Goal Distance -->
+            <div class="gauge-card">
+              <svg class="gauge-svg" viewBox="0 0 90 90">
+                <circle class="gauge-bg" cx="45" cy="45" r="38"></circle>
+                <circle id="gauge-goal-dist" class="gauge-fill" cx="45" cy="45" r="38" stroke="#00e5ff"></circle>
+              </svg>
+              <div id="val-goal-dist" class="gauge-value">4.24m</div>
+              <div class="gauge-label">Goal Distance</div>
+            </div>
+
+            <!-- Gauge 2: Simulation Clock -->
+            <div class="gauge-card">
+              <svg class="gauge-svg" viewBox="0 0 90 90">
+                <circle class="gauge-bg" cx="45" cy="45" r="38"></circle>
+                <circle id="gauge-sim-clock" class="gauge-fill" cx="45" cy="45" r="38" stroke="#00e5ff"></circle>
+              </svg>
+              <div id="val-sim-clock" class="gauge-value">0.0s</div>
+              <div class="gauge-label">Sim Clock (30s)</div>
+            </div>
+          </div>
+
+          <!-- Obstacle Clearance Sparkline -->
+          <div class="sparkline-card">
+            <div class="sparkline-header">
+              <span>MIN OBSTACLE CLEARANCE</span>
+              <span id="val-clearance" style="color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700;">>3m</span>
+            </div>
+            <canvas id="sparkline-canvas" class="sparkline-canvas" width="340" height="42"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-time ROS 2 Logs Terminal -->
+      <div class="card terminal-card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            Real-Time ROS 2 Logs
+          </h2>
+          <button id="btn-clear-logs" class="preset-chip" style="margin: 0;">Clear</button>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <div id="terminal-logs" class="terminal-body"></div>
+        </div>
+      </div>
+
+      <!-- Iteration Timeline Card -->
+      <div class="card timeline-card">
+        <div class="card-header" style="padding: 8px 14px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">ITERATION TIMELINE</span>
+        </div>
+        <div class="timeline-row">
+          <div id="step-1" class="timeline-step active">
+            <div class="step-dot">1</div>
+            <span class="step-label">Trial 1</span>
+          </div>
+          <div id="step-2" class="timeline-step">
+            <div class="step-dot">2</div>
+            <span class="step-label">Trial 2</span>
+          </div>
+          <div id="step-3" class="timeline-step">
+            <div class="step-dot">3</div>
+            <span class="step-label">Trial 3</span>
+          </div>
+          <div id="step-4" class="timeline-step">
+            <div class="step-dot">4</div>
+            <span class="step-label">Trial 4</span>
+          </div>
+          <div id="step-5" class="timeline-step">
+            <div class="step-dot">5</div>
+            <span class="step-label">Trial 5</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Client JavaScript -->
+  <script src="/static/js/sim_canvas.js"></script>
+  <script src="/static/js/telemetry.js"></script>
+  <script src="/static/js/code_diff.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
