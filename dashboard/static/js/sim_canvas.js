@@ -28,6 +28,7 @@ class SimCanvasRenderer {
       { x: 2.4, y: 2.2, radius: 0.28 },
       { x: 3.8, y: 1.5, radius: 0.28 },
     ];
+    this.semanticObjects = [];
     this.lidarRanges = [];
     this.trajectory = [{ x: 0, y: 0 }];
 
@@ -57,6 +58,7 @@ class SimCanvasRenderer {
     }
     if (frame.target) this.target = frame.target;
     if (frame.obstacles) this.obstacles = frame.obstacles;
+    if (frame.semantic_objects) this.semanticObjects = frame.semantic_objects;
     if (frame.lidar_ranges) this.lidarRanges = frame.lidar_ranges;
     if (frame.arena) {
       this.xMin = frame.arena.x_min;
@@ -104,6 +106,9 @@ class SimCanvasRenderer {
     // 4. Draw Obstacles
     this.drawObstacles(ctx);
 
+    // 4b. Draw Semantic Landmark Objects
+    this.drawSemanticObjects(ctx);
+
     // 5. Draw Trajectory Trail
     this.drawTrajectory(ctx);
 
@@ -114,6 +119,34 @@ class SimCanvasRenderer {
     this.drawRobot(ctx);
 
     requestAnimationFrame(this.render);
+  }
+
+  drawSemanticObjects(ctx) {
+    if (!this.semanticObjects || this.semanticObjects.length === 0) return;
+    for (const obj of this.semanticObjects) {
+      const p = this.worldToScreen(obj.x, obj.y);
+      const r = (obj.radius || 0.4) * p.scale;
+
+      ctx.save();
+      // Glowing aura
+      ctx.fillStyle = obj.color || '#3b82f6';
+      ctx.shadowColor = obj.color || '#3b82f6';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Border ring
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Label & Icon
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 11px Inter, sans-serif';
+      ctx.fillText(`${obj.icon || '📍'} ${obj.name}`, p.x + r + 6, p.y + 4);
+      ctx.restore();
+    }
   }
 
   drawGrid(ctx) {

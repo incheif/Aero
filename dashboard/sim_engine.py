@@ -35,6 +35,14 @@ class SimulationArena:
             {"x": 3.8, "y": 1.5, "radius": 0.28},
         ]
 
+        # 3D Semantic Landmarks in the house
+        self.semantic_objects = [
+            {"name": "Red Sofa", "x": 3.2, "y": 3.0, "radius": 0.45, "color": "#ef4444", "icon": "🛋️"},
+            {"name": "Kitchen Table", "x": -2.2, "y": 2.5, "radius": 0.45, "color": "#3b82f6", "icon": "🪑"},
+            {"name": "Storage Boxes", "x": 2.8, "y": -1.8, "radius": 0.35, "color": "#f59e0b", "icon": "📦"},
+            {"name": "Charging Dock", "x": 0.0, "y": -3.2, "radius": 0.30, "color": "#10b981", "icon": "⚡"},
+        ]
+
 
 class KinematicRobot:
     """Differential drive robot model with 360-degree LiDAR."""
@@ -200,6 +208,7 @@ class LiveSimulationSession:
             "lidar_ranges": [round(r, 3) for r in ranges],
             "target": {"x": self.arena.target_x, "y": self.arena.target_y, "tolerance": self.arena.goal_tolerance},
             "obstacles": self.arena.obstacles,
+            "semantic_objects": self.arena.semantic_objects,
             "arena": {
                 "x_min": self.arena.x_min, "x_max": self.arena.x_max,
                 "y_min": self.arena.y_min, "y_max": self.arena.y_max
@@ -225,6 +234,7 @@ class LiveSimulationSession:
             "min_obstacle_distance": round(self.min_obstacle_dist, 3) if not math.isinf(self.min_obstacle_dist) else 999.0,
             "target": {"x": self.arena.target_x, "y": self.arena.target_y, "tolerance": self.arena.goal_tolerance},
             "obstacles": self.arena.obstacles,
+            "semantic_objects": self.arena.semantic_objects,
             "arena": {
                 "x_min": self.arena.x_min, "x_max": self.arena.x_max,
                 "y_min": self.arena.y_min, "y_max": self.arena.y_max

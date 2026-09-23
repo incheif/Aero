@@ -1,0 +1,126 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="semantic_house">
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <!-- Sun & Ground -->
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+
+    <!-- Boundary Exterior Walls -->
+    <model name="exterior_north">
+      <static>true</static>
+      <pose>0.5 5.0 0.6 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>11.0 0.2 1.2</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>11.0 0.2 1.2</size></box></geometry><material><ambient>0.6 0.6 0.65 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name="exterior_south">
+      <static>true</static>
+      <pose>0.5 -4.0 0.6 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>11.0 0.2 1.2</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>11.0 0.2 1.2</size></box></geometry><material><ambient>0.6 0.6 0.65 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name="exterior_east">
+      <static>true</static>
+      <pose>5.5 0.5 0.6 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.2 9.2 1.2</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2 9.2 1.2</size></box></geometry><material><ambient>0.6 0.6 0.65 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name="exterior_west">
+      <static>true</static>
+      <pose>-4.5 0.5 0.6 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.2 9.2 1.2</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2 9.2 1.2</size></box></geometry><material><ambient>0.6 0.6 0.65 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <!-- Interior Dividing Wall with Doorway -->
+    <model name="room_divider_wall">
+      <static>true</static>
+      <pose>0.5 1.5 0.6 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.2 4.0 1.2</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2 4.0 1.2</size></box></geometry><material><ambient>0.5 0.5 0.55 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <!-- SEMANTIC OBJECT 1: Red Sofa / Couch -->
+    <model name="red_sofa">
+      <static>true</static>
+      <pose>3.2 3.0 0.35 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>1.6 0.8 0.7</size></box></geometry></collision>
+        <visual name="v">
+          <geometry><box><size>1.6 0.8 0.7</size></box></geometry>
+          <material>
+            <ambient>0.85 0.15 0.15 1</ambient>
+            <diffuse>0.85 0.15 0.15 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- SEMANTIC OBJECT 2: Kitchen Dining Table -->
+    <model name="kitchen_table">
+      <static>true</static>
+      <pose>-2.2 2.5 0.4 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>1.4 1.0 0.8</size></box></geometry></collision>
+        <visual name="v">
+          <geometry><box><size>1.4 1.0 0.8</size></box></geometry>
+          <material>
+            <ambient>0.2 0.5 0.8 1</ambient>
+            <diffuse>0.2 0.5 0.8 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- SEMANTIC OBJECT 3: Storage Boxes -->
+    <model name="storage_boxes">
+      <static>true</static>
+      <pose>2.8 -1.8 0.3 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.8 0.8 0.6</size></box></geometry></collision>
+        <visual name="v">
+          <geometry><box><size>0.8 0.8 0.6</size></box></geometry>
+          <material>
+            <ambient>0.8 0.6 0.2 1</ambient>
+            <diffuse>0.8 0.6 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- SEMANTIC OBJECT 4: Charging Dock Base -->
+    <model name="charging_dock">
+      <static>true</static>
+      <pose>0.0 -3.6 0.1 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.6 0.4 0.2</size></box></geometry></collision>
+        <visual name="v">
+          <geometry><box><size>0.6 0.4 0.2</size></box></geometry>
+          <material>
+            <ambient>0.1 0.85 0.3 1</ambient>
+            <diffuse>0.1 0.85 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

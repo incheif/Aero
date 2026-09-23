@@ -21,11 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnClearLogs = document.getElementById('btn-clear-logs');
   const presetChips = document.querySelectorAll('.preset-chip');
 
-  // Presets mapping
+  // Presets mapping for Cognitive Explorer
   const presets = {
-    'standard': 'Navigate to (3.0, 3.0) avoiding obstacles with max speed 0.22 m/s',
-    'corridor': 'Navigate through tight corridor gates to (3.0, 3.0) maintaining >0.35m clearance',
-    'precision': 'Reach (3.0, 3.0) and come to a complete stop within 0.05m tolerance',
+    'find_sofa': 'Find the red sofa and navigate to it',
+    'explore_house': 'Explore unmapped rooms and chart the house',
+    'kitchen': 'Navigate to the kitchen table',
+    'dock': 'Return to charging dock',
   };
 
   presetChips.forEach((chip) => {

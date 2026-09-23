@@ -28,7 +28,7 @@
       <div>
         <h1 class="brand-title">AERO</h1>
       </div>
-      <div class="brand-subtitle">Agentic Environment for Robotic Operations</div>
+      <div class="brand-subtitle">Embodied AI • Local Gemma • Nav2 • SLAM</div>
     </div>
 
     <!-- Real-time Status Badge -->
@@ -40,11 +40,10 @@
     <!-- Model & Settings Controls -->
     <div class="nav-controls">
       <select id="model-select" class="select-model" aria-label="Select AI Model">
-        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+        <option value="gemma:2b">Gemma 2B (Local Ollama)</option>
+        <option value="gemma-2:2b">Gemma-2 2B (Local)</option>
         <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-        <option value="claude-3-7-sonnet">Claude 3.7 Sonnet</option>
-        <option value="gpt-4o">GPT-4o</option>
-        <option value="mock">Offline Deterministic Mock</option>
+        <option value="mock">Deterministic Offline Fallback</option>
       </select>
     </div>
   </header>
@@ -63,17 +62,18 @@
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            Problem Statement
+            Cognitive Instruction
           </h2>
         </div>
         <div class="card-body">
-          <textarea id="problem-prompt" class="prompt-area" aria-label="Natural Language Problem Statement" placeholder="Describe the navigation objective for the autonomous agent...">Navigate to (3.0, 3.0) avoiding obstacles with max speed 0.22 m/s</textarea>
+          <textarea id="problem-prompt" class="prompt-area" aria-label="Natural Language Problem Statement" placeholder="Give a high-level command to Gemma...">Find the red sofa and navigate to it</textarea>
 
           <!-- Preset Benchmark Chips -->
-          <div class="preset-row">
-            <button class="preset-chip" data-preset="standard">Standard Navigation</button>
-            <button class="preset-chip" data-preset="corridor">Tight Corridor</button>
-            <button class="preset-chip" data-preset="precision">Precision Docking</button>
+          <div class="preset-row" style="flex-wrap: wrap;">
+            <button class="preset-chip" data-preset="find_sofa">🛋️ Find Red Sofa</button>
+            <button class="preset-chip" data-preset="explore_house">🗺️ Explore House</button>
+            <button class="preset-chip" data-preset="kitchen">🪑 Kitchen Table</button>
+            <button class="preset-chip" data-preset="dock">⚡ Charging Dock</button>
           </div>
 
           <!-- Run Actions -->
@@ -82,10 +82,10 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
               </svg>
-              Run Agent Loop
+              Deploy Command
             </button>
             <button id="btn-run-single" class="btn" style="background: rgba(255,255,255,0.08); color: #fff;">
-              Single Trial
+              Single Step
             </button>
             <button id="btn-stop" class="btn btn-danger" disabled>
               Stop
