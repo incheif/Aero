@@ -169,12 +169,13 @@ class KinematicRobot:
             # Interior wall segments check
             for wall in arena.interior_walls:
                 x1, y1, x2, y2 = wall["x1"], wall["y1"], wall["x2"], wall["y2"]
-                # Ray-line segment intersection
-                denom = cos_a * (y1 - y2) - sin_a * (x1 - x2)
-                if abs(denom) > 1e-6:
-                    t = ((x1 - self.x) * (y1 - y2) - (y1 - self.y) * (x1 - x2)) / denom
-                    u = -((self.x - x1) * sin_a - (self.y - y1) * cos_a) / denom
-                    if t > 0 and 0 <= u <= 1 and t < ray_dist:
+                dx = x2 - x1
+                dy = y2 - y1
+                det = cos_a * dy - sin_a * dx
+                if abs(det) > 1e-6:
+                    t = ((x1 - self.x) * dy - (y1 - self.y) * dx) / det
+                    u = ((x1 - self.x) * sin_a - (y1 - self.y) * cos_a) / det
+                    if t > 0.05 and 0.0 <= u <= 1.0 and t < ray_dist:
                         ray_dist = t
 
             # Circular obstacles check
