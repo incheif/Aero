@@ -117,23 +117,26 @@
       </div>
     </section>
 
-    <!-- Column 2: Live Multi-Room Simulation Arena Viewport -->
+    <!-- Column 2: Live 3D Multi-Room Simulation Arena Viewport -->
     <section class="sim-viewport">
       <!-- Overlay Information Badges -->
       <div class="sim-overlay">
         <div class="sim-badge">
-          <span style="color: var(--accent-cyan);">●</span> Multi-Room House (12m × 10m)
+          <span style="color: var(--accent-cyan);">●</span> 3D WebGL Multi-Room House (Three.js)
         </div>
         <div class="sim-badge">
-          <span style="color: var(--accent-emerald);">●</span> Visual Camera FOV Active (65°)
+          <span style="color: var(--accent-emerald);">●</span> 3D LiDAR & Camera FOV Active
         </div>
       </div>
 
-      <!-- 60 FPS HTML5 Canvas -->
-      <canvas id="sim-canvas" class="sim-canvas"></canvas>
+      <!-- 3D Three.js WebGL Container -->
+      <div id="sim-3d-container" style="width: 100%; height: 100%; position: relative; overflow: hidden;"></div>
 
-      <!-- Viewport Controls -->
+      <!-- 3D Viewport Controls Toolbar -->
       <div class="sim-controls-toolbar">
+        <button id="btn-cam-orbit" class="tool-btn" style="background: rgba(0,229,255,0.18); color: #00e5ff; font-weight: 600;">3D Orbit</button>
+        <button id="btn-cam-top" class="tool-btn">Top Down</button>
+        <button id="btn-cam-follow" class="tool-btn">Follow Robot</button>
         <button id="btn-reset-cam" class="tool-btn" title="Reset Viewport">Reset View</button>
       </div>
     </section>
@@ -234,8 +237,10 @@
 
   </main>
 
-  <!-- Client JavaScript -->
-  <script src="/static/js/sim_canvas.js"></script>
+  <!-- Three.js 3D WebGL Engine & OrbitControls -->
+  <script src="/static/js/vendor/three.min.js"></script>
+  <script src="/static/js/vendor/OrbitControls.js"></script>
+  <script src="/static/js/sim_canvas_3d.js"></script>
   <script src="/static/js/telemetry.js"></script>
   <script src="/static/js/app.js"></script>
 </body>

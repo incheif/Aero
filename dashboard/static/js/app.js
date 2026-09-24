@@ -7,13 +7,16 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Subsystems
-  const simRenderer = new window.SimCanvasRenderer('sim-canvas');
+  const simRenderer = new window.SimCanvas3DRenderer('sim-3d-container');
   const telemetry = new window.TelemetryManager();
 
   // DOM Elements
   const chatInput = document.getElementById('chat-input');
   const btnSendGemma = document.getElementById('btn-send-gemma');
   const btnStopNav = document.getElementById('btn-stop-nav');
+  const btnCamOrbit = document.getElementById('btn-cam-orbit');
+  const btnCamTop = document.getElementById('btn-cam-top');
+  const btnCamFollow = document.getElementById('btn-cam-follow');
   const btnResetCam = document.getElementById('btn-reset-cam');
   const btnClearLogs = document.getElementById('btn-clear-logs');
   const thoughtText = document.getElementById('gemma-thought-text');
@@ -137,13 +140,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Reset Camera View
-  btnResetCam.addEventListener('click', () => {
-    simRenderer.zoom = 1.0;
-    simRenderer.panX = 0;
-    simRenderer.panY = 0;
-    simRenderer.resize();
-  });
+  // Camera View Switcher
+  function setCameraActive(activeBtn, mode) {
+    [btnCamOrbit, btnCamTop, btnCamFollow].forEach((b) => {
+      if (b) {
+        b.style.background = 'transparent';
+        b.style.color = 'var(--text-secondary)';
+        b.style.fontWeight = 'normal';
+      }
+    });
+    if (activeBtn) {
+      activeBtn.style.background = 'rgba(0, 229, 255, 0.18)';
+      activeBtn.style.color = '#00e5ff';
+      activeBtn.style.fontWeight = '600';
+    }
+    simRenderer.setCameraView(mode);
+  }
+
+  if (btnCamOrbit) btnCamOrbit.addEventListener('click', () => setCameraActive(btnCamOrbit, 'orbit'));
+  if (btnCamTop) btnCamTop.addEventListener('click', () => setCameraActive(btnCamTop, 'top'));
+  if (btnCamFollow) btnCamFollow.addEventListener('click', () => setCameraActive(btnCamFollow, 'follow'));
+  if (btnResetCam) btnResetCam.addEventListener('click', () => setCameraActive(btnCamOrbit, 'orbit'));
 
   // Clear Logs
   btnClearLogs.addEventListener('click', () => telemetry.clearLogs());
