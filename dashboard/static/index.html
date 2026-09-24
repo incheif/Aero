@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AERO — Autonomous closed-loop synthesis, compilation, testing, and self-debugging of ROS 2 control nodes in simulation.">
-  <title>AERO — Agentic Environment for Robotic Operations</title>
+  <meta name="description" content="AERO — Cognitive Embodied Navigation with Local Gemma, Nav2, SLAM, and Semantic Mapping.">
+  <title>AERO — Cognitive Embodied Navigation</title>
 
   <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,30 +20,28 @@
     <div class="nav-brand">
       <div class="brand-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#080d16" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-          <polyline points="2 17 12 22 22 17"></polyline>
-          <polyline points="2 12 12 17 22 12"></polyline>
+          <circle cx="12" cy="12" r="10"></circle>
+          <polygon points="12 8 8 12 12 16 16 12 12 8"></polygon>
         </svg>
       </div>
       <div>
-        <h1 class="brand-title">AERO</h1>
+        <h1 class="brand-title">AERO COGNITIVE</h1>
       </div>
-      <div class="brand-subtitle">Embodied AI • Local Gemma • Nav2 • SLAM</div>
+      <div class="brand-subtitle">Gemma 2B + Nav2 + SLAM + Semantic Spatial Memory</div>
     </div>
 
-    <!-- Real-time Status Badge -->
+    <!-- Status Pill -->
     <div id="status-pill" class="status-pill idle">
       <span class="status-dot"></span>
-      <span id="status-text">CONNECTING...</span>
+      <span id="status-text">SYSTEM READY</span>
     </div>
 
-    <!-- Model & Settings Controls -->
+    <!-- Brain Selector -->
     <div class="nav-controls">
-      <select id="model-select" class="select-model" aria-label="Select AI Model">
-        <option value="gemma:2b">Gemma 2B (Local Ollama)</option>
-        <option value="gemma-2:2b">Gemma-2 2B (Local)</option>
-        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-        <option value="mock">Deterministic Offline Fallback</option>
+      <select id="model-select" class="select-model" aria-label="Cognitive Brain Engine">
+        <option value="gemma-2b-local">Local Gemma 2B (Ollama)</option>
+        <option value="gemma-9b-local">Local Gemma 9B (Ollama)</option>
+        <option value="gemma-embedded">Embedded Semantic Reasoner</option>
       </select>
     </div>
   </header>
@@ -51,126 +49,161 @@
   <!-- Main 3-Column Dashboard Grid -->
   <main class="dashboard-grid">
 
-    <!-- Column 1: Problem Input & Live Code Diff -->
+    <!-- Column 1: Natural Language Commands & Gemma Thought Process -->
     <section class="panel">
-      <!-- Natural Language Problem Statement Card -->
+      <!-- Human Command Input Card -->
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
-            Cognitive Instruction
+            Human Command
           </h2>
         </div>
         <div class="card-body">
-          <textarea id="problem-prompt" class="prompt-area" aria-label="Natural Language Problem Statement" placeholder="Give a high-level command to Gemma...">Find the red sofa and navigate to it</textarea>
+          <textarea id="chat-input" class="prompt-area" aria-label="Natural Language Instruction" placeholder="Give an instruction: 'Go to the red sofa', 'Find the kitchen table', 'Explore the house'...">Go to the red sofa in the living room</textarea>
 
-          <!-- Preset Benchmark Chips -->
+          <!-- Quick Action Chips -->
           <div class="preset-row" style="flex-wrap: wrap;">
-            <button class="preset-chip" data-preset="find_sofa">🛋️ Find Red Sofa</button>
-            <button class="preset-chip" data-preset="explore_house">🗺️ Explore House</button>
-            <button class="preset-chip" data-preset="kitchen">🪑 Kitchen Table</button>
-            <button class="preset-chip" data-preset="dock">⚡ Charging Dock</button>
+            <button class="preset-chip" data-cmd="Navigate to the red sofa">🛋️ Red Sofa</button>
+            <button class="preset-chip" data-cmd="Find the kitchen table and navigate to it">🪑 Kitchen Table</button>
+            <button class="preset-chip" data-cmd="Check storage boxes for inventory">📦 Storage Boxes</button>
+            <button class="preset-chip" data-cmd="Return to charging dock">⚡ Charging Dock</button>
+            <button class="preset-chip" data-cmd="Explore the uncharted rooms">🗺️ Explore House</button>
           </div>
 
-          <!-- Run Actions -->
+          <!-- Action Buttons -->
           <div class="btn-row">
-            <button id="btn-run-loop" class="btn btn-primary">
+            <button id="btn-send-gemma" class="btn btn-primary">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
               </svg>
-              Deploy Command
+              Send to Gemma Brain
             </button>
-            <button id="btn-run-single" class="btn" style="background: rgba(255,255,255,0.08); color: #fff;">
-              Single Step
-            </button>
-            <button id="btn-stop" class="btn btn-danger" disabled>
-              Stop
-            </button>
+            <button id="btn-stop-nav" class="btn btn-danger">Stop</button>
           </div>
         </div>
       </div>
 
-      <!-- Live Code Diff Card -->
-      <div class="card code-diff-card">
+      <!-- Gemma Cognitive Thought Stream Card -->
+      <div class="card" style="flex: 1;">
         <div class="card-header">
           <h2 class="card-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="16 18 22 12 16 6"></polyline>
-              <polyline points="8 6 2 12 8 18"></polyline>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
-            Python Controller Diffs
+            Gemma Cognitive Reasoner
           </h2>
-          <button id="btn-toggle-diff" class="preset-chip" style="margin: 0;">Diff View</button>
         </div>
-        <div class="card-body" style="padding: 0;">
-          <div id="code-container" class="code-container">Loading controller_node.py...</div>
+        <div class="card-body" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Thought Bubble -->
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-sm); padding: 12px;">
+            <div style="font-size: 0.72rem; font-weight: 700; color: #f59e0b; margin-bottom: 4px; text-transform: uppercase;">Cognitive Reasoning:</div>
+            <div id="gemma-thought-text" style="font-family: var(--font-mono); font-size: 0.8rem; color: #fde68a; line-height: 1.4;">
+              System standing by. Awaiting natural language instructions.
+            </div>
+          </div>
+
+          <!-- Active Dispatched Goal -->
+          <div style="background: rgba(0, 229, 255, 0.06); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: var(--radius-sm); padding: 12px;">
+            <div style="font-size: 0.72rem; font-weight: 700; color: #00e5ff; margin-bottom: 4px; text-transform: uppercase;">Dispatched Nav2 Goal:</div>
+            <div id="gemma-active-goal" style="font-family: var(--font-mono); font-size: 0.85rem; color: #e0f2fe; font-weight: 600;">
+              Target: Red Sofa at (3.20, 3.00)
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Column 2: Live Simulation Arena Viewport -->
+    <!-- Column 2: Live Multi-Room Simulation Arena Viewport -->
     <section class="sim-viewport">
       <!-- Overlay Information Badges -->
       <div class="sim-overlay">
         <div class="sim-badge">
-          <span style="color: var(--accent-cyan);">●</span> 10m × 10m Arena
+          <span style="color: var(--accent-cyan);">●</span> Multi-Room House (12m × 10m)
         </div>
         <div class="sim-badge">
-          <span style="color: var(--accent-emerald);">●</span> Target: (3.0, 3.0)
+          <span style="color: var(--accent-emerald);">●</span> Visual Camera FOV Active (65°)
         </div>
       </div>
 
       <!-- 60 FPS HTML5 Canvas -->
       <canvas id="sim-canvas" class="sim-canvas"></canvas>
 
-      <!-- Viewport Floating Controls Toolbar -->
+      <!-- Viewport Controls -->
       <div class="sim-controls-toolbar">
-        <button id="btn-reset-cam" class="tool-btn" title="Reset Viewport">Reset Cam</button>
+        <button id="btn-reset-cam" class="tool-btn" title="Reset Viewport">Reset View</button>
       </div>
     </section>
 
-    <!-- Column 3: Ground Truth Oracle & Telemetry -->
+    <!-- Column 3: Semantic Spatial Memory & Live Telemetry -->
     <section class="panel">
-      <!-- Oracle Telemetry Card -->
+      <!-- Semantic Spatial Landmarks Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            Semantic Spatial Memory
+          </h2>
+        </div>
+        <div class="card-body" style="padding: 10px 14px;">
+          <div id="landmarks-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px;">
+              <span>🛋️ Red Sofa</span>
+              <span style="color: var(--accent-cyan); font-family: var(--font-mono);">(3.2, 3.0) Living Room</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px;">
+              <span>🪑 Kitchen Table</span>
+              <span style="color: var(--accent-cyan); font-family: var(--font-mono);">(-2.2, 2.5) Kitchen</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px;">
+              <span>📦 Storage Boxes</span>
+              <span style="color: var(--accent-cyan); font-family: var(--font-mono);">(2.8, -1.8) Storage</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px;">
+              <span>⚡ Charging Dock</span>
+              <span style="color: var(--accent-emerald); font-family: var(--font-mono);">(0.0, -3.2) Dock</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Telemetry Gauges -->
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
             </svg>
-            Ground Truth Oracle
+            Navigation Telemetry
           </h2>
-          <span id="iteration-badge" style="font-size: 0.75rem; font-weight: 700; color: var(--accent-cyan);">Iteration 1 / 5</span>
         </div>
         <div class="card-body">
-          <!-- Circular SVG Gauges -->
           <div class="telemetry-grid">
-            <!-- Gauge 1: Goal Distance -->
             <div class="gauge-card">
               <svg class="gauge-svg" viewBox="0 0 90 90">
                 <circle class="gauge-bg" cx="45" cy="45" r="38"></circle>
                 <circle id="gauge-goal-dist" class="gauge-fill" cx="45" cy="45" r="38" stroke="#00e5ff"></circle>
               </svg>
-              <div id="val-goal-dist" class="gauge-value">4.24m</div>
-              <div class="gauge-label">Goal Distance</div>
+              <div id="val-goal-dist" class="gauge-value">4.38m</div>
+              <div class="gauge-label">Target Distance</div>
             </div>
 
-            <!-- Gauge 2: Simulation Clock -->
             <div class="gauge-card">
               <svg class="gauge-svg" viewBox="0 0 90 90">
                 <circle class="gauge-bg" cx="45" cy="45" r="38"></circle>
                 <circle id="gauge-sim-clock" class="gauge-fill" cx="45" cy="45" r="38" stroke="#00e5ff"></circle>
               </svg>
               <div id="val-sim-clock" class="gauge-value">0.0s</div>
-              <div class="gauge-label">Sim Clock (30s)</div>
+              <div class="gauge-label">Elapsed Time</div>
             </div>
           </div>
 
-          <!-- Obstacle Clearance Sparkline -->
           <div class="sparkline-card">
             <div class="sparkline-header">
               <span>MIN OBSTACLE CLEARANCE</span>
@@ -181,7 +214,7 @@
         </div>
       </div>
 
-      <!-- Real-time ROS 2 Logs Terminal -->
+      <!-- Real-Time Activity Log Terminal -->
       <div class="card terminal-card">
         <div class="card-header">
           <h2 class="card-title">
@@ -189,41 +222,12 @@
               <polyline points="4 17 10 11 4 5"></polyline>
               <line x1="12" y1="19" x2="20" y2="19"></line>
             </svg>
-            Real-Time ROS 2 Logs
+            Cognitive & ROS 2 Event Stream
           </h2>
           <button id="btn-clear-logs" class="preset-chip" style="margin: 0;">Clear</button>
         </div>
         <div class="card-body" style="padding: 0;">
           <div id="terminal-logs" class="terminal-body"></div>
-        </div>
-      </div>
-
-      <!-- Iteration Timeline Card -->
-      <div class="card timeline-card">
-        <div class="card-header" style="padding: 8px 14px;">
-          <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">ITERATION TIMELINE</span>
-        </div>
-        <div class="timeline-row">
-          <div id="step-1" class="timeline-step active">
-            <div class="step-dot">1</div>
-            <span class="step-label">Trial 1</span>
-          </div>
-          <div id="step-2" class="timeline-step">
-            <div class="step-dot">2</div>
-            <span class="step-label">Trial 2</span>
-          </div>
-          <div id="step-3" class="timeline-step">
-            <div class="step-dot">3</div>
-            <span class="step-label">Trial 3</span>
-          </div>
-          <div id="step-4" class="timeline-step">
-            <div class="step-dot">4</div>
-            <span class="step-label">Trial 4</span>
-          </div>
-          <div id="step-5" class="timeline-step">
-            <div class="step-dot">5</div>
-            <span class="step-label">Trial 5</span>
-          </div>
         </div>
       </div>
     </section>
@@ -233,7 +237,6 @@
   <!-- Client JavaScript -->
   <script src="/static/js/sim_canvas.js"></script>
   <script src="/static/js/telemetry.js"></script>
-  <script src="/static/js/code_diff.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>

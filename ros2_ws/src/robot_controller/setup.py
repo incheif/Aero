@@ -23,6 +23,9 @@ setup(
     entry_points={
         'console_scripts': [
             'controller_node = robot_controller.controller_node:main',
+            'semantic_mapper = robot_controller.semantic_mapper:main',
+            'frontier_explorer = robot_controller.frontier_explorer:main',
+            'gemma_brain = robot_controller.gemma_brain_node:main',
         ],
     },
 )

@@ -1,40 +1,33 @@
 /**
  * app.js
- * Main Dashboard Coordinator for AERO.
- * Manages WebSocket connection, UI events, simulation controls, and telemetry.
+ * Cognitive Coordinator for AERO Idea B.
+ * Handles Natural Language Chat with Gemma Brain, real-time WebSocket frames,
+ * multi-room canvas updates, and semantic spatial memory telemetry.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Subsystems
   const simRenderer = new window.SimCanvasRenderer('sim-canvas');
   const telemetry = new window.TelemetryManager();
-  const codeDiff = new window.CodeDiffRenderer('code-container');
 
   // DOM Elements
-  const promptInput = document.getElementById('problem-prompt');
-  const modelSelect = document.getElementById('model-select');
-  const btnRunLoop = document.getElementById('btn-run-loop');
-  const btnRunSingle = document.getElementById('btn-run-single');
-  const btnStop = document.getElementById('btn-stop');
-  const btnToggleDiff = document.getElementById('btn-toggle-diff');
+  const chatInput = document.getElementById('chat-input');
+  const btnSendGemma = document.getElementById('btn-send-gemma');
+  const btnStopNav = document.getElementById('btn-stop-nav');
   const btnResetCam = document.getElementById('btn-reset-cam');
   const btnClearLogs = document.getElementById('btn-clear-logs');
+  const thoughtText = document.getElementById('gemma-thought-text');
+  const activeGoalText = document.getElementById('gemma-active-goal');
+  const landmarksList = document.getElementById('landmarks-list');
   const presetChips = document.querySelectorAll('.preset-chip');
 
-  // Presets mapping for Cognitive Explorer
-  const presets = {
-    'find_sofa': 'Find the red sofa and navigate to it',
-    'explore_house': 'Explore unmapped rooms and chart the house',
-    'kitchen': 'Navigate to the kitchen table',
-    'dock': 'Return to charging dock',
-  };
-
+  // Preset chips handler
   presetChips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      const key = chip.dataset.preset;
-      if (presets[key]) {
-        promptInput.value = presets[key];
-        telemetry.log(`Selected preset: ${chip.textContent}`, 'info');
+      const cmd = chip.dataset.cmd;
+      if (cmd) {
+        chatInput.value = cmd;
+        sendChatCommand(cmd);
       }
     });
   });
@@ -48,58 +41,33 @@ document.addEventListener('DOMContentLoaded', () => {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      telemetry.setStatus('IDLE');
-      telemetry.log('⚡ Connected to AERO Live Telemetry Stream', 'success');
+      telemetry.setStatus('ONLINE');
+      telemetry.log('⚡ Connected to AERO Cognitive Telemetry Stream', 'success');
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
 
-        switch (data.type) {
-          case 'init':
-            if (data.problem_statement) promptInput.value = data.problem_statement;
-            if (data.selected_model) modelSelect.value = data.selected_model;
-            telemetry.setIteration(data.iteration || 1, data.max_iterations || 5);
-            codeDiff.updateCode(data.current_code, data.previous_code);
-            if (data.sim_frame) {
-              simRenderer.updateFrame(data.sim_frame);
-              telemetry.updateMetrics(data.sim_frame);
-            }
-            break;
+        if (data.type === 'sim_frame') {
+          simRenderer.updateFrame(data);
+          telemetry.updateMetrics(data);
 
-          case 'sim_frame':
-            simRenderer.updateFrame(data);
-            telemetry.updateMetrics(data);
-            break;
+          if (data.gemma_thought && thoughtText) {
+            thoughtText.textContent = data.gemma_thought;
+          }
+          if (data.target && activeGoalText) {
+            activeGoalText.textContent = `Target: ${data.target.name || 'Goal'} at (${data.target.x.toFixed(2)}, ${data.target.y.toFixed(2)})`;
+          }
 
-          case 'status_update':
-            telemetry.setStatus(data.status);
-            telemetry.setIteration(data.iteration, data.max_iterations);
-            updateControlButtons(data.status === 'RUNNING');
-            break;
-
-          case 'code_update':
-            codeDiff.updateCode(data.current_code, data.previous_code);
-            telemetry.log(`[Iteration ${data.iteration}] Controller code updated`, 'info');
-            break;
-
-          case 'log':
-            telemetry.log(data.message, data.level || 'info');
-            break;
-
-          case 'trial_end':
-            telemetry.setStatus(data.verdict, data.reason);
-            updateControlButtons(false);
-            if (data.verdict === 'PASSED') {
-              telemetry.log(
-                `🎉 BENCHMARK PASSED! Final distance: ${data.final_distance.toFixed(3)}m in ${data.time_elapsed.toFixed(1)}s`,
-                'success'
-              );
-            } else {
-              telemetry.log(`❌ Trial failed: ${data.reason}`, 'error');
-            }
-            break;
+          // Update landmarks list if present
+          if (data.semantic_objects && landmarksList) {
+            updateLandmarksUI(data.semantic_objects);
+          }
+        } else if (data.type === 'log') {
+          telemetry.log(data.message, data.level || 'info');
+        } else if (data.type === 'status_update') {
+          telemetry.setStatus(data.status, data.reason);
         }
       } catch (err) {
         console.error('Error parsing WS message:', err);
@@ -107,74 +75,69 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     ws.onclose = () => {
-      telemetry.setStatus('DISCONNECTED');
+      telemetry.setStatus('OFFLINE');
       telemetry.log('WebSocket disconnected. Reconnecting in 2s...', 'warning');
       setTimeout(connectWebSocket, 2000);
     };
 
-    ws.onerror = (err) => {
-      console.error('WS Error:', err);
-    };
+    ws.onerror = (err) => console.error('WS Error:', err);
   }
 
   connectWebSocket();
 
-  // Control Handlers
-  async function triggerRun(mode) {
-    const payload = {
-      problem_statement: promptInput.value.trim(),
-      model: modelSelect.value,
-      max_retries: 5,
-      mode: mode,
-    };
+  // Send Natural Language Command to Gemma Brain
+  async function sendChatCommand(messageText) {
+    const text = messageText || chatInput.value.trim();
+    if (!text) return;
 
-    simRenderer.resetTrajectory();
-    updateControlButtons(true);
+    btnSendGemma.disabled = true;
+    btnSendGemma.style.opacity = '0.6';
 
     try {
-      const res = await fetch('/api/run', {
+      telemetry.log(`🗣️ Command sent to Gemma: "${text}"`, 'info');
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ message: text }),
       });
-      if (!res.ok) {
+
+      if (res.ok) {
+        const decision = await res.json();
+        if (thoughtText) thoughtText.textContent = decision.thought;
+        if (activeGoalText && decision.coordinates) {
+          activeGoalText.textContent = `Target: ${decision.target} at (${decision.coordinates[0]}, ${decision.coordinates[1]})`;
+        }
+      } else {
         const err = await res.json();
-        telemetry.log(`Run error: ${err.detail || 'Failed to start'}`, 'error');
-        updateControlButtons(false);
+        telemetry.log(`Gemma Error: ${err.detail || 'Failed to process command'}`, 'error');
       }
     } catch (e) {
       telemetry.log(`Network error: ${e.message}`, 'error');
-      updateControlButtons(false);
+    } finally {
+      btnSendGemma.disabled = false;
+      btnSendGemma.style.opacity = '1';
     }
   }
 
-  btnRunLoop.addEventListener('click', () => triggerRun('loop'));
-  btnRunSingle.addEventListener('click', () => triggerRun('single'));
+  btnSendGemma.addEventListener('click', () => sendChatCommand());
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatCommand();
+    }
+  });
 
-  btnStop.addEventListener('click', async () => {
+  // Stop button
+  btnStopNav.addEventListener('click', async () => {
     try {
       await fetch('/api/stop', { method: 'POST' });
-      updateControlButtons(false);
+      telemetry.setStatus('STOPPED');
     } catch (e) {
       console.error('Stop error:', e);
     }
   });
 
-  function updateControlButtons(isRunning) {
-    btnRunLoop.disabled = isRunning;
-    btnRunSingle.disabled = isRunning;
-    btnStop.disabled = !isRunning;
-    btnRunLoop.style.opacity = isRunning ? '0.5' : '1';
-    btnRunSingle.style.opacity = isRunning ? '0.5' : '1';
-  }
-
-  // Code Diff Toggle View
-  btnToggleDiff.addEventListener('click', () => {
-    const newMode = codeDiff.toggleViewMode();
-    btnToggleDiff.textContent = newMode === 'diff' ? 'Diff View' : 'Full View';
-  });
-
-  // Reset Camera
+  // Reset Camera View
   btnResetCam.addEventListener('click', () => {
     simRenderer.zoom = 1.0;
     simRenderer.panX = 0;
@@ -184,4 +147,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Clear Logs
   btnClearLogs.addEventListener('click', () => telemetry.clearLogs());
+
+  // Render Landmarks in UI
+  function updateLandmarksUI(objects) {
+    landmarksList.innerHTML = '';
+    objects.forEach((obj) => {
+      const row = document.createElement('div');
+      row.style.cssText =
+        'display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px; cursor: pointer;';
+
+      const left = document.createElement('span');
+      left.textContent = `${obj.icon || '📍'} ${obj.name}`;
+
+      const right = document.createElement('span');
+      right.style.fontFamily = 'var(--font-mono)';
+      right.style.color = obj.discovered ? 'var(--accent-cyan)' : 'var(--text-muted)';
+      right.textContent = obj.discovered
+        ? `(${obj.x.toFixed(1)}, ${obj.y.toFixed(1)}) ${obj.room}`
+        : '○ UNCHARTED';
+
+      row.appendChild(left);
+      row.appendChild(right);
+
+      // Clicking landmark dispatches navigation to it
+      row.addEventListener('click', () => {
+        chatInput.value = `Navigate to the ${obj.name}`;
+        sendChatCommand(`Navigate to the ${obj.name}`);
+      });
+
+      landmarksList.appendChild(row);
+    });
+  }
 });
