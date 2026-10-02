@@ -1,1 +1,0 @@
-"""AERO test suite."""
