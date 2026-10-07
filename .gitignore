@@ -1,0 +1,56 @@
+# ============================================
+# Git Ignore for Google VLA Robotics Studio
+# ============================================
+
+# Environment variables, credentials & API keys (CRITICAL - NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+.env.local
+.env.*.local
+secrets.json
+credentials.json
+api_key.txt
+api_keys/
+*.secret
+*.token
+token.json
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Scratch & temporary debug scripts
+scratch/
+*.log
+logs/
+
+# ROS 2 build artifacts
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS temporary files
+Thumbs.db
+Desktop.ini
+.DS_Store

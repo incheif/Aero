@@ -1,0 +1,14 @@
+# Core Web Server & Asynchronous Networking
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+websockets>=11.0.0
+pydantic>=2.0.0
+
+# Vision & Numerical Utilities
+pillow>=9.5.0
+
+# Google Multimodal AI / VLA SDK
+google-genai>=0.1.0
+
+# Optional Environment Variable Management
+python-dotenv>=1.0.0

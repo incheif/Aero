@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google VLA Robot Arm</title>
+  <link rel="stylesheet" href="/css/style.css?v=2.0">
+</head>
+<body>
+  <div id="app-layout">
+    <!-- Minimal Header -->
+    <header>
+      <div class="brand-section">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-title">Google VLA // Robot Arm</span>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <!-- Back to Home Link -->
+        <a href="/" class="btn-header" id="btn-home-link" title="Return to Home Portal" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Home</span>
+        </a>
+
+        <!-- Live Cost Pill -->
+        <div class="cost-pill" id="header-cost-pill" title="Cumulative VLA Inference Cost">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 6v12M15 9.5a2.5 2.5 0 0 0-5 0c0 3 5 2 5 5a2.5 2.5 0 0 1-5 0"></path>
+          </svg>
+          <span id="header-cost-val">$0.00000</span>
+        </div>
+
+        <!-- Prominent Rest Button in Header -->
+        <button class="btn-rest" id="btn-rest-header" title="Return arm to resting home pose and reset table">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          <span>Rest Arm</span>
+        </button>
+
+        <!-- API Settings Modal Button -->
+        <button class="btn-header" id="open-settings-btn" title="Configure Gemini API Key">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>API Key</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Center Stage (Framed 3D Viewport & Live Telemetry) -->
+    <main id="main-stage">
+      <!-- Framed 3D Simulation Viewport Card -->
+      <div id="viewport-container" class="viewport-compact">
+        <canvas id="canvas-3d"></canvas>
+
+        <!-- Minimal Camera & Zoom Controls Pill -->
+        <div class="viewport-floating-bar">
+          <button class="cam-btn active" data-view="orbit" id="cam-orbit" title="Orbit Camera">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 1 9 9M3 12a9 9 0 0 1 9-9"></path></svg>
+            <span>Orbit</span>
+          </button>
+          <button class="cam-btn" data-view="top" id="cam-top" title="Top-Down View">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>Top</span>
+          </button>
+          <div class="viewport-bar-divider"></div>
+          <button class="cam-btn btn-zoom" id="btn-zoom-out" title="Zoom Out (Make 3D render smaller)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>-</span>
+          </button>
+          <button class="cam-btn btn-zoom" id="btn-zoom-in" title="Zoom In">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>+</span>
+          </button>
+          <button class="cam-btn btn-zoom" id="btn-cam-reset" title="Reset Camera">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span>Reset</span>
+          </button>
+          <div class="viewport-bar-divider"></div>
+          <button class="cam-btn" id="btn-toggle-viewport-size" title="Toggle Compact / Standard Viewport Size">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            <span id="viewport-size-label">Compact</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Workcell & Kinematics Quick Dock -->
+      <div id="workcell-dock">
+        <div class="dock-metric-pill">
+          <span class="dock-label">TCP POSE</span>
+          <span class="dock-val" id="dock-tcp-pos">X: 0.08 · Y: 0.85 · Z: 0.00</span>
+        </div>
+        <div class="dock-metric-pill">
+          <span class="dock-label">GRIPPER</span>
+          <span class="dock-val" id="dock-gripper-state">100% OPEN</span>
+        </div>
+        <div class="dock-metric-pill">
+          <span class="dock-label">SIM RATE</span>
+          <span class="dock-val" id="dock-fps-val">60.0 FPS</span>
+        </div>
+        <div class="dock-metric-pill">
+          <span class="dock-label">STATUS</span>
+          <span class="dock-val" id="dock-motion-status">READY / IDLE</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Minimal Command Bar (Bottom) -->
+    <section id="command-bar-container">
+      <!-- Essential Prompt Suggestions for 5 Blocks -->
+      <div class="chips-row">
+        <button class="prompt-chip" data-prompt="Build a 5-layer tower with all 5 blocks on the target pad.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          <span>Build 5-Layer Tower</span>
+        </button>
+        <button class="prompt-chip" data-prompt="Build a 3-layer tower on the green pad with cyan base, orange middle, magenta on top.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5"/></svg>
+          <span>Build 3-Layer Tower</span>
+        </button>
+        <button class="prompt-chip" data-prompt="Pick the emerald cube and place it inside the target zone pad.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+          <span>Pick Emerald to Pad</span>
+        </button>
+        <button class="prompt-chip" data-prompt="Clear the target zone by displacing resting objects to table boundary.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <span>Clear Target Pad</span>
+        </button>
+      </div>
+
+      <!-- Command Input with Rest & Execute Buttons -->
+      <div class="command-input-wrapper">
+        <span class="cmd-icon">✦</span>
+        <input
+          type="text"
+          id="command-input"
+          placeholder="Type instruction (e.g. 'Build a 3-layer tower', 'Move cyan to pad')..."
+          autocomplete="off"
+        />
+        <!-- Rest Button right inside command area -->
+        <button class="btn-rest-inline" id="btn-rest-inline" title="Rest arm in home pose and reset table">
+          Rest
+        </button>
+        <button class="send-btn" id="send-command-btn">
+          <span>Execute</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Minimal Telemetry & Cost Panel (Right Side) -->
+    <aside id="telemetry-panel">
+      <!-- 1. VLA Status & Reasoning -->
+      <div class="card">
+        <div class="card-title">
+          <span>VLA Agent</span>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">EMBEDDED</span>
+            <span class="thought-status-badge" id="vla-status-badge">IDLE</span>
+          </div>
+        </div>
+        <div class="thought-box" id="vla-thought-box">
+          Ready. Enter an instruction to begin.
+        </div>
+        <div class="plan-progress-container">
+          <div class="progress-header">
+            <span>Action Progress</span>
+            <span id="vla-progress-text">Idle</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar-fill" id="vla-progress-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Minimal VLA Cost & Token Tracking Card -->
+      <div class="card" id="cost-card">
+        <div class="card-title">
+          <span>VLA Cost & Tokens</span>
+          <button class="btn-ctrl" id="btn-reset-cost">Reset Cost</button>
+        </div>
+        <div class="cost-hero-row">
+          <div>
+            <div class="cost-label">Session Cost</div>
+            <div class="cost-total-amount" id="cost-total-display">$0.00000</div>
+          </div>
+          <div class="cost-rate-badge" id="cost-model-badge">Gemini 2.5 Flash</div>
+        </div>
+
+        <div class="token-metrics-grid">
+          <div class="token-metric-item">
+            <span class="token-metric-label">Input Tokens</span>
+            <span class="token-metric-val" id="input-tokens-display">0</span>
+          </div>
+          <div class="token-metric-item">
+            <span class="token-metric-label">Output Tokens</span>
+            <span class="token-metric-val" id="output-tokens-display">0</span>
+          </div>
+          <div class="token-metric-item">
+            <span class="token-metric-label">Total Calls</span>
+            <span class="token-metric-val" id="calls-count-display">0 calls</span>
+          </div>
+          <div class="token-metric-item">
+            <span class="token-metric-label">Last Call</span>
+            <span class="token-metric-val" id="last-call-cost-display">$0.00000</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Dedicated Rest Arm Button Card -->
+      <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn-rest-hero" id="btn-rest-main">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          Rest Arm / Reset Simulation
+        </button>
+        <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
+          Returns arm to resting home pose and resets blocks
+        </span>
+      </div>
+    </aside>
+  </div>
+
+  <!-- API Settings Modal Dialog -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-box">
+      <h3 class="modal-title">Google Gemini VLA Settings</h3>
+      <p class="modal-desc">
+        Configure your Google AI Studio API Key for live multimodal Gemini VLA reasoning. If left blank, the embedded offline VLA policy runs autonomously at zero cost.
+      </p>
+      <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 4px;">GEMINI_API_KEY</label>
+      <input type="password" id="api-key-input" class="modal-input" placeholder="AIzaSy...">
+
+      <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 4px;">Model</label>
+      <select id="model-select" class="modal-input" style="cursor: pointer;">
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash ($0.075 / 1M in, $0.30 / 1M out)</option>
+        <option value="gemini-2.0-flash">Gemini 2.0 Flash ($0.10 / 1M in, $0.40 / 1M out)</option>
+        <option value="gemini-1.5-pro">Gemini 1.5 Pro ($1.25 / 1M in, $5.00 / 1M out)</option>
+      </select>
+
+      <div class="modal-actions">
+        <button class="btn-header" id="test-key-btn" style="margin-right: auto;">Test API Key</button>
+        <button class="btn-header" id="close-settings-btn">Cancel</button>
+        <button class="send-btn" id="save-settings-btn">Save</button>
+      </div>
+      <div id="key-test-feedback" style="font-family: var(--font-mono); font-size: 0.72rem; margin-top: 12px; color: var(--mono-300); min-height: 16px;"></div>
+    </div>
+  </div>
+
+  <!-- Three.js and Vendor Scripts -->
+  <script src="/js/vendor/three.min.js"></script>
+  <script src="/js/vendor/OrbitControls.js"></script>
+  <!-- Application & Viewport Scripts -->
+  <script src="/js/sim_canvas_3d.js?v=2.0"></script>
+  <script src="/js/app.js?v=2.0"></script>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google VLA // Autonomous Robotic Manipulation Studio</title>
+  <meta name="description" content="Next-generation autonomous robotic manipulation studio combining Google Vision-Language-Action, 3D Semantic Spatial SLAM, Rapier3D physics-aligned kinematics, and real-time Three.js WebGL studio.">
+  <link rel="stylesheet" href="/css/home.css">
+</head>
+<body>
+
+  <!-- Sticky Navigation Bar -->
+  <header class="navbar">
+    <div class="home-container nav-wrapper">
+      <a href="/" class="brand" id="brand-link">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+        </div>
+        <div class="brand-title">
+          <span>Google VLA</span>
+          <span style="color: var(--text-dim);">//</span>
+          <span>Robotics</span>
+          <span class="brand-badge">STUDIO</span>
+        </div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#overview" class="nav-link">Overview</a></li>
+        <li><a href="#capabilities" class="nav-link">Capabilities</a></li>
+        <li><a href="#commands" class="nav-link">Commands</a></li>
+        <li><a href="#roadmap" class="nav-link">Phase 2</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <div class="status-pill" id="server-status-pill" title="Live simulation core status">
+          <span class="status-dot" id="server-status-dot"></span>
+          <span id="server-status-text">ONLINE / 60 FPS</span>
+        </div>
+        <a href="/studio" class="btn-primary" id="btn-launch-nav">
+          <span>Launch Studio</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="home-container" id="overview">
+    <section class="hero">
+      <div class="hero-tag">
+        <span class="badge-star">✦</span>
+        <span>Google Gemini 2.5 Flash Multimodal Reasoning + 3D WebGL Studio</span>
+      </div>
+
+      <h1 class="hero-title">
+        Autonomous Robotic Manipulation & Vision-Language-Action Platform
+      </h1>
+
+      <p class="hero-desc">
+        A unified robotics studio translating natural-language instructions into metric-locked manipulation trajectories using Google VLA, 3D Tabletop Semantic Spatial Mapping, Rapier3D physics-aligned kinematics, and live 60 FPS Three.js telemetry.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="/studio" class="btn-primary btn-hero-launch" id="btn-hero-launch-primary">
+          <span>Launch Interactive 3D Studio</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </a>
+        <a href="#capabilities" class="btn-secondary" id="btn-explore-specs">
+          <span>Explore Architecture</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Live Statistics Strip -->
+      <div class="stats-strip" id="stats-strip">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-fps">60 FPS</div>
+          <div class="stat-label">Physics Simulation Core</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">5-DOF</div>
+          <div class="stat-label">Articulated Kinematics</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">5 Cubes</div>
+          <div class="stat-label">Dynamic Tabletop Entities</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-cost">$0.00005</div>
+          <div class="stat-label">Avg VLA Inference Cost</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Capabilities Grid -->
+    <section id="capabilities" style="padding-top: 40px;">
+      <div class="section-header">
+        <div class="section-subtitle">System Architecture</div>
+        <h2 class="section-title">Core Engineering Foundations</h2>
+      </div>
+
+      <div class="features-grid">
+        <!-- Card 1: Google VLA -->
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Google Vision-Language-Action</h3>
+          <p class="feature-desc">
+            Dual-mode cognitive reasoning engine. Ingests top-down camera frames and spatial memory to synthesize action plans using Google Gemini 2.5/2.0 Flash, with an embedded deterministic runtime for zero-cost offline execution.
+          </p>
+        </article>
+
+        <!-- Card 2: 3D Semantic Spatial Mapping -->
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <h3 class="feature-title">3D Semantic Spatial SLAM</h3>
+          <p class="feature-desc">
+            Persistent spatial affordance memory tracking entity bounding volumes, contact relationships, grasp clearances, and dynamic tower layer states (Base, Mid, Apex).
+          </p>
+        </article>
+
+        <!-- Card 3: Zero-Impulse Kinematics -->
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Zero-Impulse Kinematics</h3>
+          <p class="feature-desc">
+            5-DOF analytical geometric IK with contact stabilization dwell, anti-topple stationary jaw release, and dynamic transit altitude clamping (&le; 1.12m) to prevent toppling during multi-layer stacking.
+          </p>
+        </article>
+
+        <!-- Card 4: Frontier Exploration -->
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+            </svg>
+          </div>
+          <h3 class="feature-title">Tabletop Frontier Exploration</h3>
+          <p class="feature-desc">
+            Autonomous multi-view visual scanning across NW, NE, SW, and SE table quadrants at safe hover altitude (0.855m) to resolve occlusions and guarantee 100% table coverage.
+          </p>
+        </article>
+
+        <!-- Card 5: Three.js 3D Viewport -->
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <h3 class="feature-title">60 FPS WebGL Studio</h3>
+          <p class="feature-desc">
+            Monochromatic noir Three.js 3D viewport featuring an articulated Panda-style cobot, OrbitControls, studio lighting, glowing TCP trajectory trails, and multi-camera perspectives (Orbit & Top View).
+          </p>
+        </article>
+
+        <!-- Card 6: ROS 2 Package Integration -->
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+          </div>
+          <h3 class="feature-title">Native ROS 2 Ecosystem</h3>
+          <p class="feature-desc">
+            Complete ROS 2 package (<code style="font-family: var(--font-mono); font-size: 0.85em;">vla_robot_arm</code>) with cognitive thought publishers, action plan streams, semantic map nodes, and launch configurations for ROS 2 Humble/Jazzy.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Command Showcase Section -->
+    <section id="commands" style="padding-top: 20px;">
+      <div class="section-header">
+        <div class="section-subtitle">Natural-Language Interaction</div>
+        <h2 class="section-title">Verified Manipulation Commands</h2>
+      </div>
+
+      <div class="cmd-showcase-section">
+        <div class="showcase-grid">
+          <!-- Item 1 -->
+          <div class="cmd-card">
+            <div class="cmd-badge-row">
+              <span class="cmd-type">Multi-Layer Stacking</span>
+              <span class="cmd-tag">3 Layers</span>
+            </div>
+            <div class="cmd-text">
+              "Build a 3-layer tower on the green pad with cyan base, orange middle, magenta on top."
+            </div>
+            <div class="cmd-footer">
+              <span>Verified Metric Alignment</span>
+              <a href="/studio?cmd=Build+a+3-layer+tower+on+the+green+pad+with+cyan+base,+orange+middle,+magenta+on+top." class="cmd-action-link">
+                <span>Run in Studio</span> →
+              </a>
+            </div>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="cmd-card">
+            <div class="cmd-badge-row">
+              <span class="cmd-type">Apex Stacking</span>
+              <span class="cmd-tag">5 Layers</span>
+            </div>
+            <div class="cmd-text">
+              "Build a 5-layer tower with all 5 blocks on the target pad."
+            </div>
+            <div class="cmd-footer">
+              <span>Full Workcell Utilization</span>
+              <a href="/studio?cmd=Build+a+5-layer+tower+with+all+5+blocks+on+the+target+pad." class="cmd-action-link">
+                <span>Run in Studio</span> →
+              </a>
+            </div>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="cmd-card">
+            <div class="cmd-badge-row">
+              <span class="cmd-type">Single-Object Pick</span>
+              <span class="cmd-tag">Pick & Place</span>
+            </div>
+            <div class="cmd-text">
+              "Pick the emerald cube and place it inside the target zone pad."
+            </div>
+            <div class="cmd-footer">
+              <span>Centering Tolerance &plusmn;30mm</span>
+              <a href="/studio?cmd=Pick+the+emerald+cube+and+place+it+inside+the+target+zone+pad." class="cmd-action-link">
+                <span>Run in Studio</span> →
+              </a>
+            </div>
+          </div>
+
+          <!-- Item 4 -->
+          <div class="cmd-card">
+            <div class="cmd-badge-row">
+              <span class="cmd-type">Active Perception</span>
+              <span class="cmd-tag">SLAM Coverage</span>
+            </div>
+            <div class="cmd-text">
+              "Explore the workspace, scan table quadrants, and update the 3D semantic memory map."
+            </div>
+            <div class="cmd-footer">
+              <span>100% Tabletop Coverage</span>
+              <a href="/studio?cmd=Explore+the+workspace,+scan+table+quadrants,+and+update+the+3D+semantic+memory+map." class="cmd-action-link">
+                <span>Run in Studio</span> →
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 2 Roadmap Showcase -->
+    <section id="roadmap" style="padding-top: 20px;">
+      <div class="phase2-banner">
+        <div class="phase2-content">
+          <div>
+            <div class="phase2-tag">PHASE 2 ROADMAP IN PROGRESS</div>
+            <h3 class="phase2-title">Autonomous Mobile Manipulator (AMR + Robot Arm)</h3>
+            <p class="phase2-desc">
+              Expanding beyond the tabletop workcell into an agile wheeled mobile base equipped with the articulated robot arm. Enables multi-station facility navigation, supply shelf retrieval, and delivery logistics.
+            </p>
+            <div class="phase2-features">
+              <div class="phase2-feature-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Differential Drive Base</span>
+              </div>
+              <div class="phase2-feature-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Multi-Station Fetch & Carry</span>
+              </div>
+              <div class="phase2-feature-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Follow Cam Viewport</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <a href="/studio" class="btn-primary" style="white-space: nowrap; padding: 12px 26px;">
+              <span>Try Phase 1 Studio</span> →
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="home-container footer-wrapper">
+      <div>
+        <span style="color: #fff; font-weight: 600;">Google VLA Robot Arm Studio</span>
+        <span style="font-family: var(--font-mono); margin-left: 12px; font-size: 0.75rem;">v2.4.0-stable</span>
+      </div>
+      <div class="footer-links">
+        <a href="/studio" class="footer-link">3D Studio</a>
+        <a href="#overview" class="footer-link">Overview</a>
+        <a href="#capabilities" class="footer-link">Architecture</a>
+        <a href="#commands" class="footer-link">Commands</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Script for live status polling on home page -->
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const resp = await fetch('/api/semantic_map');
+        if (resp.ok) {
+          const dot = document.getElementById('server-status-dot');
+          const text = document.getElementById('server-status-text');
+          if (dot) dot.style.backgroundColor = '#10b981';
+          if (text) text.innerText = 'ONLINE / 60 FPS';
+        }
+      } catch (e) {
+        const text = document.getElementById('server-status-text');
+        if (text) text.innerText = 'OFFLINE';
+      }
+
+      // Fetch cost metrics for stat display
+      try {
+        const costResp = await fetch('/api/vla/cost');
+        if (costResp.ok) {
+          const costData = await costResp.json();
+          const costEl = document.getElementById('stat-cost');
+          if (costEl && costData.avg_cost_per_call_usd > 0) {
+            costEl.innerText = `$${costData.avg_cost_per_call_usd.toFixed(5)}`;
+          }
+        }
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>
