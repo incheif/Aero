@@ -13,6 +13,13 @@ import webbrowser
 import threading
 import time
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -37,10 +44,10 @@ def main():
     url = f"http://{host}:{port}"
 
     print("========================================================================")
-    print("🤖 Google VLA Robot Arm Autonomous Manipulation Studio")
-    print("   Combining Google Vision-Language-Action, 3D Semantic Spatial Mapping,")
-    print("   Tabletop Frontier Exploration, and Rapier3D Kinematics")
-    print(f"   Interactive Dashboard: {url}")
+    print("[*] Google VLA Robot Arm Autonomous Manipulation Studio")
+    print("    Combining Google Vision-Language-Action, 3D Semantic Spatial Mapping,")
+    print("    Tabletop Frontier Exploration, and Rapier3D Kinematics")
+    print(f"    Interactive Dashboard: {url}")
     print("========================================================================")
 
     # Launch browser in a background daemon thread
