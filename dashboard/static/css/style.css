@@ -520,6 +520,22 @@ header {
   max-height: 120px;
   overflow-y: auto;
   border-left: 2px solid var(--mono-white);
+  transition: all 0.3s ease;
+}
+
+.thought-box.rejected {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  border-left: 3px solid #ef4444;
+  color: #fca5a5;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+}
+
+.thought-box.gesture {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.3);
+  border-left: 3px solid #3b82f6;
+  color: #93c5fd;
 }
 
 .thought-status-badge {
@@ -531,6 +547,13 @@ header {
   border: 1px solid var(--border-glass-bright);
   color: var(--mono-white);
   font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.thought-status-badge.badge-rejected {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #f87171;
 }
 
 .plan-progress-container {

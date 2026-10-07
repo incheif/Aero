@@ -21,6 +21,7 @@ from simulation.constants import (
 )
 from simulation.camera import render_camera_frame, encode_image_base64, world_to_pixel
 from .cost_tracker import VLACostTracker
+from .instruction_interpreter import InstructionInterpreter
 
 # Support both modern Google GenAI SDK (google-genai v1.x) and legacy (google-generativeai)
 import warnings
@@ -57,11 +58,12 @@ class GoogleVLAAgent:
     def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-2.5-flash"):
         self.api_key = (api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")).strip()
         self.model_name = model_name
+        self.interpreter = InstructionInterpreter(api_key=self.api_key, model_name=self.model_name)
         self.active_plan: List[Dict[str, Any]] = []
         self.current_step_idx: int = 0
         self.latest_thought: str = "System ready. Awaiting natural-language command."
         self.latest_grounding: List[Dict[str, Any]] = []
-        self.execution_status: str = "IDLE"  # IDLE, REASONING, EXECUTING, VERIFYING, COMPLETED, FAILED
+        self.execution_status: str = "IDLE"  # IDLE, REASONING, EXECUTING, VERIFYING, COMPLETED, FAILED, REJECTED
         self.active_mode: str = "embedded"  # 'live_cloud' or 'embedded'
         self.last_api_error: Optional[str] = None
         self.cost_tracker = VLACostTracker()
@@ -69,6 +71,7 @@ class GoogleVLAAgent:
     def set_api_key(self, api_key: str):
         self.api_key = (api_key or "").strip()
         self.last_api_error = None
+        self.interpreter.set_api_key(self.api_key)
         print(f"[Google VLA] API Key set (length: {len(self.api_key)}). Live Gemini calls enabled.")
 
     def test_api_key(self, test_key: Optional[str] = None) -> Tuple[bool, str]:
@@ -99,6 +102,48 @@ class GoogleVLAAgent:
 
         return False, "No response received from Google Gemini API."
 
+    def _generate_gesture_plan(self, gesture_name: str) -> List[Dict[str, Any]]:
+        """Generates trajectory waypoints for expressive robotic arm gestures."""
+        if gesture_name in ("wave_high", "wave", "wave_hello"):
+            return [
+                {"action": "LIFT_HIGH", "target": (0.22, 1.02, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Lift arm high into view"},
+                {"action": "WAVE_LEFT", "target": (0.22, 1.02, -0.16), "gripper": 0.5, "dwell_ticks": 14, "desc": "Wave left & open fingers"},
+                {"action": "WAVE_RIGHT", "target": (0.22, 1.02, 0.16), "gripper": 0.0, "dwell_ticks": 14, "desc": "Wave right & close fingers"},
+                {"action": "WAVE_LEFT", "target": (0.22, 1.02, -0.16), "gripper": 0.5, "dwell_ticks": 14, "desc": "Wave left & open fingers"},
+                {"action": "WAVE_RIGHT", "target": (0.22, 1.02, 0.16), "gripper": 0.0, "dwell_ticks": 14, "desc": "Wave right & close fingers"},
+                {"action": "CENTER_HIGH", "target": (0.22, 1.02, 0.0), "gripper": 0.0, "dwell_ticks": 12, "desc": "Center arm"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Return to standby hover"},
+            ]
+        elif gesture_name == "nod":
+            return [
+                {"action": "NOD_UP", "target": (0.25, 0.90, 0.0), "gripper": 0.0, "dwell_ticks": 12, "desc": "Tilt up"},
+                {"action": "NOD_DOWN", "target": (0.25, 0.80, 0.0), "gripper": 0.0, "dwell_ticks": 14, "desc": "Nod down"},
+                {"action": "NOD_UP", "target": (0.25, 0.90, 0.0), "gripper": 0.0, "dwell_ticks": 12, "desc": "Tilt up"},
+                {"action": "NOD_DOWN", "target": (0.25, 0.80, 0.0), "gripper": 0.0, "dwell_ticks": 14, "desc": "Nod down"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 14, "desc": "Return to standby"},
+            ]
+        elif gesture_name == "celebrate":
+            return [
+                {"action": "VICTORY_HIGH", "target": (0.20, 1.05, 0.0), "gripper": 1.0, "dwell_ticks": 16, "desc": "Raise arm high & grip"},
+                {"action": "VICTORY_OPEN", "target": (0.20, 1.05, 0.0), "gripper": 0.0, "dwell_ticks": 12, "desc": "Release jaws"},
+                {"action": "VICTORY_LEFT", "target": (0.20, 1.02, -0.15), "gripper": 1.0, "dwell_ticks": 14, "desc": "Swing left"},
+                {"action": "VICTORY_RIGHT", "target": (0.20, 1.02, 0.15), "gripper": 0.0, "dwell_ticks": 14, "desc": "Swing right"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Return to standby"},
+            ]
+        elif gesture_name == "point_pad":
+            return [
+                {"action": "POINT_PAD", "target": (0.42, 0.82, 0.18), "gripper": 1.0, "dwell_ticks": 35, "desc": "Aim TCP directly at green target pad"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Return to standby"},
+            ]
+        elif gesture_name == "shake_head":
+            return [
+                {"action": "SHAKE_LEFT", "target": (0.22, SAFE_HOVER_Y, -0.18), "gripper": 0.0, "dwell_ticks": 14, "desc": "Turn left"},
+                {"action": "SHAKE_RIGHT", "target": (0.22, SAFE_HOVER_Y, 0.18), "gripper": 0.0, "dwell_ticks": 14, "desc": "Turn right"},
+                {"action": "SHAKE_LEFT", "target": (0.22, SAFE_HOVER_Y, -0.18), "gripper": 0.0, "dwell_ticks": 14, "desc": "Turn left"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 14, "desc": "Return to center"},
+            ]
+        return []
+
     def parse_instruction(
         self,
         instruction: str,
@@ -107,17 +152,57 @@ class GoogleVLAAgent:
         semantic_summary: str
     ) -> Dict[str, Any]:
         """
-        Processes natural-language command using Google VLA.
-        Tries live Google Gemini Multimodal Cloud VLA first if API key is provided.
-        Falls back to the Embedded Deterministic VLA Runtime if API key is missing or fails.
+        Processes natural-language command using Google VLA with cognitive pre-processing:
+        1. Validates physical feasibility against workcell constraints (block count, rigid body, kinematics).
+        2. Rejects impossible commands (tower >5 blocks, break/crush blocks, throw objects, fly).
+        3. Supports communicative gestures (wave high, nod, celebrate, point).
+        4. Disambiguates tower layer counts (e.g. 3 layers strictly stacks 3 blocks) and maps colors.
         """
         self.execution_status = "REASONING"
         self.latest_thought = f"Google VLA analyzing visual frame for instruction: '{instruction}'..."
 
-        # 1. Try live Google Gemini VLA API if configured
+        # 1. Cognitive Pre-Processing & Feasibility Validation (LLM or deterministic rule engine)
+        interpretation = self.interpreter.interpret(instruction)
+
+        # Handle physically impossible or out-of-scope instructions
+        if not interpretation.get("is_possible", True) or interpretation.get("status") == "IMPOSSIBLE":
+            self.execution_status = "REJECTED"
+            self.latest_thought = interpretation.get("reason", "Instruction is physically infeasible in this workcell.")
+            self.active_plan = []
+            self.latest_grounding = []
+            return {
+                "is_possible": False,
+                "status": "IMPOSSIBLE",
+                "source": "Google VLA Cognitive Reasoner",
+                "thought": self.latest_thought,
+                "reason": interpretation.get("reason"),
+                "plan": [],
+                "grounding": [],
+                "cost_summary": self.cost_tracker.to_dict(),
+            }
+
+        # Handle communicative gestures (wave high, wave hello, nod, celebrate, point, etc.)
+        if interpretation.get("action_type") == "GESTURE":
+            gesture_name = interpretation.get("gesture_name", "wave_high")
+            self.active_plan = self._generate_gesture_plan(gesture_name)
+            self.latest_thought = interpretation.get("thought", f"Google VLA: Executing gesture '{gesture_name}'.")
+            self.latest_grounding = []
+            self.current_step_idx = 0
+            self.execution_status = "EXECUTING" if self.active_plan else "COMPLETED"
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "source": "Google VLA Gesture Controller",
+                "thought": self.latest_thought,
+                "plan": self.active_plan,
+                "grounding": [],
+                "cost_summary": self.cost_tracker.to_dict(),
+            }
+
+        # 2. Try live Google Gemini VLA API if configured
         if self.api_key and GOOGLE_GENAI_AVAILABLE:
             try:
-                live_result = self._call_gemini_vla(instruction, image, snapshot, semantic_summary)
+                live_result = self._call_gemini_vla(instruction, image, snapshot, semantic_summary, interpretation)
                 if live_result:
                     return live_result
             except Exception as e:
@@ -127,8 +212,8 @@ class GoogleVLAAgent:
             if not self.api_key:
                 self.last_api_error = "No API key configured. Enter your Gemini API key in Settings to connect to Google Cloud VLA."
 
-        # 2. Embedded Google VLA Runtime (High-Performance Deterministic Policy)
-        result = self._embedded_vla_policy(instruction, snapshot)
+        # 3. Embedded Google VLA Runtime (High-Performance Deterministic Policy)
+        result = self._embedded_vla_policy(instruction, snapshot, interpretation)
         if self.last_api_error:
             result["api_warning"] = self.last_api_error
         return result
@@ -138,7 +223,8 @@ class GoogleVLAAgent:
         instruction: str,
         image: Image.Image,
         snapshot: Dict[str, Any],
-        semantic_summary: str
+        semantic_summary: str,
+        interpretation: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Calls Google Gemini Vision API with structured multimodal robotics prompt."""
         if not self.api_key:
@@ -254,8 +340,17 @@ Output a JSON object ONLY with the following schema:
                     elif clr in color_to_id and color_to_id[clr] not in grounded_seq:
                         grounded_seq.append(color_to_id[clr])
 
-            is_stack_cmd = any(w in instruction.lower() for w in ("stack", "tower", "layer", "tier", "pad", "build"))
+            is_stack_cmd = any(w in instruction.lower() for w in ("stack", "tower", "layer", "tier", "pad", "build", "twer", "towr"))
+            target_layers = interpretation.get("layer_count", len(grounded_seq) or 5) if interpretation else 5
+
+            # If interpretation provided target blocks (handles color mapping like red->magenta, blue->cyan), prioritize them
+            if interpretation and interpretation.get("target_blocks"):
+                interp_blocks = [b for b in interpretation["target_blocks"] if b in blocks_by_id]
+                if interp_blocks and (len(grounded_seq) != target_layers or not grounded_seq):
+                    grounded_seq = interp_blocks[:target_layers]
+
             if is_stack_cmd and grounded_seq:
+                grounded_seq = grounded_seq[:target_layers]
                 synthesized_plan = []
                 for layer_idx, b_id in enumerate(grounded_seq):
                     b = blocks_by_id[b_id]
@@ -267,12 +362,14 @@ Output a JSON object ONLY with the following schema:
             elif raw_plan:
                 self.active_plan = self._sanitize_raw_plan(raw_plan)
             else:
-                self.active_plan = self._embedded_vla_policy(instruction, snapshot).get("plan", [])
+                self.active_plan = self._embedded_vla_policy(instruction, snapshot, interpretation).get("plan", [])
 
             self.current_step_idx = 0
             self.execution_status = "EXECUTING" if self.active_plan else "COMPLETED"
             self.active_mode = "live_cloud"
             return {
+                "is_possible": True,
+                "status": "OK",
                 "source": f"Google Gemini Live Cloud ({self.model_name})",
                 "mode": "live_cloud",
                 "thought": self.latest_thought,
@@ -312,22 +409,30 @@ Output a JSON object ONLY with the following schema:
             })
         return sanitized
 
-    def _embedded_vla_policy(self, instruction: str, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    def _embedded_vla_policy(
+        self,
+        instruction: str,
+        snapshot: Dict[str, Any],
+        interpretation: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """
         Embedded Google VLA Runtime.
         Implements metric-locked stacking, exploration, and pick-and-place algorithms for 5 blocks.
-        Parses layer counts (1 to 5 layers) and explicit block combinations.
+        Strictly enforces parsed layer counts (1 to 5 layers) and mapped block combinations.
         """
-        cmd = instruction.lower().strip()
+        if interpretation is None:
+            interpretation = self.interpreter.interpret(instruction)
+
         blocks = {b["id"]: b for b in snapshot.get("blocks", [])}
         plan: List[Dict[str, Any]] = []
         thought: str = ""
         grounding: List[Dict[str, Any]] = []
 
         all_block_ids = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald"]
+        action_type = interpretation.get("action_type", "STACK_TOWER")
 
         # 1. Autonomous Exploration Command
-        if any(w in cmd for w in ("explore", "scan", "survey", "search", "map")):
+        if action_type == "EXPLORE":
             thought = (
                 "Google VLA Perception: High-level exploration command detected. "
                 "Synthesizing multi-quadrant sweeping trajectory at safe hover altitude (0.855m) "
@@ -343,7 +448,7 @@ Output a JSON object ONLY with the following schema:
             ]
 
         # 2. Reset or Clear Target Zone
-        elif any(w in cmd for w in ("clear", "empty", "remove", "displace")):
+        elif action_type == "CLEAR":
             thought = (
                 "Google VLA Cognitive Reasoner: Clearing target zone. "
                 "Identifying block closest to pad tolerance [0.48, 0.22] "
@@ -356,77 +461,20 @@ Output a JSON object ONLY with the following schema:
             bx, by, bz = pad_block["position"]
             plan = self._generate_pick_and_place(bx, bz, -0.10, -0.15, PICK_Y, pad_block["name"])
 
-        # 3. Specific Single Block Pick & Place without stacking (e.g. "move yellow to pad", "pick emerald")
-        elif any(color in cmd for color in ("cyan", "orange", "magenta", "yellow", "emerald", "green")) and not any(w in cmd for w in ("stack", "tower", "all", "layer", "tier", "blocks")):
-            target_id = None
-            if "cyan" in cmd: target_id = "block_cyan"
-            elif "orange" in cmd: target_id = "block_orange"
-            elif "magenta" in cmd: target_id = "block_magenta"
-            elif "yellow" in cmd: target_id = "block_yellow"
-            elif "emerald" in cmd or "green" in cmd: target_id = "block_emerald"
-
-            if target_id and target_id in blocks:
-                b = blocks[target_id]
-                bx, by, bz = b["position"]
-                thought = f"Google VLA: User requested manipulation of {b['name']}. Planning pick-and-place to target pad base layer."
-                plan = self._generate_pick_and_place(bx, bz, STACK_ORIGIN[0], STACK_ORIGIN[2], stack_slot_y(0), b["name"])
-
-        # 4. Tower Stacking (Dynamic Layer Parsing: 1 to 5 layers)
-        else:
-            # Determine number of layers requested by user
-            target_layers = 5  # default when asking to stack or build tower
-            if re.search(r"\b(1|one|single)\s*(layer|block|tier|level|high)\b", cmd) or "1 layer" in cmd or "1-layer" in cmd or "one layer" in cmd:
-                target_layers = 1
-            elif re.search(r"\b(2|two|double)\s*(layer|block|tier|level|high)\b", cmd) or "2 layer" in cmd or "2-layer" in cmd or "two layer" in cmd or "stack 2" in cmd or "stack two" in cmd:
-                target_layers = 2
-            elif re.search(r"\b(3|three|triple)\s*(layer|block|tier|level|high)\b", cmd) or "3 layer" in cmd or "3-layer" in cmd or "three layer" in cmd or "stack 3" in cmd or "stack three" in cmd:
-                target_layers = 3
-            elif re.search(r"\b(4|four|quad)\s*(layer|block|tier|level|high)\b", cmd) or "4 layer" in cmd or "4-layer" in cmd or "four layer" in cmd or "stack 4" in cmd or "stack four" in cmd:
-                target_layers = 4
-            elif re.search(r"\b(5|five|quintuple)\s*(layer|block|tier|level|high)\b", cmd) or "5 layer" in cmd or "5-layer" in cmd or "five layer" in cmd or "stack 5" in cmd or "stack five" in cmd or "all 5" in cmd or "all five" in cmd or "all blocks" in cmd or "all" in cmd:
-                target_layers = 5
-
-            # Determine blocks to use based on instruction
-            blocks_to_use = []
-
-            # 1. Check explicit role assignments (base, middle, top)
-            role_map = {}
-            color_candidates = [
-                ("cyan", "block_cyan"),
-                ("orange", "block_orange"),
-                ("magenta", "block_magenta"),
-                ("yellow", "block_yellow"),
-                ("emerald", "block_emerald"),
+        # 3. Rest or Standby Pose
+        elif action_type == "REST":
+            thought = "Google VLA: Returning robot arm to home standby configuration."
+            plan = [
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "desc": "Return to rest pose"}
             ]
-            if "green" in cmd and not any(p in cmd for p in ("green pad", "green target", "green zone")):
-                color_candidates.append(("green", "block_emerald"))
 
-            for clr, b_id in color_candidates:
-                if re.search(rf"\b(?:{clr}\s+(?:as\s+)?base|base\s+(?:layer\s+)?{clr})\b", cmd):
-                    role_map[0] = b_id
-                elif re.search(rf"\b(?:{clr}\s+(?:as\s+)?(?:middle|mid|second)|(?:middle|mid|second)\s+(?:layer\s+)?{clr})\b", cmd):
-                    role_map[1] = b_id
-                elif re.search(rf"\b(?:{clr}\s+(?:as\s+)?(?:top|apex|third)|(?:top|apex|third)\s+(?:layer\s+)?{clr}|{clr}\s+on\s+top)\b", cmd):
-                    role_map[2] = b_id
+        # 4. Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
+        else:
+            target_layers = interpretation.get("layer_count", 5)
+            interp_targets = interpretation.get("target_blocks", [])
+            blocks_to_use = [b for b in interp_targets if b in blocks][:target_layers]
 
-            if role_map:
-                for idx in sorted(role_map.keys()):
-                    if role_map[idx] not in blocks_to_use:
-                        blocks_to_use.append(role_map[idx])
-
-            # 2. If no explicit roles, preserve order of appearance in command
-            if not blocks_to_use:
-                color_positions = []
-                for clr, b_id in color_candidates:
-                    idx = cmd.find(clr)
-                    if idx != -1:
-                        color_positions.append((idx, b_id))
-                color_positions.sort(key=lambda x: x[0])
-                for _, b_id in color_positions:
-                    if b_id not in blocks_to_use:
-                        blocks_to_use.append(b_id)
-
-            # 3. Fill default order [cyan, orange, magenta, yellow, emerald] up to target_layers
+            # If not enough blocks specified, fill with remaining default blocks up to target_layers
             for b_id in all_block_ids:
                 if len(blocks_to_use) >= target_layers:
                     break
@@ -448,14 +496,15 @@ Output a JSON object ONLY with the following schema:
                 plan.extend(steps)
                 layer_strs.append(f"Layer {layer_idx}: {b['name']} (Y={target_y:.4f}m)")
 
-            unused_names = [blocks[uid]["name"] for uid in unused_blocks if uid in blocks]
-            leave_str = f"Remaining block(s) ({', '.join(unused_names)}) remain resting on table." if unused_names else "All 5 blocks stacked."
-
-            thought = (
-                f"Google VLA Cognitive Reasoner: User requested {target_layers}-layer tower assembly on designated target pad. "
-                f"Synthesizing {target_layers}-layer sequence: " + " | ".join(layer_strs) + f". {leave_str} "
-                "Applying metric coordinate locking, kinematic altitude clamping (<=1.12m), and zero-impulse jaw release holding to avoid toppling."
-            )
+            thought = interpretation.get("thought", "")
+            if not thought:
+                unused_names = [blocks[uid]["name"] for uid in unused_blocks if uid in blocks]
+                leave_str = f"Remaining block(s) ({', '.join(unused_names)}) remain resting on table." if unused_names else "All 5 blocks stacked."
+                thought = (
+                    f"Google VLA Cognitive Reasoner: User requested {target_layers}-layer tower assembly on designated target pad. "
+                    f"Synthesizing {target_layers}-layer sequence: " + " | ".join(layer_strs) + f". {leave_str} "
+                    "Applying metric coordinate locking, kinematic altitude clamping (<=1.12m), and zero-impulse jaw release holding to avoid toppling."
+                )
 
         self.latest_thought = thought
         self.latest_grounding = grounding
@@ -474,6 +523,8 @@ Output a JSON object ONLY with the following schema:
         )
 
         return {
+            "is_possible": True,
+            "status": "OK",
             "source": "Google VLA Embedded Deterministic Engine",
             "mode": "embedded",
             "thought": self.latest_thought,

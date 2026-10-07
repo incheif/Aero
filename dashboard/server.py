@@ -238,16 +238,26 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
     img = render_camera_frame(snapshot)
     semantic_summary = mapper.get_semantic_summary()
 
-    # If it's an exploration command
-    if any(w in cmd.lower() for w in ("explore", "scan table", "survey", "frontier")):
+    # Synthesize manipulation, gesture, or feasibility validation through Google VLA
+    result = vla_agent.parse_instruction(cmd, img, snapshot, semantic_summary)
+
+    # If rejected as impossible:
+    if not result.get("is_possible", True) or result.get("status") == "IMPOSSIBLE":
+        controller.stop()
+        return result
+
+    # If active frontier exploration was requested:
+    if result.get("action_type") == "EXPLORE" or (
+        any(w in cmd.lower() for w in ("explore", "scan table", "survey", "frontier"))
+        and not any(w in cmd.lower() for w in ("wave", "tower", "stack", "pick"))
+    ):
         explorer.start_exploration()
         controller.stop()
         vla_agent.execution_status = "EXECUTING"
         vla_agent.latest_thought = f"Google VLA: Executing active frontier exploration for '{cmd}'."
         return {"status": "ok", "action": "EXPLORATION_STARTED", "thought": vla_agent.latest_thought}
 
-    # Otherwise synthesize manipulation plan
-    result = vla_agent.parse_instruction(cmd, img, snapshot, semantic_summary)
+    # Load and execute trajectory plan (gestures, stacking, pick-and-place)
     plan = result.get("plan", [])
     if plan:
         controller.load_plan(plan)

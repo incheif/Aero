@@ -82,14 +82,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelPill = document.getElementById('model-pill-text');
 
     if (data.vla) {
-      if (thoughtBox) thoughtBox.innerText = data.vla.thought || 'Awaiting instruction...';
+      if (thoughtBox) {
+        thoughtBox.innerText = data.vla.thought || 'Awaiting instruction...';
+        if (data.vla.status === 'REJECTED') {
+          thoughtBox.classList.add('rejected');
+          thoughtBox.classList.remove('gesture');
+        } else if (data.vla.thought && (data.vla.thought.toLowerCase().includes('gesture') || data.vla.thought.toLowerCase().includes('wave'))) {
+          thoughtBox.classList.add('gesture');
+          thoughtBox.classList.remove('rejected');
+        } else {
+          thoughtBox.classList.remove('rejected', 'gesture');
+        }
+      }
       if (vlaBadge) {
         vlaBadge.innerText = data.vla.status || 'IDLE';
-        if (data.vla.status === 'EXECUTING') {
+        if (data.vla.status === 'REJECTED') {
+          vlaBadge.className = 'thought-status-badge badge-rejected';
+          vlaBadge.style.color = '';
+          vlaBadge.style.backgroundColor = '';
+          vlaBadge.style.borderColor = '';
+        } else if (data.vla.status === 'EXECUTING') {
+          vlaBadge.className = 'thought-status-badge';
           vlaBadge.style.color = '#09090b';
           vlaBadge.style.backgroundColor = '#ffffff';
           vlaBadge.style.borderColor = '#ffffff';
         } else {
+          vlaBadge.className = 'thought-status-badge';
           vlaBadge.style.color = '#ffffff';
           vlaBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
           vlaBadge.style.borderColor = 'rgba(255, 255, 255, 0.28)';
@@ -290,6 +308,19 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const res = await resp.json();
       console.log('[Google VLA] Command executed:', res);
+      if (res.is_possible === false || res.status === 'IMPOSSIBLE') {
+        const tBox = document.getElementById('vla-thought-box');
+        const vBadge = document.getElementById('vla-status-badge');
+        if (tBox) {
+          tBox.innerText = res.reason || res.thought || 'Instruction cannot be physically executed.';
+          tBox.classList.add('rejected');
+          tBox.classList.remove('gesture');
+        }
+        if (vBadge) {
+          vBadge.innerText = 'REJECTED';
+          vBadge.className = 'thought-status-badge badge-rejected';
+        }
+      }
       if (res.api_warning) {
         console.warn('[Google VLA Warning]', res.api_warning);
       }
