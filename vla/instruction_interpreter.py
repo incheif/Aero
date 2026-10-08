@@ -216,13 +216,22 @@ class InstructionInterpreter:
                 "thought": "Executing 'Wave Hello' gesture: Raising arm into view and oscillating yaw to greet the user.",
             }
 
-        if any(p in cmd for p in ("nod", "agree", "say yes")):
+        if any(p in cmd for p in ("nod", "agree", "say yes", "annuis")):
             return {
                 "is_possible": True,
                 "status": "OK",
                 "action_type": "GESTURE",
                 "gesture_name": "nod",
                 "thought": "Executing 'Nod' gesture: Articulating wrist pitch up and down rhythmically.",
+            }
+
+        if any(p in cmd for p in ("snap", "pinch", "clap", "click gripper", "open and close", "apri e chiudi")):
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "GESTURE",
+                "gesture_name": "snap",
+                "thought": "Executing 'Snap' gesture: Rapid rhythmic gripper snapping and pinching.",
             }
 
         if any(p in cmd for p in ("celebrate", "victory", "dance", "cheer")):
@@ -232,6 +241,29 @@ class InstructionInterpreter:
                 "action_type": "GESTURE",
                 "gesture_name": "celebrate",
                 "thought": "Executing 'Victory Celebration' gesture: Elevating arm and cycling gripper grasping.",
+            }
+
+        # Dynamic pointing gesture
+        point_match = re.search(r"(?:point|aim|punta)\s+(?:at|to|towards|il|al)?\s+(?:the\s+)?(cyan|orange|magenta|yellow|emerald|blue|red|green|pad|target)\b", cmd)
+        if point_match:
+            target_term = point_match.group(1).lower()
+            if target_term in ("pad", "target"):
+                return {
+                    "is_possible": True,
+                    "status": "OK",
+                    "action_type": "GESTURE",
+                    "gesture_name": "point_pad",
+                    "thought": "Executing 'Point at Pad' gesture: Aiming wrist and TCP directly at green landing pad.",
+                }
+            mapped_color = COLOR_ALIAS_MAP.get(target_term, target_term)
+            clean_name = AVAILABLE_BLOCKS.get(mapped_color, {}).get("name", target_term.capitalize())
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "GESTURE",
+                "gesture_name": "point",
+                "target_name": target_term,
+                "thought": f"Executing dynamic pointing gesture targeting {clean_name}.",
             }
 
         if any(p in cmd for p in ("point at pad", "point to pad", "point target", "point to green pad")):
@@ -250,6 +282,17 @@ class InstructionInterpreter:
                 "action_type": "GESTURE",
                 "gesture_name": "shake_head",
                 "thought": "Executing 'Shake Head' gesture: Articulating base yaw side to side.",
+            }
+
+        # -------------------------------------------------------------
+        # 6B. COLORSEEK: In-Tab Closed-Loop Visual Servoing
+        # -------------------------------------------------------------
+        if any(w in cmd for w in ("colorseek", "color seek", "visual servo", "visual servoing", "vision policy", "pixel policy", "blob tracker")):
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "COLORSEEK",
+                "thought": "Executing ColorSeek closed-loop visual servoing policy (RGB pixel centroid tracking at 5 Hz).",
             }
 
         # -------------------------------------------------------------

@@ -130,6 +130,32 @@ class GoogleVLAAgent:
                 {"action": "VICTORY_RIGHT", "target": (0.20, 1.02, 0.15), "gripper": 0.0, "dwell_ticks": 14, "desc": "Swing right"},
                 {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Return to standby"},
             ]
+        elif gesture_name == "snap":
+            return [
+                {"action": "LIFT", "target": (0.20, 1.02, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Lift arm"},
+                {"action": "SNAP_CLOSE_1", "target": (0.20, 1.02, 0.0), "gripper": 1.0, "dwell_ticks": 10, "desc": "Snap pinch 1"},
+                {"action": "SNAP_OPEN_1", "target": (0.20, 1.02, 0.0), "gripper": 0.0, "dwell_ticks": 10, "desc": "Release pinch 1"},
+                {"action": "SNAP_CLOSE_2", "target": (0.20, 1.02, 0.0), "gripper": 1.0, "dwell_ticks": 10, "desc": "Snap pinch 2"},
+                {"action": "SNAP_OPEN_2", "target": (0.20, 1.02, 0.0), "gripper": 0.0, "dwell_ticks": 10, "desc": "Release pinch 2"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Return to standby"},
+            ]
+        elif gesture_name == "point":
+            target_pos = (0.26, 0.98, -0.16)
+            label = target_name or "target cube"
+            if snapshot and target_name:
+                for b in snapshot.get("blocks", []):
+                    b_name = (b.get("name") or b.get("id") or "").lower()
+                    b_color = (b.get("color") or "").lower()
+                    if target_name in b_name or target_name in b_color or target_name in b.get("id", "").lower():
+                        pos = b["position"]
+                        target_pos = (pos[0], max(pos[1] + 0.22, 0.98), pos[2])
+                        label = b.get("name", target_name.capitalize())
+                        break
+            return [
+                {"action": "LIFT", "target": (0.20, 1.02, 0.0), "gripper": 0.0, "dwell_ticks": 14, "desc": "Lift arm"},
+                {"action": "POINT_AIM", "target": target_pos, "gripper": 1.0, "dwell_ticks": 45, "desc": f"Aim TCP directly at {label}"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "dwell_ticks": 16, "desc": "Return to standby"},
+            ]
         elif gesture_name == "point_pad":
             return [
                 {"action": "POINT_PAD", "target": (0.42, 0.82, 0.18), "gripper": 1.0, "dwell_ticks": 35, "desc": "Aim TCP directly at green target pad"},
@@ -155,8 +181,9 @@ class GoogleVLAAgent:
         Processes natural-language command using Google VLA with cognitive pre-processing:
         1. Validates physical feasibility against workcell constraints (block count, rigid body, kinematics).
         2. Rejects impossible commands (tower >5 blocks, break/crush blocks, throw objects, fly).
-        3. Supports communicative gestures (wave high, nod, celebrate, point).
+        3. Supports communicative gestures (wave high, nod, snap, celebrate, point).
         4. Disambiguates tower layer counts (e.g. 3 layers strictly stacks 3 blocks) and maps colors.
+        5. Supports ColorSeek closed-loop visual servoing mode.
         """
         self.execution_status = "REASONING"
         self.latest_thought = f"Google VLA analyzing visual frame for instruction: '{instruction}'..."
@@ -181,10 +208,28 @@ class GoogleVLAAgent:
                 "cost_summary": self.cost_tracker.to_dict(),
             }
 
-        # Handle communicative gestures (wave high, wave hello, nod, celebrate, point, etc.)
+        # Handle ColorSeek closed-loop visual servoing
+        if interpretation.get("action_type") == "COLORSEEK":
+            self.execution_status = "EXECUTING"
+            self.latest_thought = interpretation.get("thought", "ColorSeek: Closed-loop visual servoing active.")
+            self.active_plan = []
+            self.latest_grounding = []
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "COLORSEEK",
+                "source": "ColorSeek Visual Servoing",
+                "thought": self.latest_thought,
+                "plan": [],
+                "grounding": [],
+                "cost_summary": self.cost_tracker.to_dict(),
+            }
+
+        # Handle communicative gestures (wave high, wave hello, nod, celebrate, point, snap, etc.)
         if interpretation.get("action_type") == "GESTURE":
             gesture_name = interpretation.get("gesture_name", "wave_high")
-            self.active_plan = self._generate_gesture_plan(gesture_name)
+            target_name = interpretation.get("target_name")
+            self.active_plan = self._generate_gesture_plan(gesture_name, target_name=target_name, snapshot=snapshot)
             self.latest_thought = interpretation.get("thought", f"Google VLA: Executing gesture '{gesture_name}'.")
             self.latest_grounding = []
             self.current_step_idx = 0
@@ -192,6 +237,7 @@ class GoogleVLAAgent:
             return {
                 "is_possible": True,
                 "status": "OK",
+                "action_type": "GESTURE",
                 "source": "Google VLA Gesture Controller",
                 "thought": self.latest_thought,
                 "plan": self.active_plan,
