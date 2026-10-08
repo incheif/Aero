@@ -30,6 +30,12 @@ from .constants import (
     stack_slot_y,
 )
 from .kinematics import forward_kinematics, clamp
+from .scoring import (
+    TorqueTracker,
+    StabilityValidator,
+    spatial_accuracy,
+    task_completion_score,
+)
 
 class PhysicsBlock:
     def __init__(self, block_id: str, name: str, color: str, color_rgb: Tuple[int, int, int], pos: List[float]):
@@ -70,6 +76,10 @@ class RobotArmSimulation:
         self.blocks: Dict[str, PhysicsBlock] = {}
         self.reset_blocks()
 
+        # Telemetry & Playground Verification
+        self.torque_tracker = TorqueTracker()
+        self.stability_validator = StabilityValidator()
+
     def reset_blocks(self):
         self.blocks.clear()
         for spawn in BLOCK_SPAWNS:
@@ -88,6 +98,8 @@ class RobotArmSimulation:
         self.joint_targets = copy.deepcopy(DEFAULT_JOINTS)
         self.gripper_target = 0.0
         self.reset_blocks()
+        self.torque_tracker.reset()
+        self.stability_validator.reset()
 
     def set_joint_targets(self, targets: Dict[str, float], gripper: Optional[float] = None):
         for k, v in targets.items():
@@ -100,6 +112,7 @@ class RobotArmSimulation:
 
     def step(self, dt: float = FIXED_DT):
         self.tick += 1
+        prev_joints = copy.deepcopy(self.joints)
 
         # 1. Step joints toward targets using velocity limits
         for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"):
@@ -121,6 +134,9 @@ class RobotArmSimulation:
             self.joints["gripper"] = tgt_grip
         else:
             self.joints["gripper"] += math.copysign(grip_step, diff_grip)
+
+        # Sample joint torque / kinematic effort telemetry
+        self.torque_tracker.sample(prev_joints, self.joints)
 
         # 2. Forward Kinematics to find current link and TCP positions
         fk = forward_kinematics(self.joints)
@@ -236,12 +252,23 @@ class RobotArmSimulation:
                 "color": b.color,
                 "position": [round(p, 4) for p in b.position],
                 "rotation": [round(r, 4) for r in b.rotation],
+                "velocity": [round(v, 4) for v in b.velocity],
                 "is_grasped": b.is_grasped,
                 "stacked_layer": b.stacked_layer,
                 "supported_by": b.supported_by,
                 "in_pad": in_pad,
                 "pad_dist": round(pad_dist, 4),
             })
+
+        # Update stability hold validator
+        is_verified, hold_ticks, stability_status = self.stability_validator.step(
+            blocks_data, self.grasped_block_id
+        )
+
+        # Compute multi-metric scores
+        spat_acc = spatial_accuracy(blocks_data, STACK_ORIGIN)
+        comp_score = task_completion_score(blocks_data, STACK_ORIGIN, self.grasped_block_id)
+        torque_summary = self.torque_tracker.summarize()
 
         return {
             "tick": self.tick,
@@ -257,5 +284,16 @@ class RobotArmSimulation:
             "target_zone": {
                 "position": STACK_ORIGIN,
                 "radius": STACK_TOLERANCE,
+            },
+            "scores": {
+                "spatial_accuracy": spat_acc,
+                "task_completion": comp_score,
+                "torque": torque_summary,
+                "stability": {
+                    "is_verified": is_verified,
+                    "hold_ticks": hold_ticks,
+                    "required_ticks": self.stability_validator.required_ticks,
+                    "status": stability_status,
+                }
             }
         }
