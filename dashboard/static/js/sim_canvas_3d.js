@@ -31,9 +31,10 @@ class SimCanvas3D {
     this.trailPoints = [];
 
     // Camera Rigs
-    this.activeCameraView = 'orbit'; // 'orbit', 'top', 'wrist', 'table'
+    this.activeCameraView = 'orbit'; // 'orbit', 'play', 'top', 'wrist', 'table'
     this.cameraRigs = {
       orbit: { pos: [2.35, 1.65, 2.10], target: [0.08, 0.78, 0.0] },
+      play: { pos: [1.68, 1.38, 1.52], target: [0.20, 0.76, 0.10] },
       top: { pos: [0.08, 3.45, 0.02], target: [0.08, 0.72, 0.0] },
       table: { pos: [1.35, 1.25, 1.05], target: [0.48, 0.75, 0.22] },
     };

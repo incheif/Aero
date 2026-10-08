@@ -41,6 +41,7 @@ from vla.semantic_mapper import SemanticSpatialMapper
 from vla.frontier_explorer import TabletopFrontierExplorer
 from vla.google_vla_agent import GoogleVLAAgent
 from vla.trajectory_controller import TrajectoryController
+from vla.color_seek_policy import ColorSeekPolicy
 
 # Core singletons
 sim = RobotArmSimulation()
@@ -48,9 +49,13 @@ mapper = SemanticSpatialMapper()
 explorer = TabletopFrontierExplorer()
 vla_agent = GoogleVLAAgent()
 controller = TrajectoryController()
+color_seek = ColorSeekPolicy()
 
 is_paused: bool = False
 manual_mode: bool = False
+color_seek_active: bool = False
+
+VLA_STRIDE = 12  # 5 Hz policy updates over 60 Hz physics (vsarena standard)
 
 class CommandRequest(BaseModel):
     command: str
@@ -88,7 +93,7 @@ manager = ConnectionManager()
 
 # Background Simulation Loop
 async def simulation_loop():
-    global is_paused, manual_mode
+    global is_paused, manual_mode, color_seek_active
     last_time = time.time()
     fps_timer = time.time()
     frame_count = 0
@@ -113,6 +118,18 @@ async def simulation_loop():
                         if target_cmd.get("is_active") is False:
                             vla_agent.execution_status = "COMPLETED"
                             vla_agent.latest_thought = f"Completed action plan: {target_cmd.get('step_desc')}"
+
+                # 1b. ColorSeek closed-loop visual servoing step (5 Hz downsampled VLA stride)
+                elif color_seek_active and not manual_mode:
+                    if sim.tick % VLA_STRIDE == 0:
+                        cam_frame = render_camera_frame(sim.get_snapshot())
+                        cs_cmd = color_seek.step(cam_frame, sim.joints, tcp_pos)
+                        sim.set_joint_targets(cs_cmd["joints"], cs_cmd["gripper"])
+                        vla_agent.latest_thought = f"ColorSeek (5 Hz VLA): {cs_cmd.get('plan')}"
+                        if not cs_cmd.get("is_active", True):
+                            color_seek_active = False
+                            vla_agent.execution_status = "COMPLETED"
+                            vla_agent.latest_thought = "ColorSeek: Closed-loop visual stacking sequence completed!"
 
                 # 2. Frontier exploration step if active
                 elif explorer.is_exploring and not manual_mode:
@@ -159,17 +176,18 @@ async def simulation_loop():
                     "blocks": snapshot["blocks"],
                     "grasped_block_id": snapshot["grasped_block_id"],
                     "target_zone": snapshot["target_zone"],
+                    "scores": snapshot.get("scores", {}),
                     "tcp_trail": controller.tcp_trail[-60:],
                     "semantic_map": mapper.to_dict(),
                     "frontier": explorer.to_dict(),
                     "vla": {
-                        "model": vla_agent.model_name,
+                        "model": "ColorSeek (Visual Servoing)" if color_seek_active else vla_agent.model_name,
                         "status": vla_agent.execution_status,
                         "thought": vla_agent.latest_thought,
-                        "progress": controller.get_progress(),
+                        "progress": controller.get_progress() if not color_seek_active else {"current_step": color_seek.target_idx + 1, "total_steps": len(color_seek.order), "pct": int((color_seek.target_idx / max(1, len(color_seek.order))) * 100)},
                         "grounding": vla_agent.latest_grounding,
                         "has_api_key": bool(vla_agent.api_key),
-                        "mode": getattr(vla_agent, "active_mode", "embedded"),
+                        "mode": "colorseek" if color_seek_active else getattr(vla_agent, "active_mode", "embedded"),
                         "last_api_error": getattr(vla_agent, "last_api_error", None),
                     },
                     "cost": vla_agent.get_cost_summary(),
@@ -246,6 +264,17 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
         controller.stop()
         return result
 
+    # If ColorSeek closed-loop visual servoing was requested:
+    if result.get("action_type") == "COLORSEEK":
+        global color_seek_active
+        controller.stop()
+        explorer.is_exploring = False
+        color_seek.reset()
+        color_seek_active = True
+        vla_agent.execution_status = "EXECUTING"
+        vla_agent.latest_thought = "ColorSeek: Closed-loop RGB visual servoing active (5 Hz policy stride)."
+        return result
+
     # If active frontier exploration was requested:
     if result.get("action_type") == "EXPLORE" or (
         any(w in cmd.lower() for w in ("explore", "scan table", "survey", "frontier"))
@@ -253,11 +282,13 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
     ):
         explorer.start_exploration()
         controller.stop()
+        color_seek_active = False
         vla_agent.execution_status = "EXECUTING"
         vla_agent.latest_thought = f"Google VLA: Executing active frontier exploration for '{cmd}'."
         return {"status": "ok", "action": "EXPLORATION_STARTED", "thought": vla_agent.latest_thought}
 
     # Load and execute trajectory plan (gestures, stacking, pick-and-place)
+    color_seek_active = False
     plan = result.get("plan", [])
     if plan:
         controller.load_plan(plan)
@@ -265,8 +296,9 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
 
 @app.post("/api/vla/explore")
 async def api_explore():
-    global manual_mode
+    global manual_mode, color_seek_active
     manual_mode = False
+    color_seek_active = False
     controller.stop()
     explorer.start_exploration()
     vla_agent.execution_status = "EXECUTING"
@@ -284,6 +316,9 @@ async def api_rest():
     return {"status": "ok", "message": "Arm returned to rest pose and workspace reset."}
 
 def handle_reset():
+    global color_seek_active
+    color_seek_active = False
+    color_seek.reset()
     controller.stop()
     explorer.is_exploring = False
     explorer.exploration_pct = 25.0

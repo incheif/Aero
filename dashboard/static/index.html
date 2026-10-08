@@ -72,7 +72,11 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 1 9 9M3 12a9 9 0 0 1 9-9"></path></svg>
             <span>Orbit</span>
           </button>
-          <button class="cam-btn" data-view="top" id="cam-top" title="Top-Down View">
+          <button class="cam-btn" data-view="play" id="cam-play" title="Playground Focused View">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="3"></rect><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+            <span>Play</span>
+          </button>
+          <button class="cam-btn" data-view="top" id="cam-top" title="Top-Down View (128x128 Sensor)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>
             <span>Top</span>
           </button>
@@ -107,44 +111,56 @@
           <span class="dock-label">GRIPPER</span>
           <span class="dock-val" id="dock-gripper-state">100% OPEN</span>
         </div>
+        <div class="dock-metric-pill" title="Spatial Accuracy: 70% Position + 30% Upright Orientation">
+          <span class="dock-label">ACCURACY</span>
+          <span class="dock-val" id="dock-spatial-accuracy">--%</span>
+        </div>
+        <div class="dock-metric-pill" title="Physical Stability Hold (18 ticks = 0.30s post-release verification)">
+          <span class="dock-label">STABILITY</span>
+          <span class="dock-val" id="dock-stability-status">IDLE</span>
+        </div>
         <div class="dock-metric-pill">
           <span class="dock-label">SIM RATE</span>
           <span class="dock-val" id="dock-fps-val">60.0 FPS</span>
-        </div>
-        <div class="dock-metric-pill">
-          <span class="dock-label">STATUS</span>
-          <span class="dock-val" id="dock-motion-status">READY / IDLE</span>
         </div>
       </div>
     </main>
 
     <!-- Minimal Command Bar (Bottom) -->
     <section id="command-bar-container">
-      <!-- Essential Prompt Suggestions for 5 Blocks & Gestures -->
+      <!-- Essential Playground Challenge Chips -->
       <div class="chips-row">
-        <button class="prompt-chip" data-prompt="Wave high to greet me.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
-          <span>Wave High (Gesture)</span>
-        </button>
         <button class="prompt-chip" data-prompt="Make a 3-layer tower of red, blue and yellow on the green pad.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5"/></svg>
-          <span>3-Layer Tower (Red, Blue, Yellow)</span>
+          <span>🗼 3-Layer Tower</span>
+        </button>
+        <button class="prompt-chip" data-prompt="Run ColorSeek closed-loop visual servoing to stack the cubes.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+          <span>👁️ ColorSeek VLA (5 Hz)</span>
+        </button>
+        <button class="prompt-chip" data-prompt="Wave high to greet me.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/></svg>
+          <span>👋 Wave High</span>
+        </button>
+        <button class="prompt-chip" data-prompt="Point at the cyan cube.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16"></polyline><line x1="16" y1="12" x2="8" y2="12"></line></svg>
+          <span>🎯 Point at Cyan</span>
+        </button>
+        <button class="prompt-chip" data-prompt="Snap the gripper jaws.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m10 12V4M3 8h18M3 16h18"/></svg>
+          <span>🤏 Snap Gripper</span>
         </button>
         <button class="prompt-chip" data-prompt="Build a 5-layer tower with all 5 blocks on the target pad.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          <span>Build 5-Layer Tower</span>
+          <span>🤖 Baseline Geometric IK</span>
         </button>
         <button class="prompt-chip" data-prompt="Build a tower of 6 blocks.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          <span>Test: Tower of 6 Blocks (Impossible)</span>
+          <span>🚫 Tower of 6 (Impossible)</span>
         </button>
         <button class="prompt-chip" data-prompt="Break the yellow block into pieces.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-          <span>Test: Break a Block (Impossible)</span>
-        </button>
-        <button class="prompt-chip" data-prompt="Clear the target zone by displacing resting objects to table boundary.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          <span>Clear Target Pad</span>
+          <span>🚫 Break a Block (Impossible)</span>
         </button>
       </div>
 
@@ -196,7 +212,44 @@
         </div>
       </div>
 
-      <!-- 2. Minimal VLA Cost & Token Tracking Card -->
+      <!-- 2. Playground Telemetry & Multi-Metric Evaluation Card -->
+      <div class="card" id="evaluation-card">
+        <div class="card-title">
+          <span>Playground Evaluation</span>
+          <span class="thought-status-badge" id="telemetry-stability-badge">STABILITY: IDLE</span>
+        </div>
+        <div class="cost-hero-row" style="margin-bottom: 8px;">
+          <div>
+            <div class="cost-label">Spatial Accuracy</div>
+            <div class="cost-total-amount" id="spatial-acc-display" style="font-size: 1.15rem; color: #ffffff;">0.0%</div>
+          </div>
+          <div>
+            <div class="cost-label">Task Completion</div>
+            <div class="cost-total-amount" id="completion-score-display" style="font-size: 1.15rem; color: #a1a1aa;">0.00 / 1.00</div>
+          </div>
+        </div>
+
+        <div class="token-metrics-grid">
+          <div class="token-metric-item">
+            <span class="token-metric-label">Peak Torque</span>
+            <span class="token-metric-val" id="peak-torque-display">0.00</span>
+          </div>
+          <div class="token-metric-item">
+            <span class="token-metric-label">Avg Effort</span>
+            <span class="token-metric-val" id="avg-torque-display">0.00</span>
+          </div>
+          <div class="token-metric-item">
+            <span class="token-metric-label">Hold Settle</span>
+            <span class="token-metric-val" id="hold-ticks-display">0 / 18</span>
+          </div>
+          <div class="token-metric-item">
+            <span class="token-metric-label">Verification</span>
+            <span class="token-metric-val" id="stability-text-display">Pending</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Minimal VLA Cost & Token Tracking Card -->
       <div class="card" id="cost-card">
         <div class="card-title">
           <span>VLA Cost & Tokens</span>

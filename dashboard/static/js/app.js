@@ -197,6 +197,50 @@ document.addEventListener('DOMContentLoaded', () => {
       setVal('dock-motion-status', data.vla.status);
     }
 
+    // 6B. Update Playground Evaluation & Stability Hold Telemetry
+    if (data.scores) {
+      const sc = data.scores;
+      if (sc.spatial_accuracy !== undefined) {
+        const spatPct = (sc.spatial_accuracy * 100).toFixed(1) + '%';
+        setVal('dock-spatial-accuracy', spatPct);
+        setVal('spatial-acc-display', spatPct);
+      }
+      if (sc.task_completion !== undefined) {
+        setVal('completion-score-display', `${sc.task_completion.toFixed(2)} / 1.00`);
+      }
+      if (sc.torque) {
+        setVal('peak-torque-display', `${(sc.torque.peak || 0).toFixed(2)}`);
+        setVal('avg-torque-display', `${(sc.torque.avg || 0).toFixed(2)}`);
+      }
+      if (sc.stability) {
+        const stab = sc.stability;
+        const holdText = `${stab.hold_ticks || 0} / ${stab.required_ticks || 18}`;
+        setVal('hold-ticks-display', holdText);
+        setVal('stability-text-display', stab.status || 'Pending');
+        setVal('dock-stability-status', stab.is_verified ? 'VERIFIED (0.3s)' : (stab.status || 'IDLE'));
+
+        const stabBadge = document.getElementById('telemetry-stability-badge');
+        if (stabBadge) {
+          if (stab.is_verified) {
+            stabBadge.innerText = 'STABILITY: VERIFIED (0.3s)';
+            stabBadge.style.color = '#10b981';
+            stabBadge.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+            stabBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          } else if (stab.hold_ticks > 0) {
+            stabBadge.innerText = `HOLDING: ${stab.hold_ticks}/18`;
+            stabBadge.style.color = '#38bdf8';
+            stabBadge.style.backgroundColor = 'rgba(56, 189, 248, 0.15)';
+            stabBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          } else {
+            stabBadge.innerText = 'STABILITY: IDLE';
+            stabBadge.style.color = '#a1a1aa';
+            stabBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+            stabBadge.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+          }
+        }
+      }
+    }
+
     // 7. Update LLM VLA Cost Tracking Metrics
     if (data.cost) {
       updateCostMetrics(data.cost);

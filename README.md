@@ -134,12 +134,23 @@ The FastAPI server will boot and launch **`http://127.0.0.1:8000`** in your defa
 
 Type or speak instructions into the Command Bar:
 
+- **ColorSeek Closed-Loop Visual Servoing**: `"Run ColorSeek closed-loop visual servoing to stack the cubes."` (5 Hz RGB camera servoing)
 - **5-Layer Tower Stacking**: `"Build a 5-layer tower on the green pad with cyan base, orange, magenta, yellow, and emerald on top."`
-- **Dynamic Tower Stacking**: `"Build a 2-layer tower"` or `"Build a 3-layer tower"` (supports 1 to 5 layers dynamically).
-- **Pick-and-Place Primitives**: `"Pick emerald to pad"` or `"Pick the yellow cube and place it on the pad."`
+- **Dynamic Tower Stacking**: `"Build a 2-layer tower"` or `"Build a 3-layer tower"` (supports 1 to 5 layers dynamically with color aliases).
+- **Expressive Gestures**: `"Wave high to greet me"`, `"Nod"`, `"Snap the gripper jaws"`, `"Victory celebrate"`.
+- **Dynamic Pointing**: `"Point at the cyan cube"` or `"Point at emerald"` (analytical dynamic aim).
 - **Frontier Exploration**: `"Explore the workspace, scan table quadrants, and update the 3D semantic memory map."`
-- **Table Clearing**: `"Clear target pad"` (returns stacked cubes to tabletop staging areas).
-- **Rest Arm Pose**: `"Return robot arm to home standby configuration."`
+- **Table Clearing & Rest**: `"Clear target pad"` or `"Rest arm pose"`.
+
+---
+
+## 🔬 Playground Evaluation & Benchmark Telemetry
+
+Aero adopts the rigorous benchmarking standards from **VSArena**:
+1. **18-Tick Physical Stability Hold**: After gripper release, the stack must settle and remain stationary for at least 18 consecutive physics ticks (0.30 seconds) before being verified as completed.
+2. **Spatial Accuracy Metric**: Evaluates $0.7 \times \text{Position Precision} + 0.3 \times \text{Upright Orientation Alignment}$ against target slots.
+3. **Dual-Rate 5 Hz VLA Stride**: Models realistic inference latency by downsampling vision policy queries to 5 Hz while maintaining smooth 60 Hz joint servoing.
+4. **Kinematic Effort & Torque Telemetry**: Continuous tracking of $\sum |\Delta q| \times \text{Gain}$ with peak and average effort telemetry.
 
 ---
 
