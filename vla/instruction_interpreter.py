@@ -18,7 +18,7 @@ from typing import Dict, List, Any, Optional, Tuple
 # Physical constants for validation
 MAX_PHYSICAL_BLOCKS = 5
 MAX_LAYER_HEIGHT = 5
-MAX_DISTINCT_TOWERS = 2
+MAX_DISTINCT_TOWERS = 5
 
 AVAILABLE_BLOCKS = {
     "block_magenta": {"name": "Red Cube", "color": "#FF1E27", "aliases": ["red", "crimson", "ruby", "scarlet", "magenta"]},
@@ -52,6 +52,40 @@ def parse_num_token(val: Any) -> Optional[int]:
     if s in WORD_TO_NUM:
         return WORD_TO_NUM[s]
     return None
+
+def parse_tower_distribution(cmd: str, num_towers: int = 2) -> List[int]:
+    """
+    Parses tower block counts for multi-tower instructions (e.g. '2 of 2 blocks each and one of 1 block').
+    Returns a list of integer layer counts for each tower.
+    """
+    cmd = cmd.lower()
+    # Check for composite 'X of Y' patterns (e.g. '2 of 2 blocks each and one of 1 block')
+    comp = re.findall(r"(\d+|one|two|three|four|five)\s+of\s+(\d+|one|two|three|four|five)\s*(?:blocks?|cubes?|layers?)?", cmd)
+    if comp:
+        dist = []
+        for count_t, size_t in comp:
+            c = parse_num_token(count_t) or 1
+            s = parse_num_token(size_t) or 1
+            dist.extend([s] * c)
+        if dist:
+            return dist
+
+    # Check for 'N blocks each'
+    m_each = re.search(r"(\d+|one|two|three|four|five)\s*(?:blocks?|layers?|cubes?)?\s*(?:each|per tower)", cmd)
+    if m_each:
+        per = parse_num_token(m_each.group(1)) or 2
+        return [per] * num_towers
+
+    # Default distributions for N towers across 5 blocks
+    if num_towers == 2:
+        return [2, 2]
+    elif num_towers == 3:
+        return [2, 2, 1]
+    elif num_towers == 4:
+        return [2, 1, 1, 1]
+    elif num_towers == 5:
+        return [1, 1, 1, 1, 1]
+    return [5]
 
 # Common words for non-existent items
 NON_EXISTENT_OBJECTS = [
@@ -122,7 +156,7 @@ class InstructionInterpreter:
         cmd = raw_cmd.lower().strip()
 
         # -------------------------------------------------------------
-        # A. MULTI-TOWER FEASIBILITY: Maximum 2 Distinct Towers
+        # A. MULTI-TOWER FEASIBILITY: Up to 5 Distinct Towers (Total Blocks <= 5)
         # -------------------------------------------------------------
         tower_qty_matches = re.findall(
             r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|hundred)\s+"
@@ -149,40 +183,39 @@ class InstructionInterpreter:
                         "status": "IMPOSSIBLE",
                         "action_type": "REJECTED",
                         "reason": (
-                            f"❌ Not Possible: Requested {tower_count} distinct towers, but the workcell only provides "
-                            f"{MAX_DISTINCT_TOWERS} dedicated landing zones (Pad A North & Pad B South) and {MAX_PHYSICAL_BLOCKS} physical cubes in total. "
-                            f"The robot arm can assemble at most {MAX_DISTINCT_TOWERS} distinct towers (or 1 central tower)."
+                            f"❌ Not Possible: Requested {tower_count} distinct towers, but the workcell only contains "
+                            f"{MAX_PHYSICAL_BLOCKS} physical cubes in total. The robot arm can assemble at most {MAX_DISTINCT_TOWERS} distinct towers "
+                            f"(each tower requiring at least 1 cube)."
                         ),
-                        "thought": f"Command rejected: Requested {tower_count} distinct towers exceeds landing zone capacity ({MAX_DISTINCT_TOWERS}) and cube inventory ({MAX_PHYSICAL_BLOCKS})."
+                        "thought": f"Command rejected: Requested {tower_count} distinct towers exceeds total physical block inventory ({MAX_PHYSICAL_BLOCKS})."
                     }
                 elif tower_count <= 0:
                     return {
                         "is_possible": False,
                         "status": "IMPOSSIBLE",
                         "action_type": "REJECTED",
-                        "reason": "❌ Not Possible: Tower count must be a positive number (1 or 2).",
+                        "reason": "❌ Not Possible: Tower count must be a positive number.",
                         "thought": "Command rejected: Non-positive tower count requested."
                     }
-                elif tower_count == 2:
-                    m_each = re.search(r"\b(\d+|one|two|three|four|five)\s*(?:blocks?|layers?|cubes?|tiers?)?\s*(?:each|per tower)\b", cmd)
-                    if m_each:
-                        per_tower = parse_num_token(m_each.group(1)) or 2
-                        if per_tower * 2 > MAX_PHYSICAL_BLOCKS:
-                            return {
-                                "is_possible": False,
-                                "status": "IMPOSSIBLE",
-                                "action_type": "REJECTED",
-                                "reason": (
-                                    f"❌ Not Possible: Building 2 distinct towers of {per_tower} blocks each requires "
-                                    f"{per_tower * 2} blocks, but only {MAX_PHYSICAL_BLOCKS} physical blocks are available in the workcell."
-                                ),
-                                "thought": f"Command rejected: Dual-tower request requires {per_tower * 2} blocks, exceeding inventory ({MAX_PHYSICAL_BLOCKS})."
-                            }
+                else:
+                    distribution = parse_tower_distribution(cmd, tower_count)
+                    total_req_blocks = sum(distribution)
+                    if total_req_blocks > MAX_PHYSICAL_BLOCKS:
+                        return {
+                            "is_possible": False,
+                            "status": "IMPOSSIBLE",
+                            "action_type": "REJECTED",
+                            "reason": (
+                                f"❌ Not Possible: Building {tower_count} distinct towers with requested breakdown ({' + '.join(str(d) for d in distribution)}) "
+                                f"requires {total_req_blocks} blocks, but only {MAX_PHYSICAL_BLOCKS} physical blocks are available in the workcell."
+                            ),
+                            "thought": f"Command rejected: Multi-tower request requires {total_req_blocks} blocks, exceeding inventory ({MAX_PHYSICAL_BLOCKS})."
+                        }
 
         # -------------------------------------------------------------
         # B. TOWER HEIGHT / LAYER COUNT FEASIBILITY: Maximum 5 Layers
         # -------------------------------------------------------------
-        if not any(w in cmd for w in ("pyramid", "pyramind")):
+        if not any(w in cmd for w in ("pyramid", "pyramind", "distinct tower", "distinct towers", "separate tower", "separate towers", "different tower", "different towers")):
             layer_matches = re.findall(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|hundred)\s*(?:blocks?|layers?|cubes?|tiers?|levels?)\s*(?:high|tall)?\b", cmd)
             layer_matches += re.findall(r"\b(?:tower|stack)\s*(?:of\s*)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b", cmd)
             layer_matches += re.findall(r"\b(?:height|tall|high)\s*(?:of\s*)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b", cmd)
@@ -557,34 +590,27 @@ class InstructionInterpreter:
             }
 
         # -------------------------------------------------------------
-        # 8B. DUAL TOWERS ASSEMBLY (2 Distinct Towers)
+        # 8B. MULTI-TOWERS ASSEMBLY (2 to 5 Distinct Towers)
         # -------------------------------------------------------------
-        is_dual_towers = (
+        is_multi_towers = (
             any(p in cmd for p in (
                 "2 towers", "two towers", "dual towers", "dual tower",
                 "two distinct towers", "2 distinct towers",
                 "two separate towers", "2 separate towers",
                 "two different towers", "2 different towers",
-                "pair of towers"
+                "pair of towers",
+                "3 towers", "three towers", "triple towers",
+                "three distinct towers", "3 distinct towers",
+                "three separate towers", "3 separate towers",
+                "4 towers", "four towers", "4 distinct towers",
+                "5 towers", "five towers", "5 distinct towers",
             ))
-            or bool(re.search(r"\b(2|two)\s+(distinct\s+|separate\s+|different\s+)?towers?\b", cmd))
+            or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd))
         )
-        if is_dual_towers:
-            per_tower = 2
-            m_each = re.search(r"\b(1|2|3|4|5|one|two|three|four|five)\s*(block|layer|cube|tier)?s?\s*(each|per tower)\b", cmd)
-            if m_each:
-                val = m_each.group(1).lower()
-                num_map = {"1": 1, "one": 1, "2": 2, "two": 2, "3": 3, "three": 3, "4": 4, "four": 4, "5": 5, "five": 5}
-                per_tower = num_map.get(val, 2)
-
-            if per_tower * 2 > MAX_PHYSICAL_BLOCKS:
-                return {
-                    "is_possible": False,
-                    "status": "IMPOSSIBLE",
-                    "action_type": "REJECT",
-                    "reasoning": f"Building 2 towers of {per_tower} blocks each requires {per_tower * 2} blocks, but only {MAX_PHYSICAL_BLOCKS} physical cubes are available in the workcell.",
-                    "thought": "Cognitive safety reject: Requested cube count exceeds workcell inventory.",
-                }
+        if is_multi_towers:
+            m_towers = re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd)
+            num_towers = parse_num_token(m_towers.group(1)) if m_towers else 2
+            distribution = parse_tower_distribution(cmd, num_towers)
 
             known_colors = [
                 ("red", "block_magenta", "Red Cube"),
@@ -613,24 +639,32 @@ class InstructionInterpreter:
                 if b not in pool:
                     pool.append(b)
 
-            blocks_a = pool[:per_tower]
-            blocks_b = pool[per_tower:per_tower * 2]
+            tower_blocks_list = []
+            curr_idx = 0
+            for count in distribution:
+                t_blocks = pool[curr_idx:curr_idx + count]
+                tower_blocks_list.append(t_blocks)
+                curr_idx += count
 
-            names_a = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in blocks_a]
-            names_b = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in blocks_b]
+            desc_parts = []
+            for i, tb in enumerate(tower_blocks_list):
+                names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in tb]
+                desc_parts.append(f"Tower {i+1} ({len(tb)} blocks: [{', '.join(names)}])")
 
+            action = "STACK_DUAL_TOWERS" if len(tower_blocks_list) == 2 else "STACK_MULTI_TOWERS"
             return {
                 "is_possible": True,
                 "status": "OK",
-                "action_type": "STACK_DUAL_TOWERS",
-                "per_tower_count": per_tower,
-                "tower_a_blocks": blocks_a,
-                "tower_b_blocks": blocks_b,
+                "action_type": action,
+                "num_towers": len(tower_blocks_list),
+                "distribution": distribution,
+                "tower_blocks_list": tower_blocks_list,
+                "tower_a_blocks": tower_blocks_list[0] if len(tower_blocks_list) > 0 else [],
+                "tower_b_blocks": tower_blocks_list[1] if len(tower_blocks_list) > 1 else [],
                 "thought": (
-                    f"Interpreted request for 2 distinct towers ({per_tower} layers each). "
-                    f"Tower A (North Zone) will assemble [{', '.join(names_a)}]. "
-                    f"Tower B (South Zone) will assemble [{', '.join(names_b)}]. "
-                    f"Kinematic transit path will maintain elevated collision clearance over Tower A while assembling Tower B."
+                    f"Interpreted request for {len(tower_blocks_list)} distinct towers ({' + '.join(str(d) for d in distribution)} blocks). "
+                    f"Spatial layout: {'; '.join(desc_parts)}. "
+                    f"Kinematic paths will maintain elevated collision clearance over previously assembled towers."
                 ),
             }
 

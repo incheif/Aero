@@ -21,6 +21,7 @@ from simulation.constants import (
     TABLE_TOP_Y,
     stack_slot_y,
     get_pyramid_slots,
+    get_distinct_tower_origins,
     BLOCK_TARGETS,
 )
 from simulation.camera import render_camera_frame, encode_image_base64, world_to_pixel
@@ -401,7 +402,7 @@ Output a JSON object ONLY with the following schema:
                     elif clr in color_to_id and color_to_id[clr] not in grounded_seq:
                         grounded_seq.append(color_to_id[clr])
 
-            if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "BUILD_PYRAMID"):
+            if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "BUILD_PYRAMID"):
                 embedded_res = self._embedded_vla_policy(instruction, snapshot, interpretation)
                 self.active_plan = embedded_res.get("plan", [])
                 self.latest_thought = embedded_res.get("thought", "")
@@ -490,11 +491,14 @@ Output a JSON object ONLY with the following schema:
         if interpretation is None:
             interpretation = self.interpreter.interpret(instruction)
 
-        raw_blocks = snapshot.get("blocks", [])
+        raw_blocks = snapshot.get("blocks", []) if snapshot else []
         if isinstance(raw_blocks, dict):
             blocks = raw_blocks
-        else:
+        elif raw_blocks:
             blocks = {b["id"]: b for b in raw_blocks if isinstance(b, dict) and "id" in b}
+        else:
+            from simulation.constants import BLOCK_SPAWNS
+            blocks = {b["id"]: b for b in BLOCK_SPAWNS}
         plan: List[Dict[str, Any]] = []
         thought: str = ""
         grounding: List[Dict[str, Any]] = []
@@ -539,57 +543,65 @@ Output a JSON object ONLY with the following schema:
                 {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "desc": "Return to rest pose"}
             ]
 
-        # 4. Dual Distinct Towers Assembly (Tower A + Tower B with elevated clearance)
-        elif action_type == "STACK_DUAL_TOWERS":
-            blocks_a = interpretation.get("tower_a_blocks", [])
-            blocks_b = interpretation.get("tower_b_blocks", [])
+        # 4. Multi-Tower Distinct Assembly (2 to 5 Distinct Towers with elevated clearance)
+        elif action_type in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "STACK_DISTINCT_TOWERS"):
+            towers_data = interpretation.get("tower_blocks_list")
+            if not towers_data:
+                towers_data = []
+                if interpretation.get("tower_a_blocks"):
+                    towers_data.append(interpretation.get("tower_a_blocks"))
+                if interpretation.get("tower_b_blocks"):
+                    towers_data.append(interpretation.get("tower_b_blocks"))
 
-            tower_a_strs = []
-            for layer_idx, b_id in enumerate(blocks_a):
-                b = blocks.get(b_id)
-                if not b:
-                    continue
-                bx, by, bz = b["position"]
-                target_y = stack_slot_y(layer_idx)
-                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "target_zone": "Tower A (North)", "target_layer": layer_idx})
-                steps = self._generate_pick_and_place(bx, bz, STACK_ORIGIN_A[0], STACK_ORIGIN_A[2], target_y, b["name"])
-                plan.extend(steps)
-                tower_a_strs.append(f"L{layer_idx}:{b['name']}")
+            num_towers = len(towers_data)
+            origins = get_distinct_tower_origins(num_towers)
 
-            # Elevate transit clearance above Tower A during Tower B assembly
-            tower_a_top_y = stack_slot_y(len(blocks_a) - 1) if blocks_a else TABLE_TOP_Y
-            clearance_y = max(SAFE_HOVER_Y, tower_a_top_y + 0.10)
+            max_constructed_y = TABLE_TOP_Y
+            tower_summaries = []
 
-            tower_b_strs = []
-            for layer_idx, b_id in enumerate(blocks_b):
-                b = blocks.get(b_id)
-                if not b:
-                    continue
-                bx, by, bz = b["position"]
-                target_y = stack_slot_y(layer_idx)
-                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "target_zone": "Tower B (South)", "target_layer": layer_idx})
-                steps = self._generate_pick_and_place(
-                    bx, bz, STACK_ORIGIN_B[0], STACK_ORIGIN_B[2], target_y, b["name"],
-                    min_transit_y=clearance_y
-                )
-                plan.extend(steps)
-                tower_b_strs.append(f"L{layer_idx}:{b['name']}")
+            for t_idx, tower_blocks in enumerate(towers_data):
+                t_origin = origins[t_idx] if t_idx < len(origins) else STACK_ORIGIN
+                clearance_y = max(SAFE_HOVER_Y, max_constructed_y + 0.10)
+                tower_strs = []
 
+                for layer_idx, b_id in enumerate(tower_blocks):
+                    b = blocks.get(b_id)
+                    if not b:
+                        continue
+                    bx, by, bz = b["position"]
+                    target_y = stack_slot_y(layer_idx)
+                    grounding.append({
+                        "entity": b_id,
+                        "color": b["color"],
+                        "source_coords": [bx, by, bz],
+                        "target_zone": f"Tower {t_idx+1} [Z={t_origin[2]:.2f}]",
+                        "target_layer": layer_idx,
+                    })
+                    steps = self._generate_pick_and_place(
+                        bx, bz, t_origin[0], t_origin[2], target_y, b["name"],
+                        min_transit_y=clearance_y
+                    )
+                    plan.extend(steps)
+                    tower_strs.append(f"L{layer_idx}:{b['name']}")
+                    max_constructed_y = max(max_constructed_y, target_y)
+
+                tower_summaries.append(f"Tower {t_idx+1} [{t_origin[0]:.2f}, {t_origin[2]:.2f}]: {' -> '.join(tower_strs)}")
+
+            final_clearance = max(SAFE_HOVER_Y, max_constructed_y + 0.10)
             plan.append({
                 "action": "HOME",
-                "target": (0.20, clearance_y, 0.0),
+                "target": (0.20, final_clearance, 0.0),
                 "gripper": 0.0,
-                "desc": "Dual towers complete: Arm retracting to standby",
+                "desc": f"Multi-tower assembly ({num_towers} distinct towers) complete: Arm retracting to standby",
                 "dwell_ticks": 10,
             })
 
             thought = interpretation.get("thought", "")
             if not thought:
                 thought = (
-                    f"Google VLA Dual-Tower Reasoning: Assembling 2 distinct towers. "
-                    f"Tower A (North Pad [{STACK_ORIGIN_A[0]:.2f}, {STACK_ORIGIN_A[2]:.2f}]): {' -> '.join(tower_a_strs)}. "
-                    f"Tower B (South Pad [{STACK_ORIGIN_B[0]:.2f}, {STACK_ORIGIN_B[2]:.2f}]): {' -> '.join(tower_b_strs)}. "
-                    f"Transit paths strictly clamped to Y>={clearance_y:.3f}m to eliminate collision with Tower A."
+                    f"Google VLA Multi-Tower Reasoning: Assembling {num_towers} distinct towers. "
+                    f"{'; '.join(tower_summaries)}. "
+                    f"Transit clearance dynamically maintained at Y>={final_clearance:.3f}m to eliminate inter-tower collision."
                 )
 
         # 5. Pyramid Tower Assembly (Multi-Contact Stepped / Square Pyramid)

@@ -120,6 +120,37 @@ STACK_ORIGIN_B: Tuple[float, float, float] = (0.46, TABLE_TOP_Y, 0.32)
 TARGET_ZONE_RADIUS: float = 0.048
 STACK_TOLERANCE: float = 0.038  # Tolerance in meters to verify stacked placement
 
+def get_distinct_tower_origins(num_towers: int) -> List[Tuple[float, float, float]]:
+    """
+    Computes distinct, reachable tabletop origin coordinates for N towers (1 to 5).
+    Maintains clean spatial clearance between towers along the Z axis.
+    """
+    if num_towers <= 1:
+        return [STACK_ORIGIN]
+    elif num_towers == 2:
+        return [STACK_ORIGIN_A, STACK_ORIGIN_B]
+    elif num_towers == 3:
+        return [
+            (0.46, TABLE_TOP_Y, 0.08),  # Tower 1 (North)
+            (0.48, TABLE_TOP_Y, 0.22),  # Tower 2 (Center)
+            (0.46, TABLE_TOP_Y, 0.34),  # Tower 3 (South)
+        ]
+    elif num_towers == 4:
+        return [
+            (0.45, TABLE_TOP_Y, 0.06),
+            (0.47, TABLE_TOP_Y, 0.16),
+            (0.47, TABLE_TOP_Y, 0.26),
+            (0.45, TABLE_TOP_Y, 0.36),
+        ]
+    else:  # 5 towers
+        return [
+            (0.45, TABLE_TOP_Y, 0.05),
+            (0.46, TABLE_TOP_Y, 0.13),
+            (0.48, TABLE_TOP_Y, 0.21),
+            (0.46, TABLE_TOP_Y, 0.29),
+            (0.45, TABLE_TOP_Y, 0.37),
+        ]
+
 def stack_slot_y(layer: int) -> float:
     """Center Y altitude for a cube placed at vertical stack layer (0=base, 1=mid, 2=top, etc.)."""
     return TABLE_TOP_Y + CUBE_HALF + layer * CUBE_SIZE
