@@ -39,19 +39,21 @@ def open_browser_delayed(url: str, delay: float = 1.2):
     webbrowser.open(url)
 
 def main():
-    host = "127.0.0.1"
-    port = 8000
-    url = f"http://{host}:{port}"
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", 8000))
+    display_url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
 
     print("========================================================================")
     print("[*] AERO: Agentic Execution for Robotic Operations")
     print("    Combining Vision-Language-Action, 3D Semantic Spatial Mapping,")
     print("    Tabletop Frontier Exploration, and Rapier3D Kinematics")
-    print(f"    Interactive Dashboard: {url}")
+    print(f"    Interactive Dashboard: {display_url}")
     print("========================================================================")
 
-    # Launch browser in a background daemon thread
-    threading.Thread(target=open_browser_delayed, args=(url,), daemon=True).start()
+    # Launch browser only when running in local desktop session (not cloud containers)
+    is_cloud = bool(os.environ.get("RENDER") or os.environ.get("RAILWAY_STATIC_URL") or os.environ.get("DYNO"))
+    if not is_cloud:
+        threading.Thread(target=open_browser_delayed, args=(display_url,), daemon=True).start()
 
     # Start Uvicorn server
     uvicorn.run("dashboard.server:app", host=host, port=port, log_level="info")
