@@ -1,4 +1,4 @@
-# 🤖 Aero: Google VLA Robot Arm Autonomous Manipulation Studio
+# 🤖 AERO: Autonomous Robotic Manipulation Studio
 
 <div align="center">
 
@@ -10,14 +10,14 @@
 [![Physics](https://img.shields.io/badge/Rapier3D-Rigid%20Body%20Dynamics-red.svg)](https://rapier.rs/)
 [![Security Policy](https://img.shields.io/badge/Security-Policy%20Enforced-green.svg)](SECURITY.md)
 
-**An end-to-end cognitive robotic manipulation platform combining Google Vision-Language-Action (VLA) multimodal reasoning, 3D tabletop spatial semantic mapping, frontier exploration, 60 FPS physics-aligned kinematics, multi-zone structural assembly, and an interactive Three.js WebGL studio.**
+**An end-to-end cognitive robotic manipulation platform combining Vision-Language-Action (VLA) multimodal reasoning, 3D tabletop spatial semantic mapping, frontier exploration, 60 FPS physics-aligned kinematics, multi-zone structural assembly, and an interactive Three.js WebGL studio.**
 
 [🚀 Quick Start](#-quick-start) • [✨ Key Features](#-key-features) • [🎥 Demos & Visual Showcase](#-demos--visual-showcase) • [🗼 Multi-Tower & Pyramid](#-multi-zone--pyramid-assembly) • [💬 Natural Language Commands](#-example-natural-language-commands) • [🌐 ROS 2](#-ros-2-ecosystem-integration)
 
 ---
 
 ### 🌟 Multi-Zone Studio Overview
-![Aero Google VLA Robot Arm Studio](docs/assets/hero_studio_multizone.png)
+![AERO Studio](docs/assets/hero_studio_multizone.png)
 *High-resolution 3D WebGL Studio featuring articulated 5-DOF Franka-style cobot, dynamic color-calibrated cubes, and multi-zone landing pads (Pad A North, Center, Pad B South).*
 
 </div>

@@ -116,7 +116,7 @@ def log_event(category: str, badge: str, what: str, how: str):
     return entry
 
 # Initial boot log
-log_event("system", "STARTUP", "Simulation engine and Google VLA studio initialized.", "Rapier3D physics running at 60 FPS (dt=16.6ms). 5 blocks spawned at canonical table coordinates.")
+log_event("system", "STARTUP", "Simulation engine and AERO studio initialized.", "Rapier3D physics running at 60 FPS (dt=16.6ms). 5 blocks spawned at canonical table coordinates.")
 
 # Background Simulation Loop
 async def simulation_loop():
@@ -275,7 +275,7 @@ async def lifespan(app: FastAPI):
     yield
     sim_task.cancel()
 
-app = FastAPI(title="Robot Arm Google VLA Simulation", lifespan=lifespan)
+app = FastAPI(title="AERO Autonomous Manipulation Studio", lifespan=lifespan)
 
 # WebSocket Endpoint
 @app.websocket("/ws")

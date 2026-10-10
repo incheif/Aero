@@ -2,7 +2,7 @@
 """
 run_dashboard.py
 
-Launcher for the Google VLA Robot Arm Autonomous Manipulation Studio.
+Launcher for the AERO Autonomous Manipulation Studio.
 Starts the FastAPI simulation server with real-time 60 FPS WebSocket streaming
 and automatically launches the interactive Three.js 3D web dashboard.
 """
@@ -44,8 +44,8 @@ def main():
     url = f"http://{host}:{port}"
 
     print("========================================================================")
-    print("[*] Google VLA Robot Arm Autonomous Manipulation Studio")
-    print("    Combining Google Vision-Language-Action, 3D Semantic Spatial Mapping,")
+    print("[*] AERO: Autonomous Robotic Manipulation Studio")
+    print("    Combining Vision-Language-Action, 3D Semantic Spatial Mapping,")
     print("    Tabletop Frontier Exploration, and Rapier3D Kinematics")
     print(f"    Interactive Dashboard: {url}")
     print("========================================================================")

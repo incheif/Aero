@@ -1,6 +1,6 @@
 /**
  * Main Web Dashboard Controller & WebSocket Client
- * Google VLA Robot Arm Autonomous Manipulation Studio
+ * AERO: Autonomous Manipulation Studio
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       if (modelPill && data.vla.model) {
-        modelPill.innerText = `Google VLA (${data.vla.model})`;
+        modelPill.innerText = `AERO (${data.vla.model})`;
       }
 
       // Update VLA Mode Badge (CLOUD vs EMBEDDED)
