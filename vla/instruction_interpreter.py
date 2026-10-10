@@ -18,12 +18,14 @@ from typing import Dict, List, Any, Optional, Tuple
 # Physical constants for validation
 MAX_PHYSICAL_BLOCKS = 5
 MAX_LAYER_HEIGHT = 5
+MAX_DISTINCT_TOWERS = 2
+
 AVAILABLE_BLOCKS = {
-    "block_magenta": {"name": "Red Cube", "color": "#EF4444", "aliases": ["red", "crimson", "ruby", "scarlet", "magenta", "pink"]},
-    "block_cyan": {"name": "Blue Cube", "color": "#2563EB", "aliases": ["blue", "cyan", "sky blue", "cobalt", "navy", "teal"]},
-    "block_yellow": {"name": "Yellow Cube", "color": "#EAB308", "aliases": ["yellow", "gold", "amber", "lemon"]},
-    "block_emerald": {"name": "Green Cube", "color": "#16A34A", "aliases": ["green", "emerald", "lime", "mint"]},
-    "block_orange": {"name": "Orange Cube", "color": "#EA580C", "aliases": ["orange", "amber", "tangerine"]},
+    "block_magenta": {"name": "Red Cube", "color": "#FF1E27", "aliases": ["red", "crimson", "ruby", "scarlet", "magenta"]},
+    "block_cyan": {"name": "Blue Cube", "color": "#1E60FF", "aliases": ["blue", "cyan", "sky blue", "cobalt", "navy", "teal"]},
+    "block_yellow": {"name": "Yellow Cube", "color": "#FFC300", "aliases": ["yellow", "gold", "amber", "lemon"]},
+    "block_emerald": {"name": "Green Cube", "color": "#00B341", "aliases": ["green", "emerald", "lime", "mint"]},
+    "block_orange": {"name": "Orange Cube", "color": "#FF5500", "aliases": ["orange", "amber", "tangerine"]},
 }
 
 COLOR_ALIAS_MAP = {}
@@ -31,12 +33,33 @@ for b_id, info in AVAILABLE_BLOCKS.items():
     for alias in info["aliases"]:
         COLOR_ALIAS_MAP[alias] = b_id
 
+# Word-to-number dictionary for parsing natural language numbers
+WORD_TO_NUM = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "nineteen": 19, "twenty": 20, "thirty": 30, "hundred": 100,
+    "single": 1, "double": 2, "triple": 3, "quad": 4, "pair": 2, "dual": 2,
+}
+
+def parse_num_token(val: Any) -> Optional[int]:
+    if val is None:
+        return None
+    s = str(val).strip().lower()
+    if s.isdigit():
+        return int(s)
+    if s in WORD_TO_NUM:
+        return WORD_TO_NUM[s]
+    return None
+
 # Common words for non-existent items
 NON_EXISTENT_OBJECTS = [
     "cup", "coffee", "mug", "apple", "banana", "fruit", "glass", "bottle",
     "pen", "pencil", "knife", "fork", "spoon", "plate", "bowl", "book",
     "laptop", "phone", "sponge", "box", "can", "chair", "wrench", "tool",
-    "hammer", "scissors", "paper", "cardboard"
+    "hammer", "scissors", "paper", "cardboard", "ball", "sphere", "cylinder",
+    "coin", "shoe", "cloth", "car", "keys", "wallet", "mirror"
 ]
 
 class InstructionInterpreter:
@@ -51,36 +74,228 @@ class InstructionInterpreter:
 
     def interpret(self, instruction: str) -> Dict[str, Any]:
         """
-        Interprets the user instruction.
-        Attempts LLM pre-call if API key is active; falls back to deterministic rule engine.
-        Always returns a structured interpretation dictionary.
+        Interprets the user instruction with cognitive physical feasibility validation.
+        1. Runs exhaustive physical affordance validation first. If the request violates workcell
+           limits (e.g. >2 distinct towers, >5 layers, duplicate colors, destructive/ballistic actions),
+           it immediately rejects the command and returns a clear, specific explanation.
+        2. If physically possible and an API key is set, invokes Google Gemini for multimodal reasoning.
+        3. Enforces feasibility guardrails on LLM output, falling back to the deterministic rule engine.
         """
         raw_cmd = instruction.strip()
-        cmd = raw_cmd.lower()
 
-        # If Google Gemini API is available and key is set, try LLM classification
+        # Step 1: Pre-validation of physical feasibility and workcell affordances
+        feasibility_rejection = self._check_physical_feasibility(raw_cmd)
+        if feasibility_rejection is not None:
+            return feasibility_rejection
+
+        # Step 2: LLM Classification if configured
         if self.api_key:
             try:
                 llm_result = self._call_llm_interpreter(raw_cmd)
                 if llm_result:
+                    # Enforce feasibility guardrails on LLM output
+                    if llm_result.get("is_possible", True):
+                        override = self._check_physical_feasibility(raw_cmd)
+                        if override is not None:
+                            return override
                     return llm_result
             except Exception as e:
                 print(f"[InstructionInterpreter] LLM pre-call error: {e}. Falling back to rule engine.")
 
-        # Fallback / Embedded Deterministic Rule Engine
+        # Step 3: Deterministic Rule Engine for valid manipulation tasks
         return self._rule_based_interpretation(raw_cmd)
 
-    def _rule_based_interpretation(self, raw_cmd: str) -> Dict[str, Any]:
-        """High-precision deterministic parser and validator."""
+    def _check_physical_feasibility(self, raw_cmd: str) -> Optional[Dict[str, Any]]:
+        """
+        Comprehensive cognitive affordance and physical feasibility validator.
+        Evaluates the requested command against rigid-body workcell constraints:
+          1. Multi-tower landing zone capacity (maximum 2 distinct towers).
+          2. Tower height / layer count limits (1 to 5 layers, vertical reach Y <= 1.12m).
+          3. Total block inventory capacity (maximum 5 blocks).
+          4. Per-color uniqueness inventory (maximum 1 cube per color).
+          5. Pyramid geometry constraints (3-block stepped or 5-block square only).
+          6. Non-existent colors and objects.
+          7. Destructive, ballistic, fluid, chemical, and locomotion actions.
+          8. Out-of-workspace boundary violations.
+        Returns a rejection dict if infeasible, or None if physically plausible.
+        """
         cmd = raw_cmd.lower().strip()
 
         # -------------------------------------------------------------
-        # 1. IMPOSSIBILITY CHECK: Destructive Actions
+        # A. MULTI-TOWER FEASIBILITY: Maximum 2 Distinct Towers
+        # -------------------------------------------------------------
+        tower_qty_matches = re.findall(
+            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|hundred)\s+"
+            r"(?:distinct\s+|separate\s+|different\s+|independent\s+|individual\s+)?towers?\b",
+            cmd
+        )
+        tower_qty_matches += re.findall(
+            r"\b(?:build|make|create|assemble|stack|erect)\s+"
+            r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+"
+            r"(?:distinct\s+|separate\s+|different\s+|independent\s+|individual\s+)?towers?\b",
+            cmd
+        )
+        tower_qty_matches += re.findall(
+            r"\btowers?:\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b",
+            cmd
+        )
+
+        for match_val in tower_qty_matches:
+            tower_count = parse_num_token(match_val)
+            if tower_count is not None:
+                if tower_count > MAX_DISTINCT_TOWERS:
+                    return {
+                        "is_possible": False,
+                        "status": "IMPOSSIBLE",
+                        "action_type": "REJECTED",
+                        "reason": (
+                            f"❌ Not Possible: Requested {tower_count} distinct towers, but the workcell only provides "
+                            f"{MAX_DISTINCT_TOWERS} dedicated landing zones (Pad A North & Pad B South) and {MAX_PHYSICAL_BLOCKS} physical cubes in total. "
+                            f"The robot arm can assemble at most {MAX_DISTINCT_TOWERS} distinct towers (or 1 central tower)."
+                        ),
+                        "thought": f"Command rejected: Requested {tower_count} distinct towers exceeds landing zone capacity ({MAX_DISTINCT_TOWERS}) and cube inventory ({MAX_PHYSICAL_BLOCKS})."
+                    }
+                elif tower_count <= 0:
+                    return {
+                        "is_possible": False,
+                        "status": "IMPOSSIBLE",
+                        "action_type": "REJECTED",
+                        "reason": "❌ Not Possible: Tower count must be a positive number (1 or 2).",
+                        "thought": "Command rejected: Non-positive tower count requested."
+                    }
+                elif tower_count == 2:
+                    m_each = re.search(r"\b(\d+|one|two|three|four|five)\s*(?:blocks?|layers?|cubes?|tiers?)?\s*(?:each|per tower)\b", cmd)
+                    if m_each:
+                        per_tower = parse_num_token(m_each.group(1)) or 2
+                        if per_tower * 2 > MAX_PHYSICAL_BLOCKS:
+                            return {
+                                "is_possible": False,
+                                "status": "IMPOSSIBLE",
+                                "action_type": "REJECTED",
+                                "reason": (
+                                    f"❌ Not Possible: Building 2 distinct towers of {per_tower} blocks each requires "
+                                    f"{per_tower * 2} blocks, but only {MAX_PHYSICAL_BLOCKS} physical blocks are available in the workcell."
+                                ),
+                                "thought": f"Command rejected: Dual-tower request requires {per_tower * 2} blocks, exceeding inventory ({MAX_PHYSICAL_BLOCKS})."
+                            }
+
+        # -------------------------------------------------------------
+        # B. TOWER HEIGHT / LAYER COUNT FEASIBILITY: Maximum 5 Layers
+        # -------------------------------------------------------------
+        if not any(w in cmd for w in ("pyramid", "pyramind")):
+            layer_matches = re.findall(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|hundred)\s*(?:blocks?|layers?|cubes?|tiers?|levels?)\s*(?:high|tall)?\b", cmd)
+            layer_matches += re.findall(r"\b(?:tower|stack)\s*(?:of\s*)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b", cmd)
+            layer_matches += re.findall(r"\b(?:height|tall|high)\s*(?:of\s*)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b", cmd)
+            layer_matches += re.findall(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)[-\s](?:layer|tier|block|cube)\b", cmd)
+
+            for lm in layer_matches:
+                val = parse_num_token(lm)
+                if val is not None:
+                    if "tower" in lm and "layer" not in lm and "block" not in lm and "cube" not in lm and "tier" not in lm:
+                        continue
+                    if val > MAX_PHYSICAL_BLOCKS:
+                        return {
+                            "is_possible": False,
+                            "status": "IMPOSSIBLE",
+                            "action_type": "REJECTED",
+                            "reason": (
+                                f"❌ Not Possible: Requested a {val}-layer tower, but the workcell only contains "
+                                f"{MAX_PHYSICAL_BLOCKS} physical blocks (Red, Blue, Yellow, Green, Orange). "
+                                f"A tower of {val} layers also exceeds the robot's vertical reach limit (Y ≤ 1.12m)."
+                            ),
+                            "thought": f"Command rejected: Requested {val}-layer tower exceeds inventory ({MAX_PHYSICAL_BLOCKS}) and vertical kinematic limit."
+                        }
+                    elif val <= 0:
+                        return {
+                            "is_possible": False,
+                            "status": "IMPOSSIBLE",
+                            "action_type": "REJECTED",
+                            "reason": "❌ Not Possible: Tower must consist of at least 1 layer.",
+                            "thought": "Command rejected: Non-positive layer count requested."
+                        }
+
+        # -------------------------------------------------------------
+        # C. TOTAL BLOCKS INVENTORY: Maximum 5 Blocks
+        # -------------------------------------------------------------
+        total_block_matches = re.findall(r"\b(?:use|stack|pick|place|move|with)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:cubes?|blocks?)\b", cmd)
+        for tbm in total_block_matches:
+            val = parse_num_token(tbm)
+            if val is not None and val > MAX_PHYSICAL_BLOCKS:
+                return {
+                    "is_possible": False,
+                    "status": "IMPOSSIBLE",
+                    "action_type": "REJECTED",
+                    "reason": (
+                        f"❌ Not Possible: Requested {val} blocks, but the workcell only contains "
+                        f"{MAX_PHYSICAL_BLOCKS} physical blocks in total (Red, Blue, Yellow, Green, Orange)."
+                    ),
+                    "thought": f"Command rejected: Requested {val} blocks exceeds workcell inventory ({MAX_PHYSICAL_BLOCKS})."
+                }
+
+        # -------------------------------------------------------------
+        # D. DUPLICATE COLOR INVENTORY: Exactly 1 Cube per Color
+        # -------------------------------------------------------------
+        color_qty_pattern = r"\b(\d+|two|three|four|five|six)\s+(red|crimson|ruby|magenta|blue|cyan|yellow|green|emerald|orange)s?\s*(?:cubes?|blocks?)?\b"
+        for match in re.finditer(color_qty_pattern, cmd):
+            qty_str, color_str = match.groups()
+            qty = parse_num_token(qty_str)
+            if qty is not None and qty > 1:
+                color_name = AVAILABLE_BLOCKS.get(COLOR_ALIAS_MAP.get(color_str, ""), {}).get("name", color_str.capitalize())
+                return {
+                    "is_possible": False,
+                    "status": "IMPOSSIBLE",
+                    "action_type": "REJECTED",
+                    "reason": (
+                        f"❌ Not Possible: Requested {qty} {color_name}s, but there is only ONE {color_name} "
+                        f"in the workcell (1 Red, 1 Blue, 1 Yellow, 1 Green, 1 Orange)."
+                    ),
+                    "thought": f"Command rejected: Requested {qty} {color_name}s exceeds single-instance inventory."
+                }
+
+        # -------------------------------------------------------------
+        # E. NON-EXISTENT COLORS
+        # -------------------------------------------------------------
+        invalid_colors = ["black", "white", "purple", "violet", "brown", "gray", "grey", "silver", "beige", "transparent", "clear"]
+        for ic in invalid_colors:
+            if re.search(rf"\b{ic}\b", cmd) and any(k in cmd for k in ("block", "cube", "tower", "stack", "pick", "place", "move", "grab")):
+                return {
+                    "is_possible": False,
+                    "status": "IMPOSSIBLE",
+                    "action_type": "REJECTED",
+                    "reason": (
+                        f"❌ Not Possible: Color '{ic}' does not exist in the workcell. "
+                        f"The table contains only 5 cubes: Red (#FF1E27), Blue (#1E60FF), Yellow (#FFC300), Green (#00B341), and Orange (#FF5500)."
+                    ),
+                    "thought": f"Command rejected: Color '{ic}' not found in tabletop perception."
+                }
+
+        # -------------------------------------------------------------
+        # F. PYRAMID FEASIBILITY: 3-Block Stepped or 5-Block Square Only
+        # -------------------------------------------------------------
+        if any(w in cmd for w in ("pyramid", "pyramind")):
+            pyr_num_match = re.search(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)[-\s]*(?:blocks?|cubes?|base|layers?)", cmd)
+            if pyr_num_match:
+                pyr_val = parse_num_token(pyr_num_match.group(1))
+                if pyr_val is not None and pyr_val not in (3, 5):
+                    return {
+                        "is_possible": False,
+                        "status": "IMPOSSIBLE",
+                        "action_type": "REJECTED",
+                        "reason": (
+                            f"❌ Not Possible: A pyramid can only be constructed as either a 3-block stepped pyramid "
+                            f"(2 base cubes + 1 apex) or a 5-block square pyramid (4 base cubes in 2x2 + 1 apex). "
+                            f"A {pyr_val}-block pyramid is not geometrically feasible with the available 5 cubes."
+                        ),
+                        "thought": f"Command rejected: {pyr_val}-block pyramid is geometrically infeasible."
+                    }
+
+        # -------------------------------------------------------------
+        # G. INFEASIBLE VERBS (Destructive, Ballistic, Locomotion, Fluid, Tools, Surface)
         # -------------------------------------------------------------
         destructive_words = [
             "break", "smash", "crush", "destroy", "cut", "slice", "melt",
             "burn", "tear", "shred", "split", "fracture", "dent", "squash",
-            "flatten", "explode", "vaporize", "damage"
+            "flatten", "explode", "vaporize", "damage", "bend", "twist", "deform", "compress"
         ]
         for w in destructive_words:
             if re.search(rf"\b{w}\b", cmd):
@@ -97,10 +312,7 @@ class InstructionInterpreter:
                     "thought": f"Command rejected: Destructive action '{w}' is physically infeasible in this workcell."
                 }
 
-        # -------------------------------------------------------------
-        # 2. IMPOSSIBILITY CHECK: Throwing & Ballistics
-        # -------------------------------------------------------------
-        throw_words = ["throw", "toss", "fling", "yeet", "launch", "catapult", "kick", "shoot"]
+        throw_words = ["throw", "toss", "fling", "yeet", "launch", "catapult", "kick", "shoot", "hurl", "lob"]
         for w in throw_words:
             if re.search(rf"\b{w}\b", cmd):
                 return {
@@ -114,10 +326,10 @@ class InstructionInterpreter:
                     "thought": f"Command rejected: Dynamic throwing ('{w}') violates workcell safety limits."
                 }
 
-        # -------------------------------------------------------------
-        # 3. IMPOSSIBILITY CHECK: Locomotion & Flying
-        # -------------------------------------------------------------
-        locomotion_words = ["fly", "fly away", "airplane", "drive", "walk", "roll", "leave table", "leave room", "take off"]
+        locomotion_words = [
+            "fly", "fly away", "airplane", "drive", "walk", "roll", "leave table",
+            "leave room", "take off", "swim", "run", "relocate", "move base", "move table"
+        ]
         for w in locomotion_words:
             if re.search(rf"\b{w}\b", cmd):
                 return {
@@ -131,55 +343,50 @@ class InstructionInterpreter:
                     "thought": f"Command rejected: Robot is stationary and cannot perform '{w}'."
                 }
 
-        # -------------------------------------------------------------
-        # 4. IMPOSSIBILITY CHECK: Tower Height > 5 Blocks
-        # -------------------------------------------------------------
-        # Check explicit digit counts > 5
-        number_matches = re.findall(r"\b(\d+)\s*(?:blocks?|layers?|cubes?|tiers?|high|levels?)\b", cmd)
-        number_matches += re.findall(r"\b(?:tower|stack)\s*(?:of\s*)?(\d+)\b", cmd)
-        word_number_map = {
-            "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
-            "eleven": 11, "twelve": 12, "twenty": 20, "hundred": 100
-        }
-        requested_count = None
-        for nm in number_matches:
-            try:
-                requested_count = int(nm)
-                break
-            except ValueError:
-                pass
-
-        if requested_count is None:
-            for word_num, val in word_number_map.items():
-                if re.search(rf"\b{word_num}\s*(?:blocks?|layers?|cubes?|tiers?|high|levels?)\b", cmd) or re.search(rf"\b(?:tower|stack)\s*(?:of\s*)?{word_num}\b", cmd):
-                    requested_count = val
-                    break
-
-        if requested_count is not None:
-            if requested_count > MAX_PHYSICAL_BLOCKS:
+        fluid_words = ["pour", "spill", "fill", "drink", "eat", "cook", "bake", "boil", "freeze", "microwave", "feed", "sip"]
+        for w in fluid_words:
+            if re.search(rf"\b{w}\b", cmd):
                 return {
                     "is_possible": False,
                     "status": "IMPOSSIBLE",
                     "action_type": "REJECTED",
                     "reason": (
-                        f"❌ Not Possible: Requested {requested_count} blocks/layers, but the workcell only contains "
-                        f"{MAX_PHYSICAL_BLOCKS} physical blocks (Cyan, Orange, Magenta, Yellow, Emerald). "
-                        f"A tower of {requested_count} layers exceeds the physical blocks present and the robot's "
-                        f"vertical reach limit (Y ≤ 1.12m)."
+                        f"❌ Not Possible: The action '{w}' involves fluids, chemistry, or consumption. "
+                        "The robot arm is designed strictly for solid tabletop cube pick-and-place manipulation."
                     ),
-                    "thought": f"Command rejected: {requested_count}-block tower exceeds available blocks ({MAX_PHYSICAL_BLOCKS}) and vertical kinematic boundary."
+                    "thought": f"Command rejected: Action '{w}' is outside physical workcell capabilities."
                 }
-            if requested_count <= 0:
+
+        adhesion_words = ["glue", "weld", "tape", "paste", "stick together", "screw", "nail", "solder", "fasten"]
+        for w in adhesion_words:
+            if re.search(rf"\b{w}\b", cmd):
                 return {
                     "is_possible": False,
                     "status": "IMPOSSIBLE",
                     "action_type": "REJECTED",
-                    "reason": "❌ Not Possible: Tower must consist of at least 1 layer.",
-                    "thought": "Command rejected: Non-positive layer count requested."
+                    "reason": (
+                        f"❌ Not Possible: The action '{w}' requires bonding agents or assembly tools. "
+                        "Manipulated objects are passive rigid cubes held by gravitational friction."
+                    ),
+                    "thought": f"Command rejected: Adhesion / bonding action '{w}' is unsupported."
+                }
+
+        surface_words = ["paint", "draw", "write", "color", "sketch", "erase", "scrape", "carve"]
+        for w in surface_words:
+            if re.search(rf"\b{w}\b", cmd) and not any(k in cmd for k in ("colorseek", "color seek")):
+                return {
+                    "is_possible": False,
+                    "status": "IMPOSSIBLE",
+                    "action_type": "REJECTED",
+                    "reason": (
+                        f"❌ Not Possible: Surface alteration ('{w}') requires marking implements. "
+                        "The robot arm is equipped only with a parallel-jaw positioning gripper."
+                    ),
+                    "thought": f"Command rejected: Surface alteration action '{w}' is unsupported."
                 }
 
         # -------------------------------------------------------------
-        # 5. IMPOSSIBILITY CHECK: Non-Existent Entities
+        # H. NON-EXISTENT OBJECTS
         # -------------------------------------------------------------
         for bad_obj in NON_EXISTENT_OBJECTS:
             if re.search(rf"\b{bad_obj}\b", cmd) and not any(k in cmd for k in ("block", "cube", "pad", "table", "arm")):
@@ -189,14 +396,38 @@ class InstructionInterpreter:
                     "action_type": "REJECTED",
                     "reason": (
                         f"❌ Not Possible: '{bad_obj}' is not present in the workcell. "
-                        "The tabletop environment contains: Cyan Cube, Orange Cube, Magenta Cube, "
-                        "Yellow Cube, Emerald Cube, and the Green Target Pad."
+                        "The tabletop environment contains: Red Cube, Blue Cube, Yellow Cube, "
+                        "Green Cube, Orange Cube, and the landing pads."
                     ),
                     "thought": f"Command rejected: Entity '{bad_obj}' not found in 3D perception memory."
                 }
 
         # -------------------------------------------------------------
-        # 6. GESTURES: Wave High, Wave, Nod, Point, Celebrate
+        # I. OUT-OF-WORKSPACE BOUNDARIES
+        # -------------------------------------------------------------
+        oob_words = ["floor", "drop on floor", "throw off", "outside table", "off table", "off the table", "ceiling", "wall"]
+        for w in oob_words:
+            if re.search(rf"\b{w}\b", cmd):
+                return {
+                    "is_possible": False,
+                    "status": "IMPOSSIBLE",
+                    "action_type": "REJECTED",
+                    "reason": (
+                        f"❌ Not Possible: Target placement '{w}' is outside the reachable tabletop manipulation envelope. "
+                        "All manipulations must remain within the table boundary [X: -0.55m..0.75m, Z: -0.50m..0.50m]."
+                    ),
+                    "thought": f"Command rejected: Target '{w}' is outside physical workspace boundary."
+                }
+
+        # Feasibility checks passed
+        return None
+
+    def _rule_based_interpretation(self, raw_cmd: str) -> Dict[str, Any]:
+        """High-precision deterministic parser for validated feasible instructions."""
+        cmd = raw_cmd.lower().strip()
+
+        # -------------------------------------------------------------
+        # 1. GESTURES: Wave High, Wave, Nod, Point, Celebrate
         # -------------------------------------------------------------
         if any(p in cmd for p in ("wave high", "wave high up", "high wave", "reach up and wave")):
             return {
@@ -472,8 +703,13 @@ class InstructionInterpreter:
         # Typo tolerance: "twer", "towr", "stack", "build", "layer"
         is_tower_request = any(w in cmd for w in ("tower", "twer", "towr", "stack", "build", "layer", "tier", "pad"))
         if is_tower_request or any(c in cmd for c in ("cyan", "orange", "magenta", "yellow", "emerald", "blue", "red", "green")):
-            # Parse requested layer count
-            layer_count = requested_count or 5
+            # Parse requested layer count (1 to 5)
+            layer_count = 5
+            for lm in re.findall(r"\b(\d+|one|two|three|four|five)[-\s]*(?:blocks?|layers?|cubes?|tiers?|levels?)?\b", cmd):
+                parsed_val = parse_num_token(lm)
+                if parsed_val is not None and 1 <= parsed_val <= MAX_PHYSICAL_BLOCKS:
+                    layer_count = parsed_val
+                    break
 
             # Word regex checks for 1 to 5
             if re.search(r"\b(1|one|single)\s*(layer|block|tier|level|cube)\b", cmd) or "1 layer" in cmd or "1-layer" in cmd or "one layer" in cmd:
@@ -560,14 +796,34 @@ class InstructionInterpreter:
                 "thought": thought,
             }
 
-        # Default fallback: General task
+        # Check for presence of valid manipulation or object keywords before defaulting
+        has_manipulation_keywords = any(w in cmd for w in (
+            "stack", "tower", "cube", "block", "pad", "pyramid", "pick", "place", "move",
+            "grab", "lift", "build", "assemble", "clear", "wave", "nod", "point", "scan",
+            "explore", "colorseek", "servo", "rest", "home", "hello", "hi", "all",
+            "red", "blue", "yellow", "green", "orange", "cyan", "magenta", "emerald"
+        ))
+        if not has_manipulation_keywords:
+            return {
+                "is_possible": False,
+                "status": "IMPOSSIBLE",
+                "action_type": "REJECTED",
+                "reason": (
+                    f"❌ Unrecognized Command: Could not extract an actionable manipulation task or gesture from '{raw_cmd}'. "
+                    "Please specify an action such as stacking a tower (e.g. 'Make a 3-layer tower of red, blue and yellow'), "
+                    "building 2 distinct towers, assembling a pyramid, or executing a gesture."
+                ),
+                "thought": f"Command rejected: Instruction '{raw_cmd}' does not contain recognized robotic manipulation keywords."
+            }
+
+        # Default fallback: General 5-block tower assembly when general stacking keywords were provided
         return {
             "is_possible": True,
             "status": "OK",
             "action_type": "STACK_TOWER",
             "layer_count": 5,
             "target_blocks": ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald"],
-            "thought": f"Interpreted general manipulation instruction: '{raw_cmd}'. Planning full 5-block assembly.",
+            "thought": f"Interpreted general manipulation instruction: '{raw_cmd}'. Planning full 5-block assembly on target pad.",
         }
 
     def _call_llm_interpreter(self, raw_cmd: str) -> Optional[Dict[str, Any]]:
@@ -585,34 +841,40 @@ class InstructionInterpreter:
 
         prompt = f"""You are the cognitive natural-language instruction pre-processor for an autonomous 5-DOF table-mounted robot arm workcell.
 Workcell Constraints:
-- Available Blocks: Exactly 5 rigid cubes:
-  1. Cyan Cube (color #00AEEF; aliases: cyan, blue)
-  2. Orange Cube (color #F7941E; aliases: orange)
-  3. Magenta Cube (color #E11D8F; aliases: magenta, red, pink, purple; note: there is NO pure red cube, magenta is the closest)
-  4. Yellow Cube (color #FACC15; aliases: yellow)
-  5. Emerald Cube (color #10B981; aliases: emerald, green)
-- Available Target: 1 Green Target Pad at [0.48, 0.72, 0.22]
+- Available Blocks: Exactly 5 rigid cubes (1 of each color):
+  1. Red Cube (#FF1E27; aliases: red, crimson, ruby, magenta)
+  2. Blue Cube (#1E60FF; aliases: blue, cyan, cobalt)
+  3. Yellow Cube (#FFC300; aliases: yellow, gold)
+  4. Green Cube (#00B341; aliases: green, emerald)
+  5. Orange Cube (#FF5500; aliases: orange)
+- Available Landing Zones:
+  - 1 Central Target Pad (for 1 single tower or pyramid)
+  - 2 Dedicated Isolated Landing Zones: Pad A (North) and Pad B (South) (allows AT MOST 2 distinct towers)
+  - Towers > 2 distinct towers are physically IMPOSSIBLE.
 - Robot Physical Limits:
   - Stationary, rigidly table-mounted (CANNOT fly, drive, roll, leave the table)
   - Non-destructive parallel-jaw gripper (CANNOT break, crush, cut, melt, destroy blocks)
   - Controlled speed (CANNOT throw or launch objects)
-  - Maximum 5 blocks can ever be stacked (towers > 5 blocks are physically IMPOSSIBLE)
+  - Maximum 5 blocks total (towers > 5 layers, or requests for > 5 blocks, are physically IMPOSSIBLE)
+  - Maximum 1 cube per color (requests for 2 red cubes, etc. are physically IMPOSSIBLE)
 - Gestures supported: "wave_high", "wave_hello", "nod", "celebrate", "point_pad", "shake_head".
 
 User Instruction: "{raw_cmd}"
 
 Determine:
 1. Is this command physically possible and safe?
-   - If user asks for tower > 5 blocks, break/destroy blocks, throw objects, fly, or items not on table -> "is_possible": false with a clear explanation in "reason".
+   - If user asks for > 2 distinct towers (e.g. 3, 4, 6 distinct towers), tower > 5 layers, duplicate colors, break/destroy blocks, throw objects, fly, or items not on table -> "is_possible": false with a clear explanation in "reason".
    - If user asks for gestures ("wave high", "nod", "say hi", etc.) -> "is_possible": true, "action_type": "GESTURE", "gesture_name": "wave_high" (or appropriate gesture).
-   - If user asks to build a tower with N layers (e.g. 3 layers with red, blue, yellow) -> "is_possible": true, "action_type": "STACK_TOWER", "layer_count": 3, "target_blocks": ["block_magenta", "block_cyan", "block_yellow"]. Map "blue"->block_cyan, "red"->block_magenta, "yellow"->block_yellow.
+   - If user asks for 2 distinct towers -> "is_possible": true, "action_type": "STACK_DUAL_TOWERS".
+   - If user asks for pyramid -> "is_possible": true, "action_type": "BUILD_PYRAMID".
+   - If user asks to build a tower with N layers (e.g. 3 layers with red, blue, yellow) -> "is_possible": true, "action_type": "STACK_TOWER", "layer_count": 3, "target_blocks": ["block_magenta", "block_cyan", "block_yellow"].
 
 Respond with ONLY a JSON object with this format:
 {{
   "is_possible": true or false,
   "status": "OK" or "IMPOSSIBLE",
   "reason": "Clear explanation if impossible",
-  "action_type": "STACK_TOWER" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
+  "action_type": "STACK_TOWER" or "STACK_DUAL_TOWERS" or "BUILD_PYRAMID" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
   "gesture_name": "wave_high" or null,
   "layer_count": 3 or null,
   "target_blocks": ["block_magenta", "block_cyan", "block_yellow"] or [],
@@ -635,13 +897,11 @@ Respond with ONLY a JSON object with this format:
         if json_match:
             try:
                 parsed = json.loads(json_match.group(0))
-                # Validate critical fields
                 if "is_possible" in parsed:
-                    # Enforce strict layer limit even if LLM hallucinated
-                    if parsed.get("layer_count", 0) and parsed["layer_count"] > MAX_PHYSICAL_BLOCKS:
-                        parsed["is_possible"] = False
-                        parsed["status"] = "IMPOSSIBLE"
-                        parsed["reason"] = f"❌ Not Possible: Tower of {parsed['layer_count']} exceeds the 5 available physical blocks."
+                    # Run deterministic physical feasibility validation as hard guardrail override
+                    override = self._check_physical_feasibility(raw_cmd)
+                    if override is not None:
+                        return override
                     return parsed
             except Exception:
                 pass

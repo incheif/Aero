@@ -182,9 +182,9 @@ class GoogleVLAAgent:
     def parse_instruction(
         self,
         instruction: str,
-        image: Image.Image,
-        snapshot: Dict[str, Any],
-        semantic_summary: str
+        image: Optional[Image.Image] = None,
+        snapshot: Optional[Dict[str, Any]] = None,
+        semantic_summary: str = ""
     ) -> Dict[str, Any]:
         """
         Processes natural-language command using Google VLA with cognitive pre-processing:
@@ -194,6 +194,10 @@ class GoogleVLAAgent:
         4. Disambiguates tower layer counts (e.g. 3 layers strictly stacks 3 blocks) and maps colors.
         5. Supports ColorSeek closed-loop visual servoing mode.
         """
+        if image is None:
+            image = Image.new("RGB", (128, 128), (30, 30, 30))
+        if snapshot is None:
+            snapshot = {}
         self.execution_status = "REASONING"
         self.latest_thought = f"Google VLA analyzing visual frame for instruction: '{instruction}'..."
 

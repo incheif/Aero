@@ -347,7 +347,7 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
             "vla",
             "REJECT",
             f"Instruction rejected as infeasible: \"{cmd}\"",
-            f"Reason: {result.get('reasoning', 'Action violates spatial reachability or semantic stability constraint.')}"
+            f"Reason: {result.get('reason') or result.get('thought') or result.get('reasoning') or 'Action violates spatial reachability or semantic stability constraint.'}"
         )
         return result
 
