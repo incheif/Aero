@@ -160,6 +160,8 @@ class RobotArmSimulation:
                 else:
                     # Move block to lock onto TCP mid-finger pinch point
                     grasped_block.position = list(tcp_pos)
+                    # Physical table boundary clamp: carried block bottom can never penetrate table surface
+                    grasped_block.position[1] = max(TABLE_TOP_Y + CUBE_HALF + 0.002, tcp_pos[1])
                     grasped_block.rotation = list(tcp_rot)
                     grasped_block.velocity = [0.0, 0.0, 0.0]
 
@@ -220,6 +222,9 @@ class RobotArmSimulation:
             # Check collision with other blocks (stacking support)
             for other_id, other in self.blocks.items():
                 if other_id == b_id:
+                    continue
+                # Grasped blocks being carried by gripper cannot act as support platforms
+                if other.is_grasped:
                     continue
                 # If other block is below this block
                 if other.position[1] < block.position[1]:

@@ -50,7 +50,7 @@ GRASP_OPEN_THRESHOLD: float = 0.38
 JOINT_SPEED: float = 3.4
 GRIPPER_SPEED: float = 3.6
 MAX_TCP_STEP: float = 0.036  # Max EE displacement per tick (m)
-SAFE_HOVER_Y: float = 0.855  # Safe search, acquisition, and transit altitude
+SAFE_HOVER_Y: float = 0.920  # Safe search, acquisition, and transit altitude (generous clearance above table & stack)
 PICK_Y: float = 0.7575       # TCP pick altitude clears table surface (0.7555m)
 MAX_ALTITUDE_CLAMP: float = 1.12 # Enforces maximum vertical reach limit (permits 5-layer tower reach up to 1.05m)
 

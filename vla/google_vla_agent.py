@@ -290,8 +290,8 @@ Your end-effector is a parallel-jaw gripper.
 Table coordinates are metric (meters) with Y-up:
 - Tabletop surface is Y = 0.72m
 - Pick altitude is Y = 0.7575m
-- Base safe transit hover altitude is Y = 0.8550m.
-  When carrying blocks over existing stack layers, transit altitude must clear the stack (transit_y = max(0.8550, target_y + 0.065)).
+- Base safe transit hover altitude is Y = 0.9200m.
+  When carrying blocks over existing stack layers, transit altitude must clear the stack (transit_y = max(0.9200, target_y + 0.080)).
 - Target Pad is located at [{STACK_ORIGIN[0]}, {STACK_ORIGIN[1]}, {STACK_ORIGIN[2]}]
 - Stack layer altitudes: Layer 0 = {stack_slot_y(0):.4f}m, Layer 1 = {stack_slot_y(1):.4f}m, Layer 2 = {stack_slot_y(2):.4f}m, Layer 3 = {stack_slot_y(3):.4f}m, Layer 4 = {stack_slot_y(4):.4f}m
 
@@ -310,14 +310,14 @@ Output a JSON object ONLY with the following schema:
     {{"entity": "block_magenta", "color": "magenta", "target_layer": 2, "target_coords": [{STACK_ORIGIN[0]}, {stack_slot_y(2):.4f}, {STACK_ORIGIN[2]}]}}
   ],
   "action_plan": [
-    {{"action": "HOVER_ACQUIRE", "target": [x, 0.855, z], "gripper": 0.0, "dwell_ticks": 10, "desc": "Hover over block"}},
+    {{"action": "HOVER_ACQUIRE", "target": [x, 0.920, z], "gripper": 0.0, "dwell_ticks": 10, "desc": "Hover over block"}},
     {{"action": "DESCEND_PICK", "target": [x, 0.7575, z], "gripper": 0.0, "dwell_ticks": 12, "desc": "Descend to grip"}},
     {{"action": "GRIP", "target": [x, 0.7575, z], "gripper": 1.0, "dwell_ticks": 18, "desc": "Close parallel jaws"}},
-    {{"action": "LIFT", "target": [x, 0.855, z], "gripper": 1.0, "dwell_ticks": 12, "desc": "Clean vertical lift"}},
-    {{"action": "TRANSIT", "target": [{STACK_ORIGIN[0]}, 0.855, {STACK_ORIGIN[2]}], "gripper": 1.0, "dwell_ticks": 15, "desc": "Transit to target pad"}},
+    {{"action": "LIFT", "target": [x, 0.920, z], "gripper": 1.0, "dwell_ticks": 12, "desc": "Clean vertical lift"}},
+    {{"action": "TRANSIT", "target": [{STACK_ORIGIN[0]}, 0.920, {STACK_ORIGIN[2]}], "gripper": 1.0, "dwell_ticks": 15, "desc": "Transit to target pad"}},
     {{"action": "DESCEND_PLACE", "target": [{STACK_ORIGIN[0]}, 0.7575, {STACK_ORIGIN[2]}], "gripper": 1.0, "dwell_ticks": 15, "desc": "Soft descent to placement slot"}},
     {{"action": "SOFT_RELEASE", "target": [{STACK_ORIGIN[0]}, 0.7575, {STACK_ORIGIN[2]}], "gripper": 0.0, "dwell_ticks": 20, "desc": "Zero-impulse jaw release"}},
-    {{"action": "ASCEND_CLEAR", "target": [{STACK_ORIGIN[0]}, 0.855, {STACK_ORIGIN[2]}], "gripper": 0.0, "dwell_ticks": 12, "desc": "Ascend cleanly above stack"}}
+    {{"action": "ASCEND_CLEAR", "target": [{STACK_ORIGIN[0]}, 0.920, {STACK_ORIGIN[2]}], "gripper": 0.0, "dwell_ticks": 12, "desc": "Ascend cleanly above stack"}}
   ]
 }}
 """
@@ -448,7 +448,7 @@ Output a JSON object ONLY with the following schema:
         sanitized = []
         for step in raw_plan:
             action = str(step.get("action", "")).upper()
-            target = list(step.get("target", [0.2, 0.855, 0.0]))
+            target = list(step.get("target", [0.2, SAFE_HOVER_Y, 0.0]))
             gripper = float(step.get("gripper", 0.0))
             desc = step.get("desc", action)
 
@@ -502,7 +502,7 @@ Output a JSON object ONLY with the following schema:
         if action_type == "EXPLORE":
             thought = (
                 "Google VLA Perception: High-level exploration command detected. "
-                "Synthesizing multi-quadrant sweeping trajectory at safe hover altitude (0.855m) "
+                "Synthesizing multi-quadrant sweeping trajectory at safe hover altitude (0.920m) "
                 "to inspect unmapped regions, resolve occlusions, and construct 3D spatial memory for all 5 blocks."
             )
             plan = [
@@ -718,7 +718,7 @@ Output a JSON object ONLY with the following schema:
         Dynamically adjusts transit and approach altitudes to safely clear lower layers of tower.
         """
         # Calculate safe transit hover altitude above any existing stack layers or clearance planes
-        transit_y = max(SAFE_HOVER_Y, dst_y + 0.065, min_transit_y or 0.0)
+        transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, min_transit_y or 0.0)
 
         return [
             # 1. Safe Hover over source object
