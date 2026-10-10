@@ -402,7 +402,7 @@ Output a JSON object ONLY with the following schema:
                     elif clr in color_to_id and color_to_id[clr] not in grounded_seq:
                         grounded_seq.append(color_to_id[clr])
 
-            if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "BUILD_PYRAMID"):
+            if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "BUILD_PYRAMID", "SWEEP_TRAJECTORY"):
                 embedded_res = self._embedded_vla_policy(instruction, snapshot, interpretation)
                 self.active_plan = embedded_res.get("plan", [])
                 self.latest_thought = embedded_res.get("thought", "")
@@ -643,7 +643,23 @@ Output a JSON object ONLY with the following schema:
                     f"Sequence: {' | '.join(pyr_strs)}. Applying zero-impulse vertical descent holding to maintain contact stability."
                 )
 
-        # 6. Single Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
+        # 6. Cartesian Spatial Trajectories (Left-to-Right & Top-to-Bottom Sweeps)
+        elif action_type == "SWEEP_TRAJECTORY":
+            thought = (
+                "Google VLA Spatial Trajectory: Executing continuous Cartesian end-effector motion. "
+                "1. Sweeping left-to-right across table Z-envelope [-0.28m -> +0.28m]. "
+                "2. Sweeping top-to-bottom along vertical Y-axis [1.02m -> 0.76m]. "
+                "3. Retracting cleanly to standby pose."
+            )
+            plan = [
+                {"action": "SWEEP", "target": (0.38, SAFE_HOVER_Y, -0.28), "gripper": 0.0, "dwell_ticks": 10, "desc": "Position at Left Envelope (Z=-0.28m)"},
+                {"action": "SWEEP", "target": (0.38, SAFE_HOVER_Y, 0.28), "gripper": 0.0, "dwell_ticks": 15, "desc": "Sweep Left to Right across table (Z=+0.28m)"},
+                {"action": "SWEEP", "target": (0.35, 1.020, 0.00), "gripper": 0.0, "dwell_ticks": 10, "desc": "Elevate to Top Pose (Y=1.02m)"},
+                {"action": "SWEEP", "target": (0.35, 0.760, 0.00), "gripper": 0.0, "dwell_ticks": 15, "desc": "Sweep Top to Bottom towards table (Y=0.76m)"},
+                {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.00), "gripper": 0.0, "dwell_ticks": 10, "desc": "Return to Standby Pose"},
+            ]
+
+        # 7. Single Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
         else:
             target_layers = interpretation.get("layer_count", 5)
             interp_targets = interpretation.get("target_blocks", [])

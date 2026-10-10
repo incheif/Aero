@@ -571,6 +571,25 @@ class InstructionInterpreter:
             }
 
         # -------------------------------------------------------------
+        # 7B. CARTESIAN SPATIAL MOTIONS & SWEEPS: Left to Right, Top to Bottom
+        # -------------------------------------------------------------
+        is_sweep = any(p in cmd for p in (
+            "left to right", "right to left", "top to bottom", "bottom to top",
+            "sweep", "sweep across", "zigzag", "raster",
+            "move left", "move right", "horizontal sweep", "vertical sweep"
+        ))
+        if is_sweep and not any(w in cmd for w in ("tower", "stack", "cube", "block", "pyramid")):
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "SWEEP_TRAJECTORY",
+                "thought": (
+                    "Executing continuous Cartesian spatial motion: Sweeping end-effector left to right "
+                    "across the table Z-axis and top to bottom along the vertical Y-axis."
+                ),
+            }
+
+        # -------------------------------------------------------------
         # 8. CLEAR / RESET / REST
         # -------------------------------------------------------------
         if any(w in cmd for w in ("clear", "empty pad", "clear pad", "displace pad")):
@@ -830,34 +849,32 @@ class InstructionInterpreter:
                 "thought": thought,
             }
 
-        # Check for presence of valid manipulation or object keywords before defaulting
-        has_manipulation_keywords = any(w in cmd for w in (
-            "stack", "tower", "cube", "block", "pad", "pyramid", "pick", "place", "move",
-            "grab", "lift", "build", "assemble", "clear", "wave", "nod", "point", "scan",
-            "explore", "colorseek", "servo", "rest", "home", "hello", "hi", "all",
-            "red", "blue", "yellow", "green", "orange", "cyan", "magenta", "emerald"
+        # Check if user explicitly requested full 5-block assembly
+        is_explicit_full_stack = any(w in cmd for w in (
+            "stack all", "build all", "assemble all", "stack everything", "all blocks",
+            "all 5", "5 blocks", "5-block", "5 layer", "5-layer", "5 cubes", "five blocks"
         ))
-        if not has_manipulation_keywords:
+        if is_explicit_full_stack:
             return {
-                "is_possible": False,
-                "status": "IMPOSSIBLE",
-                "action_type": "REJECTED",
-                "reason": (
-                    f"❌ Unrecognized Command: Could not extract an actionable manipulation task or gesture from '{raw_cmd}'. "
-                    "Please specify an action such as stacking a tower (e.g. 'Make a 3-layer tower of red, blue and yellow'), "
-                    "building 2 distinct towers, assembling a pyramid, or executing a gesture."
-                ),
-                "thought": f"Command rejected: Instruction '{raw_cmd}' does not contain recognized robotic manipulation keywords."
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "STACK_TOWER",
+                "layer_count": 5,
+                "target_blocks": ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald"],
+                "thought": f"Interpreted full assembly instruction: '{raw_cmd}'. Planning full 5-block assembly on target pad.",
             }
 
-        # Default fallback: General 5-block tower assembly when general stacking keywords were provided
+        # Otherwise reject unrecognized / ambiguous commands cleanly
         return {
-            "is_possible": True,
-            "status": "OK",
-            "action_type": "STACK_TOWER",
-            "layer_count": 5,
-            "target_blocks": ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald"],
-            "thought": f"Interpreted general manipulation instruction: '{raw_cmd}'. Planning full 5-block assembly on target pad.",
+            "is_possible": False,
+            "status": "IMPOSSIBLE",
+            "action_type": "REJECTED",
+            "reason": (
+                f"❌ Unrecognized Command: Could not extract an actionable manipulation task, gesture, or spatial trajectory from '{raw_cmd}'. "
+                "Supported commands include stacking towers (e.g. 'Make a 3-layer tower', '3 distinct towers: 2, 2, and 1 blocks'), "
+                "pyramids, spatial motions ('move left to right and top to bottom'), visual servoing ('ColorSeek'), exploration, or gestures ('wave high', 'nod')."
+            ),
+            "thought": f"Command rejected: Instruction '{raw_cmd}' does not match supported manipulation or motion primitives."
         }
 
     def _call_llm_interpreter(self, raw_cmd: str) -> Optional[Dict[str, Any]]:
