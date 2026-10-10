@@ -19,11 +19,11 @@ from typing import Dict, List, Any, Optional, Tuple
 MAX_PHYSICAL_BLOCKS = 5
 MAX_LAYER_HEIGHT = 5
 AVAILABLE_BLOCKS = {
-    "block_cyan": {"name": "Cyan Cube", "color": "#00AEEF", "aliases": ["cyan", "blue", "light blue", "sky blue", "teal"]},
-    "block_orange": {"name": "Orange Cube", "color": "#F7941E", "aliases": ["orange", "amber", "tangerine"]},
-    "block_magenta": {"name": "Magenta Cube", "color": "#E11D8F", "aliases": ["magenta", "red", "pink", "crimson", "purple", "rose"]},
-    "block_yellow": {"name": "Yellow Cube", "color": "#FACC15", "aliases": ["yellow", "gold", "lemon"]},
-    "block_emerald": {"name": "Emerald Cube", "color": "#10B981", "aliases": ["emerald", "green", "dark green", "mint"]},
+    "block_magenta": {"name": "Red Cube", "color": "#EF4444", "aliases": ["red", "crimson", "ruby", "scarlet", "magenta", "pink"]},
+    "block_cyan": {"name": "Blue Cube", "color": "#2563EB", "aliases": ["blue", "cyan", "sky blue", "cobalt", "navy", "teal"]},
+    "block_yellow": {"name": "Yellow Cube", "color": "#EAB308", "aliases": ["yellow", "gold", "amber", "lemon"]},
+    "block_emerald": {"name": "Green Cube", "color": "#16A34A", "aliases": ["green", "emerald", "lime", "mint"]},
+    "block_orange": {"name": "Orange Cube", "color": "#EA580C", "aliases": ["orange", "amber", "tangerine"]},
 }
 
 COLOR_ALIAS_MAP = {}
@@ -354,19 +354,20 @@ class InstructionInterpreter:
             color_mentions = []
             notes = []
             
-            # Words to search for in order of appearance
             known_colors = [
-                ("cyan", "block_cyan", "Cyan Cube"),
-                ("blue", "block_cyan", "Cyan Cube (mapped from 'blue')"),
-                ("light blue", "block_cyan", "Cyan Cube"),
-                ("orange", "block_orange", "Orange Cube"),
-                ("magenta", "block_magenta", "Magenta Cube"),
-                ("red", "block_magenta", "Magenta Cube (mapped from 'red' - nearest available color)"),
-                ("pink", "block_magenta", "Magenta Cube"),
-                ("purple", "block_magenta", "Magenta Cube"),
+                ("red", "block_magenta", "Red Cube"),
+                ("crimson", "block_magenta", "Red Cube"),
+                ("ruby", "block_magenta", "Red Cube"),
+                ("magenta", "block_magenta", "Red Cube"),
+                ("blue", "block_cyan", "Blue Cube"),
+                ("cyan", "block_cyan", "Blue Cube"),
+                ("cobalt", "block_cyan", "Blue Cube"),
+                ("light blue", "block_cyan", "Blue Cube"),
                 ("yellow", "block_yellow", "Yellow Cube"),
-                ("emerald", "block_emerald", "Emerald Cube"),
-                ("green", "block_emerald", "Emerald Cube (mapped from 'green')"),
+                ("gold", "block_yellow", "Yellow Cube"),
+                ("green", "block_emerald", "Green Cube"),
+                ("emerald", "block_emerald", "Green Cube"),
+                ("orange", "block_orange", "Orange Cube"),
             ]
 
             found_items = []

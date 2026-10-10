@@ -44,6 +44,14 @@ class SimCanvas3D {
     this.showSemanticLabels = true;
     this.showColliders = false;
 
+    // Performance Mode ('smooth' 60 FPS optimized for laptops, or 'hd' for high-end GPUs)
+    this.perfMode = localStorage.getItem('AERO_PERF_MODE') || 'smooth';
+
+    // Kinematic joint interpolation for judder-free 60 FPS motion
+    this.targetJoints = null;
+    this.currentJoints = null;
+    this.cubeTargets = {};
+
     // Colors matching monochromatic noir palette
     this.PALETTE = {
       WHITE: 0xf4f4f5,
@@ -58,8 +66,9 @@ class SimCanvas3D {
   }
 
   init() {
-    const width = this.canvas.clientWidth;
-    const height = this.canvas.clientHeight;
+    const container = this.canvas.parentElement || this.canvas;
+    const width = container.clientWidth || window.innerWidth || 960;
+    const height = container.clientHeight || window.innerHeight || 540;
 
     // 1. Three.js Scene & Fog (Pure Obsidian)
     this.scene = new THREE.Scene();
@@ -71,19 +80,23 @@ class SimCanvas3D {
     const initialRig = this.cameraRigs.orbit;
     this.camera.position.set(...initialRig.pos);
 
-    // 3. WebGL Renderer with High-Performance Tone Mapping
+    // 3. WebGL Renderer with Laptop-Optimized Fillrate and Tone Mapping
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
       alpha: false,
       powerPreference: 'high-performance',
     });
-    this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(width, height, false);
+
+    // Smooth mode limits DPR to 1.2 to eliminate GPU fillrate bottlenecks on laptops
+    const dprCap = this.perfMode === 'smooth' ? 1.2 : 1.75;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
+
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = this.perfMode === 'smooth' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMappingExposure = 1.05;
 
     // Orbit Controls
     if (typeof THREE.OrbitControls !== 'undefined') {
@@ -108,8 +121,17 @@ class SimCanvas3D {
     // 7. TCP Trajectory Trail
     this.setupTrailLine();
 
-    // Window Resize Listener
+    // Dynamic Viewport Resize Observer for seamless full-space filling
+    if (window.ResizeObserver && this.canvas.parentElement) {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.onWindowResize();
+      });
+      this.resizeObserver.observe(this.canvas.parentElement);
+    }
     window.addEventListener('resize', () => this.onWindowResize());
+
+    // Trigger initial adjustment once DOM is fully rendered
+    setTimeout(() => this.onWindowResize(), 60);
 
     // Animation Loop
     this.animate();
@@ -122,26 +144,30 @@ class SimCanvas3D {
     const ambLight = new THREE.AmbientLight(0xffffff, 0.4);
     this.scene.add(ambLight);
 
-    // Key Spotlight casting sharp/soft shadows
-    const keySpot = new THREE.SpotLight(0xffffff, 4.2);
+    // Key Spotlight casting sharp shadows (balanced intensity to preserve vibrant saturation)
+    const keySpot = new THREE.SpotLight(0xffffff, 2.2);
     keySpot.position.set(1.8, 3.4, 1.7);
     keySpot.angle = 0.65;
     keySpot.penumbra = 0.55;
     keySpot.castShadow = true;
-    keySpot.shadow.mapSize.width = 2048;
-    keySpot.shadow.mapSize.height = 2048;
-    keySpot.shadow.bias = -0.0006;
+    const shadowSize = this.perfMode === 'smooth' ? 1024 : 2048;
+    keySpot.shadow.mapSize.width = shadowSize;
+    keySpot.shadow.mapSize.height = shadowSize;
+    keySpot.shadow.bias = -0.0008;
+    keySpot.shadow.camera.near = 0.5;
+    keySpot.shadow.camera.far = 6.0;
     this.scene.add(keySpot);
+    this.keySpot = keySpot;
 
     // Fill Spotlight
-    const fillSpot = new THREE.SpotLight(0xd4d4d8, 1.8);
+    const fillSpot = new THREE.SpotLight(0xd4d4d8, 1.0);
     fillSpot.position.set(-2.0, 2.8, 1.2);
     fillSpot.angle = 0.75;
     fillSpot.penumbra = 0.8;
     this.scene.add(fillSpot);
 
     // Pure white rim light
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.55);
     rimLight.position.set(-1.6, 2.2, -2.0);
     this.scene.add(rimLight);
   }
@@ -150,6 +176,8 @@ class SimCanvas3D {
     // 1. Grid Floor (Monochrome Zinc Grid)
     const gridHelper = new THREE.GridHelper(16, 32, 0x3f3f46, 0x18181b);
     gridHelper.position.y = 0.001;
+    gridHelper.matrixAutoUpdate = false;
+    gridHelper.updateMatrix();
     this.scene.add(gridHelper);
 
     // Floor Contact Shadow Plane (Pure Noir)
@@ -162,6 +190,8 @@ class SimCanvas3D {
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
+    floor.matrixAutoUpdate = false;
+    floor.updateMatrix();
     this.scene.add(floor);
 
     // 2. Workcell Table (dimensions: 1.4m x 0.08m x 0.9m at Y=0.72m top)
@@ -175,6 +205,8 @@ class SimCanvas3D {
     tableTop.position.set(0.0, 0.68, 0.0);
     tableTop.receiveShadow = true;
     tableTop.castShadow = true;
+    tableTop.matrixAutoUpdate = false;
+    tableTop.updateMatrix();
     this.scene.add(tableTop);
 
     // Table Rim Bevel Trim (Zinc Metallic Accent)
@@ -186,6 +218,8 @@ class SimCanvas3D {
     });
     const trim = new THREE.Mesh(trimGeo, trimMat);
     trim.position.set(0.0, 0.71, 0.0);
+    trim.matrixAutoUpdate = false;
+    trim.updateMatrix();
     this.scene.add(trim);
 
     // 4 Brushed Steel Table Legs
@@ -201,6 +235,8 @@ class SimCanvas3D {
       const leg = new THREE.Mesh(legGeo, legMat);
       leg.position.set(lx, ly, lz);
       leg.castShadow = true;
+      leg.matrixAutoUpdate = false;
+      leg.updateMatrix();
       this.scene.add(leg);
     });
 
@@ -389,49 +425,75 @@ class SimCanvas3D {
   updateFromTelemetry(data) {
     if (!data) return;
 
-    // 1. Update Arm Joints from FK
+    // 1. Update Target Arm Joints for Smooth Frame Interpolation
     const joints = data.joints;
-    if (joints && this.arm.yaw) {
-      this.arm.yaw.rotation.y = joints.baseYaw || 0;
-      this.arm.shoulder.rotation.z = joints.shoulderPitch || 0;
-      this.arm.elbow.rotation.z = joints.elbowPitch || 0;
-      this.arm.wrist.rotation.z = joints.wristPitch || 0;
-
-      // Gripper Jaw Separation
-      const grip = joints.gripper || 0.0;
-      const minSep = 0.069 / 2;
-      const maxSep = 0.125 / 2;
-      const sep = minSep + (maxSep - minSep) * (1.0 - grip);
-
-      if (this.arm.jawLeft) this.arm.jawLeft.position.z = sep;
-      if (this.arm.jawRight) this.arm.jawRight.position.z = -sep;
+    if (joints) {
+      if (!this.currentJoints) {
+        this.currentJoints = {
+          baseYaw: joints.baseYaw || 0,
+          shoulderPitch: joints.shoulderPitch || 0,
+          elbowPitch: joints.elbowPitch || 0,
+          wristPitch: joints.wristPitch || 0,
+          gripper: joints.gripper || 0,
+        };
+      }
+      this.targetJoints = {
+        baseYaw: joints.baseYaw || 0,
+        shoulderPitch: joints.shoulderPitch || 0,
+        elbowPitch: joints.elbowPitch || 0,
+        wristPitch: joints.wristPitch || 0,
+        gripper: joints.gripper || 0,
+      };
     }
 
-    // 2. Update Dynamic Cubes
+    // 2. Update Dynamic Cubes with vivid, high-contrast recognizable colors
     const blocks = data.blocks || [];
     blocks.forEach((b) => {
       let mesh = this.cubes[b.id];
+      const hex = parseInt(b.color.replace('#', '0x'), 16);
+      const colorObj = new THREE.Color(hex);
+
       if (!mesh) {
-        // Create Cube with bevel
+        // Create Cube with high-saturation material and sharp edge highlights
         const geo = new THREE.BoxGeometry(0.055, 0.055, 0.055);
-        const hex = parseInt(b.color.replace('#', '0x'), 16);
         const mat = new THREE.MeshStandardMaterial({
-          color: hex,
-          roughness: 0.25,
-          metalness: 0.15,
+          color: colorObj,
+          roughness: 0.22,
+          metalness: 0.0,
+          emissive: colorObj,
+          emissiveIntensity: 0.38, // ensures rich vivid saturation and zero washed out bleach
         });
         mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        mesh.position.set(b.position[0], b.position[1], b.position[2]);
+
+        // Clean white outline edge lines for sharp physical clarity & distinct visibility
+        const edges = new THREE.EdgesGeometry(geo);
+        const edgeLine = new THREE.LineSegments(
+          edges,
+          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, linewidth: 1.5 })
+        );
+        mesh.add(edgeLine);
+
         this.scene.add(mesh);
         this.cubes[b.id] = mesh;
+      } else {
+        // Dynamically update material color if changed or re-spawned
+        if (mesh.material && mesh.material.color && mesh.material.color.getHex() !== hex) {
+          mesh.material.color.setHex(hex);
+          if (mesh.material.emissive) {
+            mesh.material.emissive.setHex(hex);
+            mesh.material.emissiveIntensity = 0.38;
+          }
+        }
       }
 
-      // Smooth position update
-      mesh.position.set(b.position[0], b.position[1], b.position[2]);
-      if (b.rotation) {
-        mesh.quaternion.set(b.rotation[0], b.rotation[1], b.rotation[2], b.rotation[3]);
-      }
+      if (!this.cubeTargets) this.cubeTargets = {};
+      this.cubeTargets[b.id] = {
+        pos: b.position,
+        rot: b.rotation,
+      };
     });
 
     // 3. Update TCP Trail Line
@@ -445,6 +507,8 @@ class SimCanvas3D {
       }
       this.tcpTrailLine.geometry.setDrawRange(0, pts.length);
       this.tcpTrailLine.geometry.attributes.position.needsUpdate = true;
+    } else if (this.tcpTrailLine) {
+      this.tcpTrailLine.geometry.setDrawRange(0, 0);
     }
 
     // 4. Update Wrist Camera if active
@@ -489,6 +553,27 @@ class SimCanvas3D {
     this.setCameraView(this.activeCameraView || 'orbit');
   }
 
+  togglePerfMode() {
+    this.perfMode = this.perfMode === 'smooth' ? 'hd' : 'smooth';
+    localStorage.setItem('AERO_PERF_MODE', this.perfMode);
+    const dprCap = this.perfMode === 'smooth' ? 1.2 : 1.75;
+    if (this.renderer) {
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
+      this.renderer.shadowMap.type = this.perfMode === 'smooth' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+      if (this.keySpot) {
+        const size = this.perfMode === 'smooth' ? 1024 : 2048;
+        this.keySpot.shadow.mapSize.width = size;
+        this.keySpot.shadow.mapSize.height = size;
+        if (this.keySpot.shadow.map) {
+          this.keySpot.shadow.map.dispose();
+          this.keySpot.shadow.map = null;
+        }
+      }
+      this.onWindowResize();
+    }
+    return this.perfMode;
+  }
+
   toggleTrails() {
     this.showTrails = !this.showTrails;
     if (this.tcpTrailLine) this.tcpTrailLine.visible = this.showTrails;
@@ -497,11 +582,13 @@ class SimCanvas3D {
 
   onWindowResize() {
     if (!this.canvas || !this.renderer || !this.camera) return;
-    const width = this.canvas.clientWidth;
-    const height = this.canvas.clientHeight;
+    const container = this.canvas.parentElement || this.canvas;
+    const width = container.clientWidth || this.canvas.clientWidth || window.innerWidth;
+    const height = container.clientHeight || this.canvas.clientHeight || window.innerHeight;
+    if (width <= 0 || height <= 0) return;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
+    this.renderer.setSize(width, height, false);
   }
 
   animate() {
@@ -509,6 +596,45 @@ class SimCanvas3D {
 
     if (this.controls && this.controls.enabled) {
       this.controls.update();
+    }
+
+    // Kinematic smoothing: interpolate joint angles for judder-free 60 FPS motion
+    if (this.targetJoints && this.currentJoints && this.arm.yaw) {
+      const j = this.targetJoints;
+      const cur = this.currentJoints;
+      const alpha = 0.55;
+      cur.baseYaw += (j.baseYaw - cur.baseYaw) * alpha;
+      cur.shoulderPitch += (j.shoulderPitch - cur.shoulderPitch) * alpha;
+      cur.elbowPitch += (j.elbowPitch - cur.elbowPitch) * alpha;
+      cur.wristPitch += (j.wristPitch - cur.wristPitch) * alpha;
+      cur.gripper += (j.gripper - cur.gripper) * alpha;
+
+      this.arm.yaw.rotation.y = cur.baseYaw;
+      this.arm.shoulder.rotation.z = cur.shoulderPitch;
+      this.arm.elbow.rotation.z = cur.elbowPitch;
+      this.arm.wrist.rotation.z = cur.wristPitch;
+
+      const minSep = 0.069 / 2;
+      const maxSep = 0.125 / 2;
+      const sep = minSep + (maxSep - minSep) * (1.0 - cur.gripper);
+
+      if (this.arm.jawLeft) this.arm.jawLeft.position.z = sep;
+      if (this.arm.jawRight) this.arm.jawRight.position.z = -sep;
+    }
+
+    // Kinematic smoothing: interpolate dynamic cubes
+    if (this.cubeTargets) {
+      for (const [id, target] of Object.entries(this.cubeTargets)) {
+        const mesh = this.cubes[id];
+        if (mesh && target.pos) {
+          mesh.position.x += (target.pos[0] - mesh.position.x) * 0.55;
+          mesh.position.y += (target.pos[1] - mesh.position.y) * 0.55;
+          mesh.position.z += (target.pos[2] - mesh.position.z) * 0.55;
+          if (target.rot) {
+            mesh.quaternion.slerp(new THREE.Quaternion(target.rot[0], target.rot[1], target.rot[2], target.rot[3]), 0.55);
+          }
+        }
+      }
     }
 
     // Subtle pulsing of target pad ring

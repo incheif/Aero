@@ -72,42 +72,42 @@ DEFAULT_JOINTS: Dict[str, float] = {
     "gripper": 0.0,
 }
 
-# Initial Spawns for 5 Tabletop Cubes
+# Initial Spawns for 5 Tabletop Cubes (Ultra-vivid, high-contrast, distinct primary & secondary colors)
 BLOCK_SPAWNS = [
     {
-        "id": "block_cyan",
-        "name": "Cyan Cube",
-        "color": "#00AEEF",
-        "color_rgb": (0, 174, 239),
-        "position": [0.24, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.18],
-    },
-    {
-        "id": "block_orange",
-        "name": "Orange Cube",
-        "color": "#F7941E",
-        "color_rgb": (247, 148, 30),
-        "position": [0.34, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.06],
-    },
-    {
         "id": "block_magenta",
-        "name": "Magenta Cube",
-        "color": "#E11D8F",
-        "color_rgb": (225, 29, 143),
+        "name": "Red Cube",
+        "color": "#FF1E27",
+        "color_rgb": (255, 30, 39),
         "position": [0.26, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.12],
+    },
+    {
+        "id": "block_cyan",
+        "name": "Blue Cube",
+        "color": "#1E60FF",
+        "color_rgb": (30, 96, 255),
+        "position": [0.24, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.18],
     },
     {
         "id": "block_yellow",
         "name": "Yellow Cube",
-        "color": "#FACC15",
-        "color_rgb": (250, 204, 21),
+        "color": "#FFC300",
+        "color_rgb": (255, 195, 0),
         "position": [0.15, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.06],
     },
     {
         "id": "block_emerald",
-        "name": "Emerald Cube",
-        "color": "#10B981",
-        "color_rgb": (16, 185, 129),
+        "name": "Green Cube",
+        "color": "#00B341",
+        "color_rgb": (0, 179, 65),
         "position": [0.18, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.24],
+    },
+    {
+        "id": "block_orange",
+        "name": "Orange Cube",
+        "color": "#FF5500",
+        "color_rgb": (255, 85, 0),
+        "position": [0.34, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.06],
     },
 ]
 

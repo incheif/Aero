@@ -68,9 +68,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  let lastDomUpdateTime = 0;
+
   function handleTelemetry(data) {
-    // 1. Pass to 3D Three.js Canvas
+    // 1. Pass to 3D Three.js Canvas (Real-time 60 FPS continuous update)
     simCanvas.updateFromTelemetry(data);
+
+    // 2. Throttle heavy DOM string parsing and text node mutations to ~10 Hz (every 90ms)
+    // This frees the browser main thread completely for 60 FPS WebGL rendering without layout thrashing
+    const now = performance.now();
+    if (now - lastDomUpdateTime < 90) {
+      return;
+    }
+    lastDomUpdateTime = now;
 
     // 2. Update Header FPS & Ticks
     const fpsEl = document.getElementById('fps-metric');
@@ -251,6 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pauseBtn) {
       pauseBtn.innerText = data.is_paused ? '▶ Resume' : '⏸ Pause';
     }
+
+    // 9. Update Execution Logs
+    if (data.logs && Array.isArray(data.logs)) {
+      updateLogsFromTelemetry(data.logs);
+    }
   }
 
   function updateCostMetrics(cost) {
@@ -306,6 +321,185 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.innerText = val;
   }
 
+  // --------------------------------------------------------------------------
+  // Execution & Audit Logs Panel Management
+  // --------------------------------------------------------------------------
+  const tabBtnTelemetry = document.getElementById('tab-btn-telemetry');
+  const tabBtnLogs = document.getElementById('tab-btn-logs');
+  const telemetryView = document.getElementById('telemetry-view');
+  const logsView = document.getElementById('logs-view');
+  const logsBadgeCount = document.getElementById('logs-badge-count');
+  const logsTotalCount = document.getElementById('logs-total-count');
+  const logsList = document.getElementById('logs-list');
+  const logsContainer = document.getElementById('logs-stream-container');
+  const btnToggleAutoScroll = document.getElementById('btn-toggle-autoscroll');
+  const autoscrollLabel = document.getElementById('autoscroll-label');
+  const btnClearLogs = document.getElementById('btn-clear-logs');
+  const filterChips = document.querySelectorAll('.log-filter-chip');
+
+  let activeTab = 'telemetry';
+  let autoScrollEnabled = true;
+  let activeLogFilter = 'all';
+  let localLogs = [];
+  let lastLogsSignature = '';
+
+  function switchTab(tabName) {
+    activeTab = tabName;
+    if (tabName === 'telemetry') {
+      tabBtnTelemetry?.classList.add('active');
+      tabBtnLogs?.classList.remove('active');
+      if (telemetryView) telemetryView.style.display = 'flex';
+      if (logsView) logsView.style.display = 'none';
+    } else {
+      tabBtnLogs?.classList.add('active');
+      tabBtnTelemetry?.classList.remove('active');
+      if (telemetryView) telemetryView.style.display = 'none';
+      if (logsView) logsView.style.display = 'flex';
+      renderLogs();
+      if (autoScrollEnabled && logsContainer) {
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+      }
+    }
+  }
+
+  tabBtnTelemetry?.addEventListener('click', () => switchTab('telemetry'));
+  tabBtnLogs?.addEventListener('click', () => switchTab('logs'));
+
+  btnToggleAutoScroll?.addEventListener('click', () => {
+    autoScrollEnabled = !autoScrollEnabled;
+    btnToggleAutoScroll?.classList.toggle('active', autoScrollEnabled);
+    if (autoscrollLabel) {
+      autoscrollLabel.innerText = autoScrollEnabled ? 'Scroll: ON' : 'Scroll: OFF';
+    }
+    if (autoScrollEnabled && logsContainer) {
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+  });
+
+  btnClearLogs?.addEventListener('click', async () => {
+    try {
+      await fetch('/api/logs/clear', { method: 'POST' });
+      localLogs = [];
+      lastLogsSignature = '';
+      renderLogs();
+    } catch (err) {
+      console.error('Error clearing logs:', err);
+    }
+  });
+
+  filterChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      filterChips.forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeLogFilter = chip.getAttribute('data-filter') || 'all';
+      renderLogs();
+    });
+  });
+
+  function updateLogsFromTelemetry(incomingLogs) {
+    if (!incomingLogs || incomingLogs.length === 0) return;
+
+    // Fast signature check to avoid DOM thrashing when logs haven't changed
+    const sig = incomingLogs.map(l => l.id).join(',');
+    if (sig === lastLogsSignature) return;
+    lastLogsSignature = sig;
+
+    // Merge incoming logs into localLogs without duplicates
+    const existingIds = new Set(localLogs.map(l => l.id));
+    let hasNew = false;
+    for (const log of incomingLogs) {
+      if (!existingIds.has(log.id)) {
+        localLogs.push(log);
+        existingIds.add(log.id);
+        hasNew = true;
+      }
+    }
+
+    if (localLogs.length > 250) {
+      localLogs = localLogs.slice(localLogs.length - 250);
+    }
+
+    if (logsBadgeCount) logsBadgeCount.innerText = localLogs.length;
+    if (logsTotalCount) logsTotalCount.innerText = `${localLogs.length} events`;
+
+    if (activeTab === 'logs' && hasNew) {
+      renderLogs();
+    }
+  }
+
+  function renderLogs() {
+    if (!logsList) return;
+
+    const filtered = activeLogFilter === 'all'
+      ? localLogs
+      : localLogs.filter(l => (l.category || '').toLowerCase() === activeLogFilter.toLowerCase());
+
+    if (logsBadgeCount) logsBadgeCount.innerText = localLogs.length;
+    if (logsTotalCount) logsTotalCount.innerText = `${localLogs.length} events`;
+
+    if (filtered.length === 0) {
+      logsList.innerHTML = `
+        <div class="logs-empty-state">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--mono-500);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>No logs recorded for category: <strong>${activeLogFilter.toUpperCase()}</strong></span>
+        </div>
+      `;
+      return;
+    }
+
+    const html = filtered.map(log => {
+      const cat = (log.category || 'system').toLowerCase();
+      const badge = log.badge || 'INFO';
+      let badgeClass = 'badge-system';
+      if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
+      else if (cat === 'vla') badgeClass = 'badge-vla';
+      else if (cat === 'motion') badgeClass = 'badge-motion';
+      else if (cat === 'contact') badgeClass = 'badge-contact';
+      else if (cat === 'stability') badgeClass = 'badge-stability';
+
+      return `
+        <div class="log-entry cat-${cat}" data-id="${log.id}">
+          <div class="log-entry-header">
+            <span class="log-time">${log.timestamp || ''}</span>
+            <span class="log-badge ${badgeClass}">${badge}</span>
+          </div>
+          <div class="log-what">
+            <span class="log-what-tag">WHAT:</span> ${escapeHtml(log.what || '')}
+          </div>
+          <div class="log-how">
+            <span class="log-how-tag">HOW:</span> ${escapeHtml(log.how || '')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    logsList.innerHTML = html;
+
+    if (autoScrollEnabled && logsContainer) {
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Initial fetch of logs from REST endpoint on load
+  fetch('/api/logs')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.logs) {
+        updateLogsFromTelemetry(data.logs);
+      }
+    })
+    .catch(() => {});
+
+  let lastSemanticHtml = '';
   function updateSemanticTable(entities) {
     const tbody = document.getElementById('semantic-table-body');
     if (!tbody) return;
@@ -323,7 +517,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </tr>
       `;
     });
-    tbody.innerHTML = html;
+    if (html !== lastSemanticHtml) {
+      lastSemanticHtml = html;
+      tbody.innerHTML = html;
+    }
   }
 
   // 4. Command Input Handling
@@ -333,6 +530,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function submitCommand(commandText) {
     const text = (commandText || cmdInput.value || '').trim();
     if (!text) return;
+
+    // Retain and display command in text box so user can reference what was queried
+    cmdInput.value = text;
 
     const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
     const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
@@ -368,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.api_warning) {
         console.warn('[Google VLA Warning]', res.api_warning);
       }
-      cmdInput.value = '';
+      // Do not remove command from text box - keep it visible for user reference
     } catch (err) {
       console.error('Command submission error:', err);
     } finally {
@@ -385,12 +585,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Preset Action Chips
   document.querySelectorAll('.prompt-chip').forEach((chip) => {
     chip.addEventListener('click', () => {
+      document.querySelectorAll('.prompt-chip').forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
       const prompt = chip.getAttribute('data-prompt');
       if (prompt) {
         cmdInput.value = prompt;
+        cmdInput.focus();
         submitCommand(prompt);
       }
     });
+  });
+
+  // Remove chip highlight when user manually types or edits query in text box
+  cmdInput.addEventListener('input', () => {
+    document.querySelectorAll('.prompt-chip').forEach((c) => c.classList.remove('active'));
   });
 
   // 6. Camera Switching Toolbar & Zoom Controls
@@ -416,29 +624,43 @@ document.addEventListener('DOMContentLoaded', () => {
     simCanvas.resetCamera();
   });
 
-  // Viewport Size Toggle (Compact -> Standard -> Expanded -> Compact)
+  // Viewport Size Toggle (Full -> Standard -> Expanded -> Full)
   const sizeToggleBtn = document.getElementById('btn-toggle-viewport-size');
   const sizeLabel = document.getElementById('viewport-size-label');
   const viewportBox = document.getElementById('viewport-container');
-  const sizeModes = ['compact', 'standard', 'expanded'];
-  let currentSizeModeIdx = 0; // Starts at compact
+  const sizeModes = ['fill', 'standard', 'expanded'];
+  let currentSizeModeIdx = 0; // Starts at full fill
 
   if (sizeToggleBtn && viewportBox) {
     sizeToggleBtn.addEventListener('click', () => {
       currentSizeModeIdx = (currentSizeModeIdx + 1) % sizeModes.length;
       const nextMode = sizeModes[currentSizeModeIdx];
 
-      viewportBox.classList.remove('viewport-compact', 'viewport-standard', 'viewport-expanded');
+      viewportBox.classList.remove('viewport-fill', 'viewport-compact', 'viewport-standard', 'viewport-expanded');
       viewportBox.classList.add(`viewport-${nextMode}`);
 
       if (sizeLabel) {
-        sizeLabel.innerText = nextMode.charAt(0).toUpperCase() + nextMode.slice(1);
+        sizeLabel.innerText = nextMode === 'fill' ? 'Full' : (nextMode.charAt(0).toUpperCase() + nextMode.slice(1));
       }
 
       // Allow DOM reflow then recalculate Three.js projection and render buffer
       setTimeout(() => {
         simCanvas.onWindowResize();
       }, 50);
+    });
+  }
+
+  // Performance Mode Toggle (Smooth 60 FPS <-> Retina HD)
+  const perfToggleBtn = document.getElementById('btn-toggle-perf-mode');
+  const perfLabel = document.getElementById('perf-mode-label');
+  if (perfToggleBtn && perfLabel) {
+    const curMode = simCanvas.perfMode || 'smooth';
+    perfLabel.innerText = curMode === 'smooth' ? '⚡ 60 FPS' : '✦ HD';
+
+    perfToggleBtn.addEventListener('click', () => {
+      const newMode = simCanvas.togglePerfMode();
+      perfLabel.innerText = newMode === 'smooth' ? '⚡ 60 FPS' : '✦ HD';
+      console.log(`[Graphics] Performance Mode set to: ${newMode}`);
     });
   }
 

@@ -91,6 +91,33 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# System execution logs buffer (maintains what is happening and how)
+recent_logs: list[Dict[str, Any]] = []
+
+def log_event(category: str, badge: str, what: str, how: str):
+    """
+    Records an execution or cognitive event.
+    category: 'vla' | 'motion' | 'contact' | 'stability' | 'system'
+    badge: e.g. 'COMMAND', 'PLAN', 'MOTION', 'GRIP', 'RELEASE', 'STABILITY', 'RESET', 'REJECT'
+    what: high-level description of what is happening
+    how: technical parameters, metric targets, clearance, dwell ticks, velocities, etc.
+    """
+    entry = {
+        "id": f"log_{int(time.time()*1000)}_{len(recent_logs)}",
+        "timestamp": time.strftime("%H:%M:%S") + f".{int((time.time() % 1) * 100):02d}",
+        "category": category,
+        "badge": badge,
+        "what": what,
+        "how": how,
+    }
+    recent_logs.append(entry)
+    if len(recent_logs) > 250:
+        recent_logs.pop(0)
+    return entry
+
+# Initial boot log
+log_event("system", "STARTUP", "Simulation engine and Google VLA studio initialized.", "Rapier3D physics running at 60 FPS (dt=16.6ms). 5 blocks spawned at canonical table coordinates.")
+
 # Background Simulation Loop
 async def simulation_loop():
     global is_paused, manual_mode, color_seek_active
@@ -98,6 +125,8 @@ async def simulation_loop():
     fps_timer = time.time()
     frame_count = 0
     current_fps = 60.0
+    prev_step_idx = -1
+    prev_stability_verified = False
 
     while True:
         now = time.time()
@@ -115,9 +144,33 @@ async def simulation_loop():
                     target_cmd = controller.step(tcp_pos, sim.joints)
                     if target_cmd:
                         sim.set_joint_targets(target_cmd["joints"], target_cmd["gripper"])
+                        cur_idx = controller.step_idx
+                        if cur_idx != prev_step_idx and cur_idx < len(controller.current_plan):
+                            prev_step_idx = cur_idx
+                            step_data = controller.current_plan[cur_idx]
+                            s_desc = step_data.get("desc", f"Waypoint {cur_idx + 1}")
+                            s_tgt = step_data.get("target", (0, 0, 0))
+                            s_grip = step_data.get("gripper", 0.0)
+                            s_dwell = step_data.get("dwell_ticks", 10)
+                            is_contact = "GRIP" in s_desc.upper() or "RELEASE" in s_desc.upper()
+                            s_cat = "contact" if is_contact else "motion"
+                            s_badge = "GRIP" if "GRIP" in s_desc.upper() else ("RELEASE" if "RELEASE" in s_desc.upper() else "IK MOTION")
+                            log_event(
+                                s_cat,
+                                s_badge,
+                                f"Waypoint {cur_idx + 1}/{len(controller.current_plan)}: {s_desc}",
+                                f"Target TCP: [{s_tgt[0]:.3f}, {s_tgt[1]:.3f}, {s_tgt[2]:.3f}] · Jaws: {'Closed (100%)' if s_grip > 0.5 else 'Open (100%)'} · Dwell: {s_dwell} ticks contact settle"
+                            )
+
                         if target_cmd.get("is_active") is False:
                             vla_agent.execution_status = "COMPLETED"
                             vla_agent.latest_thought = f"Completed action plan: {target_cmd.get('step_desc')}"
+                            log_event(
+                                "system",
+                                "COMPLETED",
+                                f"Action completed: {target_cmd.get('step_desc')}",
+                                "All waypoints successfully executed to metric tolerances. Arm holding in standby pose."
+                            )
 
                 # 1b. ColorSeek closed-loop visual servoing step (5 Hz downsampled VLA stride)
                 elif color_seek_active and not manual_mode:
@@ -164,6 +217,21 @@ async def simulation_loop():
                     fps_timer = time.time()
                     frame_count = 0
 
+                # Stability state change logging
+                stab = snapshot.get("scores", {}).get("stability", {})
+                is_ver = stab.get("is_verified", False)
+                if is_ver and not prev_stability_verified:
+                    prev_stability_verified = True
+                    spat_acc = snapshot.get("scores", {}).get("spatial_accuracy", 0.0)
+                    log_event(
+                        "stability",
+                        "VERIFIED",
+                        "Post-release physical stability hold verified (18/18 ticks = 0.30s).",
+                        f"Target stack held without toppling. Linear velocity <= 0.02 m/s, angular velocity <= 0.05 rad/s. Spatial accuracy score: {spat_acc*100:.1f}%."
+                    )
+                elif not is_ver:
+                    prev_stability_verified = False
+
                 # 5. Broadcast live telemetry state
                 payload = {
                     "type": "telemetry",
@@ -193,11 +261,13 @@ async def simulation_loop():
                     "cost": vla_agent.get_cost_summary(),
                     "is_paused": is_paused,
                     "manual_mode": manual_mode,
+                    "logs": recent_logs[-40:],
                 }
                 await manager.broadcast(payload)
 
-        # Yield to event loop
-        await asyncio.sleep(0.002)
+        # Yield to event loop adaptively based on time until next 60 Hz tick
+        rem = FIXED_DT - (time.time() - last_time)
+        await asyncio.sleep(max(0.002, rem if rem > 0 else 0.002))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -252,6 +322,17 @@ async def api_command(req: CommandRequest):
 async def handle_vla_command(cmd: str) -> Dict[str, Any]:
     global manual_mode
     manual_mode = False
+
+    log_event(
+        "vla",
+        "INSTRUCTION",
+        f"VLA instruction received: \"{cmd}\"",
+        f"Dispatched to Google VLA reasoning pipeline (Model: {vla_agent.model_name}). Synthesizing spatial chain-of-thought."
+    )
+
+    # Automatically reset the system before every new action
+    handle_reset()
+
     snapshot = sim.get_snapshot()
     img = render_camera_frame(snapshot)
     semantic_summary = mapper.get_semantic_summary()
@@ -262,6 +343,12 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
     # If rejected as impossible:
     if not result.get("is_possible", True) or result.get("status") == "IMPOSSIBLE":
         controller.stop()
+        log_event(
+            "vla",
+            "REJECT",
+            f"Instruction rejected as infeasible: \"{cmd}\"",
+            f"Reason: {result.get('reasoning', 'Action violates spatial reachability or semantic stability constraint.')}"
+        )
         return result
 
     # If ColorSeek closed-loop visual servoing was requested:
@@ -273,6 +360,12 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
         color_seek_active = True
         vla_agent.execution_status = "EXECUTING"
         vla_agent.latest_thought = "ColorSeek: Closed-loop RGB visual servoing active (5 Hz policy stride)."
+        log_event(
+            "vla",
+            "COLORSEEK",
+            "Visual servoing stacking policy initialized",
+            "RGB camera tracking active at 5 Hz control policy stride. Visual servoing closed-loop engaged."
+        )
         return result
 
     # If active frontier exploration was requested:
@@ -285,6 +378,12 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
         color_seek_active = False
         vla_agent.execution_status = "EXECUTING"
         vla_agent.latest_thought = f"Google VLA: Executing active frontier exploration for '{cmd}'."
+        log_event(
+            "motion",
+            "EXPLORE",
+            f"Frontier exploration started: \"{cmd}\"",
+            "Autonomous workspace survey engaged. Updating 3D semantic voxel grid."
+        )
         return {"status": "ok", "action": "EXPLORATION_STARTED", "thought": vla_agent.latest_thought}
 
     # Load and execute trajectory plan (gestures, stacking, pick-and-place)
@@ -292,17 +391,28 @@ async def handle_vla_command(cmd: str) -> Dict[str, Any]:
     plan = result.get("plan", [])
     if plan:
         controller.load_plan(plan)
+        log_event(
+            "vla",
+            "PLAN READY",
+            f"Synthesized trajectory plan with {len(plan)} waypoints.",
+            f"Action: {result.get('action_type', 'TASK')} · CoT reasoning: {result.get('reasoning', result.get('thought', 'Metric waypoint sequence dispatched.'))}"
+        )
     return result
 
 @app.post("/api/vla/explore")
 async def api_explore():
     global manual_mode, color_seek_active
     manual_mode = False
-    color_seek_active = False
-    controller.stop()
+    handle_reset()
     explorer.start_exploration()
     vla_agent.execution_status = "EXECUTING"
     vla_agent.latest_thought = "Active frontier exploration initiated. Scanning table quadrants."
+    log_event(
+        "motion",
+        "EXPLORE",
+        "Active frontier exploration triggered",
+        "Workspace survey engaged. Updating 3D semantic voxel occupancy grid."
+    )
     return {"status": "ok", "message": "Exploration initiated"}
 
 @app.post("/api/sim/reset")
@@ -314,6 +424,16 @@ async def api_reset():
 async def api_rest():
     handle_reset()
     return {"status": "ok", "message": "Arm returned to rest pose and workspace reset."}
+
+@app.get("/api/logs")
+async def api_get_logs():
+    return {"logs": recent_logs}
+
+@app.post("/api/logs/clear")
+async def api_clear_logs():
+    recent_logs.clear()
+    log_event("system", "CLEARED", "Execution logs cleared by user.", "Log buffer flushed.")
+    return {"status": "ok", "logs": recent_logs}
 
 def handle_reset():
     global color_seek_active
@@ -328,6 +448,12 @@ def handle_reset():
     mapper.update_from_simulation(sim.get_snapshot())
     vla_agent.execution_status = "RESTING"
     vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
+    log_event(
+        "system",
+        "RESET",
+        "Workspace and arm reset to canonical state.",
+        "Joint targets zeroed/rest pose. Blocks re-spawned at baseline coordinates. Trajectory queue stopped."
+    )
 
 @app.post("/api/sim/toggle_pause")
 async def api_toggle_pause():

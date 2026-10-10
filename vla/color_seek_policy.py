@@ -49,18 +49,23 @@ CARRY_CLEARANCE = 0.11
 ORDER = ["cyan", "orange", "magenta"]
 
 def classify_pixel(r: int, g: int, b: int) -> Optional[str]:
-    """Color classification matching vsarena blob thresholds."""
+    """Color classification matching blob thresholds for red, blue, yellow, green, orange, pad, tcp."""
     if r > 220 and g > 220 and b > 220:
         return "tcp"
-    if r < 80 and g > 120 and b > 180:
+    # Blue / Cyan
+    if (b > 160 and b > r + 30) or (r < 80 and g > 120 and b > 180):
         return "cyan"
-    if r > 200 and 90 < g < 210 and b < 90:
+    # Orange
+    if (r > 190 and 70 < g < 180 and b < 80) or (r > 200 and 90 < g < 210 and b < 90):
         return "orange"
-    if r > 160 and g < 90 and b > 90:
+    # Red / Magenta
+    if (r > 160 and r > g + 40 and r > b + 40) or (r > 160 and g < 90 and b > 90):
         return "magenta"
-    if r > 180 and g > 180 and b < 80:
+    # Yellow
+    if (r > 180 and g > 140 and b < 80) or (r > 180 and g > 180 and b < 80):
         return "yellow"
-    if r < 60 and g > 140 and b < 100:
+    # Green / Emerald
+    if (g > 130 and g > r + 30 and g > b + 30) or (r < 60 and g > 140 and b < 100):
         return "emerald"
     if r < 65 and 50 < g < 110 and 65 < b < 125:
         return "pad"

@@ -42,6 +42,7 @@ class TrajectoryController:
         self.current_plan.clear()
         self.step_idx = 0
         self.current_action_desc = "Stopped"
+        self.tcp_trail.clear()
 
     def step(self, current_tcp_pos: Tuple[float, float, float], current_joints: Dict[str, float]) -> Optional[Dict[str, Any]]:
         """

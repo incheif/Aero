@@ -102,7 +102,12 @@ class GoogleVLAAgent:
 
         return False, "No response received from Google Gemini API."
 
-    def _generate_gesture_plan(self, gesture_name: str) -> List[Dict[str, Any]]:
+    def _generate_gesture_plan(
+        self,
+        gesture_name: str,
+        target_name: Optional[str] = None,
+        snapshot: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """Generates trajectory waypoints for expressive robotic arm gestures."""
         if gesture_name in ("wave_high", "wave", "wave_hello"):
             return [
@@ -360,12 +365,14 @@ Output a JSON object ONLY with the following schema:
             # Extract sequence of grounded blocks
             blocks_by_id = {b["id"]: b for b in snapshot.get("blocks", [])}
             color_to_id = {
+                "red": "block_magenta",
+                "magenta": "block_magenta",
+                "blue": "block_cyan",
                 "cyan": "block_cyan",
                 "orange": "block_orange",
-                "magenta": "block_magenta",
                 "yellow": "block_yellow",
-                "emerald": "block_emerald",
                 "green": "block_emerald",
+                "emerald": "block_emerald",
             }
 
             grounded_seq = []
@@ -469,7 +476,11 @@ Output a JSON object ONLY with the following schema:
         if interpretation is None:
             interpretation = self.interpreter.interpret(instruction)
 
-        blocks = {b["id"]: b for b in snapshot.get("blocks", [])}
+        raw_blocks = snapshot.get("blocks", [])
+        if isinstance(raw_blocks, dict):
+            blocks = raw_blocks
+        else:
+            blocks = {b["id"]: b for b in raw_blocks if isinstance(b, dict) and "id" in b}
         plan: List[Dict[str, Any]] = []
         thought: str = ""
         grounding: List[Dict[str, Any]] = []

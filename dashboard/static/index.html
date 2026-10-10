@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Google VLA Robot Arm</title>
-  <link rel="stylesheet" href="/css/style.css?v=2.0">
+  <link rel="stylesheet" href="/css/style.css?v=2.3">
 </head>
 <body>
   <div id="app-layout">
@@ -62,8 +62,8 @@
 
     <!-- Main Center Stage (Framed 3D Viewport & Live Telemetry) -->
     <main id="main-stage">
-      <!-- Framed 3D Simulation Viewport Card -->
-      <div id="viewport-container" class="viewport-compact">
+      <!-- Framed 3D Simulation Viewport Card (Fills Available Stage Space) -->
+      <div id="viewport-container" class="viewport-fill">
         <canvas id="canvas-3d"></canvas>
 
         <!-- Minimal Camera & Zoom Controls Pill -->
@@ -81,7 +81,7 @@
             <span>Top</span>
           </button>
           <div class="viewport-bar-divider"></div>
-          <button class="cam-btn btn-zoom" id="btn-zoom-out" title="Zoom Out (Make 3D render smaller)">
+          <button class="cam-btn btn-zoom" id="btn-zoom-out" title="Zoom Out">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             <span>-</span>
           </button>
@@ -94,9 +94,13 @@
             <span>Reset</span>
           </button>
           <div class="viewport-bar-divider"></div>
-          <button class="cam-btn" id="btn-toggle-viewport-size" title="Toggle Compact / Standard Viewport Size">
+          <button class="cam-btn" id="btn-toggle-viewport-size" title="Toggle Full / Standard Viewport Size">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-            <span id="viewport-size-label">Compact</span>
+            <span id="viewport-size-label">Full</span>
+          </button>
+          <button class="cam-btn" id="btn-toggle-perf-mode" title="Toggle Smooth 60 FPS / HD Graphics">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span id="perf-mode-label">⚡ 60 FPS</span>
           </button>
         </div>
       </div>
@@ -130,27 +134,23 @@
     <section id="command-bar-container">
       <!-- Essential Playground Challenge Chips -->
       <div class="chips-row">
-        <button class="prompt-chip" data-prompt="Make a 3-layer tower of red, blue and yellow on the green pad.">
+        <button class="prompt-chip" data-prompt="Make a 3-layer tower of red, blue and yellow.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5"/></svg>
           <span>🗼 3-Layer Tower</span>
-        </button>
-        <button class="prompt-chip" data-prompt="Run ColorSeek closed-loop visual servoing to stack the cubes.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
-          <span>👁️ ColorSeek VLA (5 Hz)</span>
         </button>
         <button class="prompt-chip" data-prompt="Wave high to greet me.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/></svg>
           <span>👋 Wave High</span>
         </button>
-        <button class="prompt-chip" data-prompt="Point at the cyan cube.">
+        <button class="prompt-chip" data-prompt="Point at the blue cube.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16"></polyline><line x1="16" y1="12" x2="8" y2="12"></line></svg>
-          <span>🎯 Point at Cyan</span>
+          <span>🎯 Point at Blue</span>
         </button>
         <button class="prompt-chip" data-prompt="Snap the gripper jaws.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m10 12V4M3 8h18M3 16h18"/></svg>
           <span>🤏 Snap Gripper</span>
         </button>
-        <button class="prompt-chip" data-prompt="Build a 5-layer tower with all 5 blocks on the target pad.">
+        <button class="prompt-chip" data-prompt="Build a 5-layer tower with all 5 blocks.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           <span>🤖 Baseline Geometric IK</span>
         </button>
@@ -189,112 +189,176 @@
 
     <!-- Minimal Telemetry & Cost Panel (Right Side) -->
     <aside id="telemetry-panel">
-      <!-- 1. VLA Status & Reasoning -->
-      <div class="card">
-        <div class="card-title">
-          <span>VLA Agent</span>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">EMBEDDED</span>
-            <span class="thought-status-badge" id="vla-status-badge">IDLE</span>
-          </div>
-        </div>
-        <div class="thought-box" id="vla-thought-box">
-          Ready. Enter an instruction to begin.
-        </div>
-        <div class="plan-progress-container">
-          <div class="progress-header">
-            <span>Action Progress</span>
-            <span id="vla-progress-text">Idle</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-bar-fill" id="vla-progress-fill"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. Playground Telemetry & Multi-Metric Evaluation Card -->
-      <div class="card" id="evaluation-card">
-        <div class="card-title">
-          <span>Playground Evaluation</span>
-          <span class="thought-status-badge" id="telemetry-stability-badge">STABILITY: IDLE</span>
-        </div>
-        <div class="cost-hero-row" style="margin-bottom: 8px;">
-          <div>
-            <div class="cost-label">Spatial Accuracy</div>
-            <div class="cost-total-amount" id="spatial-acc-display" style="font-size: 1.15rem; color: #ffffff;">0.0%</div>
-          </div>
-          <div>
-            <div class="cost-label">Task Completion</div>
-            <div class="cost-total-amount" id="completion-score-display" style="font-size: 1.15rem; color: #a1a1aa;">0.00 / 1.00</div>
-          </div>
-        </div>
-
-        <div class="token-metrics-grid">
-          <div class="token-metric-item">
-            <span class="token-metric-label">Peak Torque</span>
-            <span class="token-metric-val" id="peak-torque-display">0.00</span>
-          </div>
-          <div class="token-metric-item">
-            <span class="token-metric-label">Avg Effort</span>
-            <span class="token-metric-val" id="avg-torque-display">0.00</span>
-          </div>
-          <div class="token-metric-item">
-            <span class="token-metric-label">Hold Settle</span>
-            <span class="token-metric-val" id="hold-ticks-display">0 / 18</span>
-          </div>
-          <div class="token-metric-item">
-            <span class="token-metric-label">Verification</span>
-            <span class="token-metric-val" id="stability-text-display">Pending</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Minimal VLA Cost & Token Tracking Card -->
-      <div class="card" id="cost-card">
-        <div class="card-title">
-          <span>VLA Cost & Tokens</span>
-          <button class="btn-ctrl" id="btn-reset-cost">Reset Cost</button>
-        </div>
-        <div class="cost-hero-row">
-          <div>
-            <div class="cost-label">Session Cost</div>
-            <div class="cost-total-amount" id="cost-total-display">$0.00000</div>
-          </div>
-          <div class="cost-rate-badge" id="cost-model-badge">Gemini 2.5 Flash</div>
-        </div>
-
-        <div class="token-metrics-grid">
-          <div class="token-metric-item">
-            <span class="token-metric-label">Input Tokens</span>
-            <span class="token-metric-val" id="input-tokens-display">0</span>
-          </div>
-          <div class="token-metric-item">
-            <span class="token-metric-label">Output Tokens</span>
-            <span class="token-metric-val" id="output-tokens-display">0</span>
-          </div>
-          <div class="token-metric-item">
-            <span class="token-metric-label">Total Calls</span>
-            <span class="token-metric-val" id="calls-count-display">0 calls</span>
-          </div>
-          <div class="token-metric-item">
-            <span class="token-metric-label">Last Call</span>
-            <span class="token-metric-val" id="last-call-cost-display">$0.00000</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Dedicated Rest Arm Button Card -->
-      <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
-        <button class="btn-rest-hero" id="btn-rest-main">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-            <path d="M3 3v5h5"/>
-          </svg>
-          Rest Arm / Reset Simulation
+      <!-- Sidebar Tab Switcher -->
+      <div class="sidebar-tab-switcher">
+        <button class="tab-btn active" id="tab-btn-telemetry">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <span>Telemetry</span>
         </button>
-        <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
-          Returns arm to resting home pose and resets blocks
-        </span>
+        <button class="tab-btn" id="tab-btn-logs">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span>Execution Logs</span>
+          <span class="tab-badge" id="logs-badge-count">0</span>
+        </button>
+      </div>
+
+      <!-- View 1: Telemetry & Evaluation Cards -->
+      <div id="telemetry-view" class="sidebar-view active">
+        <!-- 1. VLA Status & Reasoning -->
+        <div class="card">
+          <div class="card-title">
+            <span>VLA Agent</span>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">EMBEDDED</span>
+              <span class="thought-status-badge" id="vla-status-badge">IDLE</span>
+            </div>
+          </div>
+          <div class="thought-box" id="vla-thought-box">
+            Ready. Enter an instruction to begin.
+          </div>
+          <div class="plan-progress-container">
+            <div class="progress-header">
+              <span>Action Progress</span>
+              <span id="vla-progress-text">Idle</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar-fill" id="vla-progress-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Playground Telemetry & Multi-Metric Evaluation Card -->
+        <div class="card" id="evaluation-card">
+          <div class="card-title">
+            <span>Playground Evaluation</span>
+            <span class="thought-status-badge" id="telemetry-stability-badge">STABILITY: IDLE</span>
+          </div>
+          <div class="cost-hero-row" style="margin-bottom: 8px;">
+            <div>
+              <div class="cost-label">Spatial Accuracy</div>
+              <div class="cost-total-amount" id="spatial-acc-display" style="font-size: 1.15rem; color: #ffffff;">0.0%</div>
+            </div>
+            <div>
+              <div class="cost-label">Task Completion</div>
+              <div class="cost-total-amount" id="completion-score-display" style="font-size: 1.15rem; color: #a1a1aa;">0.00 / 1.00</div>
+            </div>
+          </div>
+
+          <div class="token-metrics-grid">
+            <div class="token-metric-item">
+              <span class="token-metric-label">Peak Torque</span>
+              <span class="token-metric-val" id="peak-torque-display">0.00</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Avg Effort</span>
+              <span class="token-metric-val" id="avg-torque-display">0.00</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Hold Settle</span>
+              <span class="token-metric-val" id="hold-ticks-display">0 / 18</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Verification</span>
+              <span class="token-metric-val" id="stability-text-display">Pending</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Minimal VLA Cost & Token Tracking Card -->
+        <div class="card" id="cost-card">
+          <div class="card-title">
+            <span>VLA Cost & Tokens</span>
+            <button class="btn-ctrl" id="btn-reset-cost">Reset Cost</button>
+          </div>
+          <div class="cost-hero-row">
+            <div>
+              <div class="cost-label">Session Cost</div>
+              <div class="cost-total-amount" id="cost-total-display">$0.00000</div>
+            </div>
+            <div class="cost-rate-badge" id="cost-model-badge">Gemini 2.5 Flash</div>
+          </div>
+
+          <div class="token-metrics-grid">
+            <div class="token-metric-item">
+              <span class="token-metric-label">Input Tokens</span>
+              <span class="token-metric-val" id="input-tokens-display">0</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Output Tokens</span>
+              <span class="token-metric-val" id="output-tokens-display">0</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Total Calls</span>
+              <span class="token-metric-val" id="calls-count-display">0 calls</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Last Call</span>
+              <span class="token-metric-val" id="last-call-cost-display">$0.00000</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Dedicated Rest Arm Button Card -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn-rest-hero" id="btn-rest-main">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+            Rest Arm / Reset Simulation
+          </button>
+          <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
+            Returns arm to resting home pose and resets blocks
+          </span>
+        </div>
+      </div>
+
+      <!-- View 2: Live Execution & Audit Log Terminal -->
+      <div id="logs-view" class="sidebar-view" style="display: none;">
+        <div class="logs-panel-card">
+          <!-- Logs Top Controls -->
+          <div class="logs-header">
+            <div class="logs-header-title">
+              <span class="logs-live-indicator"></span>
+              <span class="logs-header-heading">Execution Stream</span>
+              <span class="logs-counter-badge" id="logs-total-count">0</span>
+            </div>
+            <div class="logs-header-actions">
+              <button class="btn-logs-action active" id="btn-toggle-autoscroll" title="Toggle Auto-Scroll">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                <span id="autoscroll-label">Scroll: ON</span>
+              </button>
+              <button class="btn-logs-action" id="btn-clear-logs" title="Clear Event Logs">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Clear</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Category Filter Bar -->
+          <div class="logs-filter-bar">
+            <button class="log-filter-chip active" data-filter="all">All</button>
+            <button class="log-filter-chip" data-filter="vla">VLA</button>
+            <button class="log-filter-chip" data-filter="motion">Motion</button>
+            <button class="log-filter-chip" data-filter="contact">Contact</button>
+            <button class="log-filter-chip" data-filter="stability">Stability</button>
+            <button class="log-filter-chip" data-filter="system">System</button>
+          </div>
+
+          <!-- Scrollable Log Entries Stream Container -->
+          <div class="logs-stream-container" id="logs-stream-container">
+            <div class="logs-list" id="logs-list">
+              <!-- Dynamically populated via app.js -->
+            </div>
+          </div>
+
+          <!-- Bottom Status Footer -->
+          <div class="logs-footer-bar">
+            <span class="logs-footer-text">
+              <span class="logs-dot-pulse"></span> Real-time execution audit · <strong>WHAT</strong> occurred & <strong>HOW</strong> (kinematics, tolerances)
+            </span>
+          </div>
+        </div>
       </div>
     </aside>
   </div>
@@ -329,7 +393,7 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=2.0"></script>
-  <script src="/js/app.js?v=2.0"></script>
+  <script src="/js/sim_canvas_3d.js?v=2.3"></script>
+  <script src="/js/app.js?v=2.3"></script>
 </body>
 </html>
