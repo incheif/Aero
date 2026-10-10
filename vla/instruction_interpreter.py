@@ -326,6 +326,147 @@ class InstructionInterpreter:
             }
 
         # -------------------------------------------------------------
+        # 8B. DUAL TOWERS ASSEMBLY (2 Distinct Towers)
+        # -------------------------------------------------------------
+        is_dual_towers = (
+            any(p in cmd for p in (
+                "2 towers", "two towers", "dual towers", "dual tower",
+                "two distinct towers", "2 distinct towers",
+                "two separate towers", "2 separate towers",
+                "two different towers", "2 different towers",
+                "pair of towers"
+            ))
+            or bool(re.search(r"\b(2|two)\s+(distinct\s+|separate\s+|different\s+)?towers?\b", cmd))
+        )
+        if is_dual_towers:
+            per_tower = 2
+            m_each = re.search(r"\b(1|2|3|4|5|one|two|three|four|five)\s*(block|layer|cube|tier)?s?\s*(each|per tower)\b", cmd)
+            if m_each:
+                val = m_each.group(1).lower()
+                num_map = {"1": 1, "one": 1, "2": 2, "two": 2, "3": 3, "three": 3, "4": 4, "four": 4, "5": 5, "five": 5}
+                per_tower = num_map.get(val, 2)
+
+            if per_tower * 2 > MAX_PHYSICAL_BLOCKS:
+                return {
+                    "is_possible": False,
+                    "status": "IMPOSSIBLE",
+                    "action_type": "REJECT",
+                    "reasoning": f"Building 2 towers of {per_tower} blocks each requires {per_tower * 2} blocks, but only {MAX_PHYSICAL_BLOCKS} physical cubes are available in the workcell.",
+                    "thought": "Cognitive safety reject: Requested cube count exceeds workcell inventory.",
+                }
+
+            known_colors = [
+                ("red", "block_magenta", "Red Cube"),
+                ("blue", "block_cyan", "Blue Cube"),
+                ("yellow", "block_yellow", "Yellow Cube"),
+                ("green", "block_emerald", "Green Cube"),
+                ("orange", "block_orange", "Orange Cube"),
+                ("cyan", "block_cyan", "Blue Cube"),
+                ("magenta", "block_magenta", "Red Cube"),
+                ("emerald", "block_emerald", "Green Cube"),
+            ]
+            found_colors = []
+            for alias, b_id, label in known_colors:
+                for match in re.finditer(rf"\b{re.escape(alias)}\b", cmd):
+                    found_colors.append((match.start(), b_id, label))
+            found_colors.sort(key=lambda x: x[0])
+
+            mentioned_b_ids = []
+            for _, b_id, _ in found_colors:
+                if b_id not in mentioned_b_ids:
+                    mentioned_b_ids.append(b_id)
+
+            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald"]
+            pool = list(mentioned_b_ids)
+            for b in all_blocks:
+                if b not in pool:
+                    pool.append(b)
+
+            blocks_a = pool[:per_tower]
+            blocks_b = pool[per_tower:per_tower * 2]
+
+            names_a = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in blocks_a]
+            names_b = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in blocks_b]
+
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "STACK_DUAL_TOWERS",
+                "per_tower_count": per_tower,
+                "tower_a_blocks": blocks_a,
+                "tower_b_blocks": blocks_b,
+                "thought": (
+                    f"Interpreted request for 2 distinct towers ({per_tower} layers each). "
+                    f"Tower A (North Zone) will assemble [{', '.join(names_a)}]. "
+                    f"Tower B (South Zone) will assemble [{', '.join(names_b)}]. "
+                    f"Kinematic transit path will maintain elevated collision clearance over Tower A while assembling Tower B."
+                ),
+            }
+
+        # -------------------------------------------------------------
+        # 8C. PYRAMID ASSEMBLY (Multi-Contact Stepped / Square Pyramid)
+        # -------------------------------------------------------------
+        if any(w in cmd for w in ("pyramid", "pyramind", "stepped tower", "triangle tower", "triangular tower", "pyramidal")):
+            is_5_block = any(w in cmd for w in ("5 block", "5-block", "5 cube", "5-cube", "five block", "five cube", "all 5", "square pyramid", "4 base"))
+            pyramid_type = "5_block_square" if is_5_block else "3_block_stepped"
+
+            known_colors = [
+                ("red", "block_magenta", "Red Cube"),
+                ("blue", "block_cyan", "Blue Cube"),
+                ("yellow", "block_yellow", "Yellow Cube"),
+                ("green", "block_emerald", "Green Cube"),
+                ("orange", "block_orange", "Orange Cube"),
+                ("cyan", "block_cyan", "Blue Cube"),
+                ("magenta", "block_magenta", "Red Cube"),
+                ("emerald", "block_emerald", "Green Cube"),
+            ]
+            found_colors = []
+            for alias, b_id, label in known_colors:
+                for match in re.finditer(rf"\b{re.escape(alias)}\b", cmd):
+                    found_colors.append((match.start(), b_id, label))
+            found_colors.sort(key=lambda x: x[0])
+
+            mentioned_b_ids = []
+            for _, b_id, _ in found_colors:
+                if b_id not in mentioned_b_ids:
+                    mentioned_b_ids.append(b_id)
+
+            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald"]
+            pool = list(mentioned_b_ids)
+            for b in all_blocks:
+                if b not in pool:
+                    pool.append(b)
+
+            needed_count = 5 if pyramid_type == "5_block_square" else 3
+            pyramid_blocks = pool[:needed_count]
+            block_names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in pyramid_blocks]
+
+            if pyramid_type == "5_block_square":
+                thought = (
+                    f"Interpreted request for a 5-block 3D square pyramid. "
+                    f"Base layer (2x2 grid): [{', '.join(block_names[:4])}]. "
+                    f"Apex cap: [{block_names[4]}]. "
+                    "Applying zero-impulse vertical descent to preserve base contact stability."
+                )
+            else:
+                unused_names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in pool[3:]]
+                thought = (
+                    f"Interpreted request for a 3-block stepped pyramid. "
+                    f"Base layer (touching pair): [{block_names[0]}, {block_names[1]}]. "
+                    f"Apex cap: [{block_names[2]}]. "
+                    f"Remaining blocks ({', '.join(unused_names)}) remain resting on table."
+                )
+
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "BUILD_PYRAMID",
+                "pyramid_type": pyramid_type,
+                "target_blocks": pyramid_blocks,
+                "thought": thought,
+            }
+
+        # -------------------------------------------------------------
         # 9. TOWER STACKING (Normalized Layer Count & Color Mapping)
         # -------------------------------------------------------------
         # Typo tolerance: "twer", "towr", "stack", "build", "layer"

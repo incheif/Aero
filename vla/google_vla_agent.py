@@ -14,9 +14,13 @@ from PIL import Image
 
 from simulation.constants import (
     STACK_ORIGIN,
+    STACK_ORIGIN_A,
+    STACK_ORIGIN_B,
     SAFE_HOVER_Y,
     PICK_Y,
+    TABLE_TOP_Y,
     stack_slot_y,
+    get_pyramid_slots,
     BLOCK_TARGETS,
 )
 from simulation.camera import render_camera_frame, encode_image_base64, world_to_pixel
@@ -393,29 +397,35 @@ Output a JSON object ONLY with the following schema:
                     elif clr in color_to_id and color_to_id[clr] not in grounded_seq:
                         grounded_seq.append(color_to_id[clr])
 
-            is_stack_cmd = any(w in instruction.lower() for w in ("stack", "tower", "layer", "tier", "pad", "build", "twer", "towr"))
-            target_layers = interpretation.get("layer_count", len(grounded_seq) or 5) if interpretation else 5
-
-            # If interpretation provided target blocks (handles color mapping like red->magenta, blue->cyan), prioritize them
-            if interpretation and interpretation.get("target_blocks"):
-                interp_blocks = [b for b in interpretation["target_blocks"] if b in blocks_by_id]
-                if interp_blocks and (len(grounded_seq) != target_layers or not grounded_seq):
-                    grounded_seq = interp_blocks[:target_layers]
-
-            if is_stack_cmd and grounded_seq:
-                grounded_seq = grounded_seq[:target_layers]
-                synthesized_plan = []
-                for layer_idx, b_id in enumerate(grounded_seq):
-                    b = blocks_by_id[b_id]
-                    bx, by, bz = b["position"]
-                    target_y = stack_slot_y(layer_idx)
-                    steps = self._generate_pick_and_place(bx, bz, STACK_ORIGIN[0], STACK_ORIGIN[2], target_y, b["name"])
-                    synthesized_plan.extend(steps)
-                self.active_plan = synthesized_plan
-            elif raw_plan:
-                self.active_plan = self._sanitize_raw_plan(raw_plan)
+            if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "BUILD_PYRAMID"):
+                embedded_res = self._embedded_vla_policy(instruction, snapshot, interpretation)
+                self.active_plan = embedded_res.get("plan", [])
+                self.latest_thought = embedded_res.get("thought", "")
+                self.latest_grounding = embedded_res.get("grounding", [])
             else:
-                self.active_plan = self._embedded_vla_policy(instruction, snapshot, interpretation).get("plan", [])
+                is_stack_cmd = any(w in instruction.lower() for w in ("stack", "tower", "layer", "tier", "pad", "build", "twer", "towr"))
+                target_layers = interpretation.get("layer_count", len(grounded_seq) or 5) if interpretation else 5
+
+                # If interpretation provided target blocks (handles color mapping like red->magenta, blue->cyan), prioritize them
+                if interpretation and interpretation.get("target_blocks"):
+                    interp_blocks = [b for b in interpretation["target_blocks"] if b in blocks_by_id]
+                    if interp_blocks and (len(grounded_seq) != target_layers or not grounded_seq):
+                        grounded_seq = interp_blocks[:target_layers]
+
+                if is_stack_cmd and grounded_seq:
+                    grounded_seq = grounded_seq[:target_layers]
+                    synthesized_plan = []
+                    for layer_idx, b_id in enumerate(grounded_seq):
+                        b = blocks_by_id[b_id]
+                        bx, by, bz = b["position"]
+                        target_y = stack_slot_y(layer_idx)
+                        steps = self._generate_pick_and_place(bx, bz, STACK_ORIGIN[0], STACK_ORIGIN[2], target_y, b["name"])
+                        synthesized_plan.extend(steps)
+                    self.active_plan = synthesized_plan
+                elif raw_plan:
+                    self.active_plan = self._sanitize_raw_plan(raw_plan)
+                else:
+                    self.active_plan = self._embedded_vla_policy(instruction, snapshot, interpretation).get("plan", [])
 
             self.current_step_idx = 0
             self.execution_status = "EXECUTING" if self.active_plan else "COMPLETED"
@@ -525,7 +535,99 @@ Output a JSON object ONLY with the following schema:
                 {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "desc": "Return to rest pose"}
             ]
 
-        # 4. Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
+        # 4. Dual Distinct Towers Assembly (Tower A + Tower B with elevated clearance)
+        elif action_type == "STACK_DUAL_TOWERS":
+            blocks_a = interpretation.get("tower_a_blocks", [])
+            blocks_b = interpretation.get("tower_b_blocks", [])
+
+            tower_a_strs = []
+            for layer_idx, b_id in enumerate(blocks_a):
+                b = blocks.get(b_id)
+                if not b:
+                    continue
+                bx, by, bz = b["position"]
+                target_y = stack_slot_y(layer_idx)
+                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "target_zone": "Tower A (North)", "target_layer": layer_idx})
+                steps = self._generate_pick_and_place(bx, bz, STACK_ORIGIN_A[0], STACK_ORIGIN_A[2], target_y, b["name"])
+                plan.extend(steps)
+                tower_a_strs.append(f"L{layer_idx}:{b['name']}")
+
+            # Elevate transit clearance above Tower A during Tower B assembly
+            tower_a_top_y = stack_slot_y(len(blocks_a) - 1) if blocks_a else TABLE_TOP_Y
+            clearance_y = max(SAFE_HOVER_Y, tower_a_top_y + 0.10)
+
+            tower_b_strs = []
+            for layer_idx, b_id in enumerate(blocks_b):
+                b = blocks.get(b_id)
+                if not b:
+                    continue
+                bx, by, bz = b["position"]
+                target_y = stack_slot_y(layer_idx)
+                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "target_zone": "Tower B (South)", "target_layer": layer_idx})
+                steps = self._generate_pick_and_place(
+                    bx, bz, STACK_ORIGIN_B[0], STACK_ORIGIN_B[2], target_y, b["name"],
+                    min_transit_y=clearance_y
+                )
+                plan.extend(steps)
+                tower_b_strs.append(f"L{layer_idx}:{b['name']}")
+
+            plan.append({
+                "action": "HOME",
+                "target": (0.20, clearance_y, 0.0),
+                "gripper": 0.0,
+                "desc": "Dual towers complete: Arm retracting to standby",
+                "dwell_ticks": 10,
+            })
+
+            thought = interpretation.get("thought", "")
+            if not thought:
+                thought = (
+                    f"Google VLA Dual-Tower Reasoning: Assembling 2 distinct towers. "
+                    f"Tower A (North Pad [{STACK_ORIGIN_A[0]:.2f}, {STACK_ORIGIN_A[2]:.2f}]): {' -> '.join(tower_a_strs)}. "
+                    f"Tower B (South Pad [{STACK_ORIGIN_B[0]:.2f}, {STACK_ORIGIN_B[2]:.2f}]): {' -> '.join(tower_b_strs)}. "
+                    f"Transit paths strictly clamped to Y>={clearance_y:.3f}m to eliminate collision with Tower A."
+                )
+
+        # 5. Pyramid Tower Assembly (Multi-Contact Stepped / Square Pyramid)
+        elif action_type == "BUILD_PYRAMID":
+            pyramid_type = interpretation.get("pyramid_type", "3_block_stepped")
+            pyramid_targets = interpretation.get("target_blocks", [])
+            slots = get_pyramid_slots(pyramid_type, STACK_ORIGIN)
+
+            pyr_strs = []
+            for idx, (b_id, slot_target) in enumerate(zip(pyramid_targets, slots)):
+                b = blocks.get(b_id)
+                if not b:
+                    continue
+                bx, by, bz = b["position"]
+                tx, ty, tz = slot_target
+                is_apex = (idx == len(slots) - 1)
+                slot_role = "Apex Cap" if is_apex else f"Base {idx + 1}"
+                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "role": slot_role, "target_coords": [tx, ty, tz]})
+                extra_dwell = 10 if is_apex else 0
+                steps = self._generate_pick_and_place(
+                    bx, bz, tx, tz, ty, b["name"],
+                    extra_dwell=extra_dwell
+                )
+                plan.extend(steps)
+                pyr_strs.append(f"{slot_role}:{b['name']}")
+
+            plan.append({
+                "action": "HOME",
+                "target": (0.20, SAFE_HOVER_Y, 0.0),
+                "gripper": 0.0,
+                "desc": "Pyramid structure complete: Arm retracting to standby",
+                "dwell_ticks": 10,
+            })
+
+            thought = interpretation.get("thought", "")
+            if not thought:
+                thought = (
+                    f"Google VLA Pyramid Stacking: Synthesizing {'5-block 3D square' if pyramid_type == '5_block_square' else '3-block stepped'} pyramid assembly. "
+                    f"Sequence: {' | '.join(pyr_strs)}. Applying zero-impulse vertical descent holding to maintain contact stability."
+                )
+
+        # 6. Single Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
         else:
             target_layers = interpretation.get("layer_count", 5)
             interp_targets = interpretation.get("target_blocks", [])
@@ -606,15 +708,17 @@ Output a JSON object ONLY with the following schema:
         dst_x: float,
         dst_z: float,
         dst_y: float,
-        obj_name: str
+        obj_name: str,
+        min_transit_y: Optional[float] = None,
+        extra_dwell: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Generates robust closed-loop pick-and-place waypoint sub-plan
         with metric-locked coordinates, soft approach, and zero-impulse drop.
         Dynamically adjusts transit and approach altitudes to safely clear lower layers of tower.
         """
-        # Calculate safe transit hover altitude above any existing stack layers
-        transit_y = max(SAFE_HOVER_Y, dst_y + 0.065)
+        # Calculate safe transit hover altitude above any existing stack layers or clearance planes
+        transit_y = max(SAFE_HOVER_Y, dst_y + 0.065, min_transit_y or 0.0)
 
         return [
             # 1. Safe Hover over source object
@@ -663,7 +767,7 @@ Output a JSON object ONLY with the following schema:
                 "target": (dst_x, dst_y + 0.010, dst_z),
                 "gripper": 1.0,
                 "desc": f"Soft descent to placement altitude {dst_y:.3f}m",
-                "dwell_ticks": 15,
+                "dwell_ticks": 15 + extra_dwell,
             },
             # 7. Zero-impulse release: hold stationary while opening jaws
             {
@@ -671,7 +775,7 @@ Output a JSON object ONLY with the following schema:
                 "target": (dst_x, dst_y + 0.010, dst_z),
                 "gripper": 0.0,
                 "desc": "Zero-impulse jaw release (prevent tower topple)",
-                "dwell_ticks": 20,
+                "dwell_ticks": 20 + extra_dwell,
             },
             # 8. Vertical ascend to safe hover
             {

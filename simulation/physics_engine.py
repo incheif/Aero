@@ -18,6 +18,8 @@ from .constants import (
     CUBE_HALF,
     BLOCK_SPAWNS,
     STACK_ORIGIN,
+    STACK_ORIGIN_A,
+    STACK_ORIGIN_B,
     STACK_TOLERANCE,
     DEFAULT_JOINTS,
     JOINT_LIMITS,
@@ -240,11 +242,13 @@ class RobotArmSimulation:
         fk = forward_kinematics(self.joints)
         blocks_data = []
         for b_id, b in self.blocks.items():
-            # Check proximity to target pad
-            dx = b.position[0] - STACK_ORIGIN[0]
-            dz = b.position[2] - STACK_ORIGIN[2]
-            pad_dist = math.hypot(dx, dz)
-            in_pad = pad_dist <= STACK_TOLERANCE
+            # Check proximity to target pad (Center, Zone A, or Zone B)
+            pad_dist = min(
+                math.hypot(b.position[0] - STACK_ORIGIN[0], b.position[2] - STACK_ORIGIN[2]),
+                math.hypot(b.position[0] - STACK_ORIGIN_A[0], b.position[2] - STACK_ORIGIN_A[2]),
+                math.hypot(b.position[0] - STACK_ORIGIN_B[0], b.position[2] - STACK_ORIGIN_B[2]),
+            )
+            in_pad = pad_dist <= (STACK_TOLERANCE + 0.015)
 
             blocks_data.append({
                 "id": b.id,
@@ -284,6 +288,11 @@ class RobotArmSimulation:
             "target_zone": {
                 "position": STACK_ORIGIN,
                 "radius": STACK_TOLERANCE,
+                "zones": [
+                    {"id": "center", "position": STACK_ORIGIN, "label": "Center Pad"},
+                    {"id": "zone_a", "position": STACK_ORIGIN_A, "label": "Pad A (North)"},
+                    {"id": "zone_b", "position": STACK_ORIGIN_B, "label": "Pad B (South)"},
+                ],
             },
             "scores": {
                 "spatial_accuracy": spat_acc,

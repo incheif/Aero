@@ -240,35 +240,45 @@ class SimCanvas3D {
       this.scene.add(leg);
     });
 
-    // 3. Target Zone Landing Pad (Charcoal disc on table with pure white luminous ring)
-    const padGroup = new THREE.Group();
-    padGroup.position.set(0.48, 0.721, 0.22);
+    // 3. Target Zone Landing Pads (Center Pad, Pad A North, Pad B South)
+    const padLocations = [
+      { x: 0.48, z: 0.22, r: 0.048, label: 'Center' },
+      { x: 0.46, z: 0.10, r: 0.044, label: 'Pad A' },
+      { x: 0.46, z: 0.32, r: 0.044, label: 'Pad B' },
+    ];
+    this.targetPads = [];
 
-    const padGeo = new THREE.CylinderGeometry(0.048, 0.048, 0.003, 32);
-    const padMat = new THREE.MeshStandardMaterial({
-      color: 0x27272a,
-      roughness: 0.6,
-      metalness: 0.2,
+    padLocations.forEach((loc) => {
+      const padGroup = new THREE.Group();
+      padGroup.position.set(loc.x, 0.721, loc.z);
+
+      const padGeo = new THREE.CylinderGeometry(loc.r, loc.r, 0.003, 32);
+      const padMat = new THREE.MeshStandardMaterial({
+        color: 0x27272a,
+        roughness: 0.6,
+        metalness: 0.2,
+      });
+      const padMesh = new THREE.Mesh(padGeo, padMat);
+      padMesh.receiveShadow = true;
+      padGroup.add(padMesh);
+
+      // Glowing Concentric Ring (Pure White Beacon)
+      const ringGeo = new THREE.RingGeometry(loc.r * 0.84, loc.r * 0.96, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.75,
+      });
+      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.rotation.x = -Math.PI / 2;
+      ringMesh.position.y = 0.002;
+      padGroup.add(ringMesh);
+
+      this.scene.add(padGroup);
+      this.targetPads.push(padGroup);
     });
-    const padMesh = new THREE.Mesh(padGeo, padMat);
-    padMesh.receiveShadow = true;
-    padGroup.add(padMesh);
-
-    // Glowing Concentric Ring (Pure White Beacon)
-    const ringGeo = new THREE.RingGeometry(0.042, 0.047, 32);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.8,
-    });
-    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-    ringMesh.rotation.x = -Math.PI / 2;
-    ringMesh.position.y = 0.002;
-    padGroup.add(ringMesh);
-
-    this.scene.add(padGroup);
-    this.targetPad = padGroup;
+    this.targetPad = this.targetPads[0];
   }
 
   buildRobotArm() {
@@ -637,12 +647,15 @@ class SimCanvas3D {
       }
     }
 
-    // Subtle pulsing of target pad ring
-    if (this.targetPad) {
-      const ring = this.targetPad.children[1];
-      if (ring && ring.material) {
-        ring.material.opacity = 0.5 + Math.sin(Date.now() * 0.003) * 0.25;
-      }
+    // Subtle pulsing of target pad rings
+    if (this.targetPads && this.targetPads.length) {
+      const op = 0.55 + Math.sin(Date.now() * 0.003) * 0.22;
+      this.targetPads.forEach((pad) => {
+        const ring = pad.children[1];
+        if (ring && ring.material) {
+          ring.material.opacity = op;
+        }
+      });
     }
 
     this.renderer.render(this.scene, this.camera);

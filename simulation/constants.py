@@ -3,7 +3,7 @@ Physical and geometric constants for the Robot Arm VLA Workcell.
 Directly aligns with the VSArena Rapier simulation specifications from new_project_1.
 """
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 # Timing & Physics
 FIXED_DT: float = 1.0 / 60.0
@@ -111,14 +111,47 @@ BLOCK_SPAWNS = [
     },
 ]
 
-# Target Landing Zone (Green circular pad on table)
+# Target Landing Zones
 STACK_ORIGIN: Tuple[float, float, float] = (0.48, TABLE_TOP_Y, 0.22)
+# Distinct Dual Tower Landing Zones (separated along Z to eliminate workspace collision)
+STACK_ORIGIN_A: Tuple[float, float, float] = (0.46, TABLE_TOP_Y, 0.10)
+STACK_ORIGIN_B: Tuple[float, float, float] = (0.46, TABLE_TOP_Y, 0.32)
+
 TARGET_ZONE_RADIUS: float = 0.048
 STACK_TOLERANCE: float = 0.038  # Tolerance in meters to verify stacked placement
 
 def stack_slot_y(layer: int) -> float:
     """Center Y altitude for a cube placed at vertical stack layer (0=base, 1=mid, 2=top, etc.)."""
     return TABLE_TOP_Y + CUBE_HALF + layer * CUBE_SIZE
+
+def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float, float] = STACK_ORIGIN) -> List[Tuple[float, float, float]]:
+    """
+    Computes metric target coordinates for pyramid assembly.
+    - 3_block_stepped: 2 base cubes touching along Z + 1 apex cube centered on top.
+    - 5_block_square: 4 base cubes touching in a 2x2 square + 1 apex cube centered on top.
+    """
+    ox, oy, oz = origin
+    if style == "5_block_square":
+        half = CUBE_HALF
+        base_y = stack_slot_y(0)
+        apex_y = stack_slot_y(1)
+        return [
+            (ox - half, base_y, oz - half),
+            (ox + half, base_y, oz - half),
+            (ox - half, base_y, oz + half),
+            (ox + half, base_y, oz + half),
+            (ox, apex_y, oz),
+        ]
+    else:
+        # Default: 3-block 2D stepped pyramid
+        half = CUBE_HALF
+        base_y = stack_slot_y(0)
+        apex_y = stack_slot_y(1)
+        return [
+            (ox, base_y, oz - half),
+            (ox, base_y, oz + half),
+            (ox, apex_y, oz),
+        ]
 
 # Target coordinates for multi-layer tower (up to 5 layers)
 BLOCK_TARGETS = {
