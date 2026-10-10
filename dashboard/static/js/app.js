@@ -154,51 +154,23 @@ document.addEventListener('DOMContentLoaded', () => {
         modelPill.innerText = `AERO (${data.vla.model})`;
       }
 
-      // Update VLA Mode Badge & Explainer (CLOUD vs EMBEDDED)
+      // Update VLA Mode Badge & Explainer (Autonomous Zero-Dependency Runtime)
       const modeBadge = document.getElementById('vla-mode-badge');
       const modeTagStatus = document.getElementById('mode-tag-status');
       const modeInfoText = document.getElementById('mode-info-text');
 
       if (modeBadge) {
-        if (data.vla.mode === 'live_cloud') {
-          modeBadge.innerText = 'LIVE GEMINI (CLOUD)';
-          modeBadge.style.color = '#38bdf8';
-          modeBadge.style.backgroundColor = 'rgba(56, 189, 248, 0.15)';
-          modeBadge.style.borderColor = 'rgba(56, 189, 248, 0.35)';
-          modeBadge.title = 'Connected to Google Gemini Cloud Multimodal VLA';
-          if (modeTagStatus) {
-            modeTagStatus.innerText = '☁️ LIVE GEMINI CLOUD ACTIVE';
-            modeTagStatus.className = 'mode-tag-pill live-cloud';
-          }
-          if (modeInfoText) {
-            modeInfoText.innerText = 'Google Gemini is inspecting real 128×128 RGB camera frames to synthesize waypoints.';
-          }
-        } else if (data.vla.has_api_key) {
-          modeBadge.innerText = 'KEY READY';
-          modeBadge.style.color = '#ffffff';
-          modeBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
-          modeBadge.style.borderColor = 'rgba(255, 255, 255, 0.28)';
-          modeBadge.title = 'API key saved. Ready for cloud inference.';
-          if (modeTagStatus) {
-            modeTagStatus.innerText = '✦ GEMINI KEY CONFIGURED';
-            modeTagStatus.className = 'mode-tag-pill live-cloud';
-          }
-          if (modeInfoText) {
-            modeInfoText.innerText = 'API key active. Prompts will query Google Gemini Cloud multimodal reasoning.';
-          }
-        } else {
-          modeBadge.innerText = 'EMBEDDED (FREE)';
-          modeBadge.style.color = '#10b981';
-          modeBadge.style.backgroundColor = 'rgba(16, 185, 129, 0.12)';
-          modeBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
-          modeBadge.title = 'Running Embedded Deterministic VLA Runtime (100% Free / Zero API Key)';
-          if (modeTagStatus) {
-            modeTagStatus.innerText = '✦ OFFLINE POLICY (100% FREE)';
-            modeTagStatus.className = 'mode-tag-pill';
-          }
-          if (modeInfoText) {
-            modeInfoText.innerText = 'Running local deterministic spatial intelligence. Enter your Gemini API Key in ⚙️ Settings for live multimodal cloud vision.';
-          }
+        modeBadge.innerText = 'AUTONOMOUS VLA';
+        modeBadge.style.color = '#10b981';
+        modeBadge.style.backgroundColor = 'rgba(16, 185, 129, 0.12)';
+        modeBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+        modeBadge.title = 'Running Embedded Autonomous VLA Engine';
+        if (modeTagStatus) {
+          modeTagStatus.innerText = '✦ ZERO-DEPENDENCY RUNTIME';
+          modeTagStatus.className = 'mode-tag-pill';
+        }
+        if (modeInfoText) {
+          modeInfoText.innerText = 'Autonomous multimodal policy engine: 3D spatial grounding, collision-free trajectory synthesis, and physics hold verification.';
         }
       }
 
@@ -777,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // 10. Settings Modal for Google Gemini API Key
+  // 10. Settings Modal Handlers (Preserved for future extensions)
   const settingsModal = document.getElementById('settings-modal');
   const openSettingsBtn = document.getElementById('open-settings-btn');
   const saveSettingsBtn = document.getElementById('save-settings-btn');
@@ -785,29 +757,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const apiKeyInput = document.getElementById('api-key-input');
   const modelSelect = document.getElementById('model-select');
 
-  // Load saved settings
+  // Load saved settings if inputs exist
   if (apiKeyInput) apiKeyInput.value = localStorage.getItem('GEMINI_API_KEY') || '';
   if (modelSelect) modelSelect.value = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
 
-  openSettingsBtn?.addEventListener('click', () => settingsModal.classList.add('active'));
-  closeSettingsBtn?.addEventListener('click', () => settingsModal.classList.remove('active'));
+  openSettingsBtn?.addEventListener('click', () => settingsModal?.classList.add('active'));
+  closeSettingsBtn?.addEventListener('click', () => settingsModal?.classList.remove('active'));
 
   saveSettingsBtn?.addEventListener('click', () => {
-    localStorage.setItem('GEMINI_API_KEY', apiKeyInput.value.trim());
-    localStorage.setItem('GEMINI_MODEL', modelSelect.value);
-    settingsModal.classList.remove('active');
+    if (apiKeyInput) localStorage.setItem('GEMINI_API_KEY', apiKeyInput.value.trim());
+    if (modelSelect) localStorage.setItem('GEMINI_MODEL', modelSelect.value);
+    settingsModal?.classList.remove('active');
   });
 
-  // Test API Key Button
+  // Test Key Handler
   const testKeyBtn = document.getElementById('test-key-btn');
   const keyFeedback = document.getElementById('key-test-feedback');
 
   testKeyBtn?.addEventListener('click', async () => {
-    const testKey = apiKeyInput.value.trim();
+    const testKey = apiKeyInput ? apiKeyInput.value.trim() : '';
     if (!testKey) {
       if (keyFeedback) {
         keyFeedback.style.color = '#a1a1aa';
-        keyFeedback.innerText = 'Please enter an API key to test.';
+        keyFeedback.innerText = 'Please enter an authorization key to test.';
       }
       return;
     }
@@ -816,14 +788,14 @@ document.addEventListener('DOMContentLoaded', () => {
     testKeyBtn.innerText = 'Pinging...';
     if (keyFeedback) {
       keyFeedback.style.color = '#a1a1aa';
-      keyFeedback.innerText = 'Testing connection to Google Gemini Cloud...';
+      keyFeedback.innerText = 'Testing connection...';
     }
 
     try {
       const resp = await sessionFetch('/api/vla/test_key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: testKey, model: modelSelect.value, session_id: sessionId }),
+        body: JSON.stringify({ api_key: testKey, model: modelSelect ? modelSelect.value : 'gemini-2.5-flash', session_id: sessionId }),
       });
       const data = await resp.json();
       if (data.valid) {
@@ -844,7 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       testKeyBtn.disabled = false;
-      testKeyBtn.innerText = 'Test API Key';
+      testKeyBtn.innerText = 'Test Key';
     }
   });
 

@@ -31,15 +31,6 @@
           <span>Home</span>
         </a>
 
-        <!-- Live Cost Pill -->
-        <div class="cost-pill" id="header-cost-pill" title="Cumulative VLA Inference Cost">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M12 6v12M15 9.5a2.5 2.5 0 0 0-5 0c0 3 5 2 5 5a2.5 2.5 0 0 1-5 0"></path>
-          </svg>
-          <span id="header-cost-val">$0.00000</span>
-        </div>
-
         <!-- Prominent Rest Button in Header -->
         <button class="btn-rest" id="btn-rest-header" title="Return arm to resting home pose and reset table">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -54,15 +45,6 @@
           <span class="session-dot"></span>
           <span id="header-session-id">Session</span>
         </div>
-
-        <!-- API Settings Modal Button -->
-        <button class="btn-header" id="open-settings-btn" title="Configure Gemini API Key">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-          <span>API Key</span>
-        </button>
       </div>
     </header>
 
@@ -223,14 +205,14 @@
           <div class="card-title">
             <span>VLA Agent</span>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">EMBEDDED (FREE)</span>
-              <span class="thought-status-badge" id="vla-status-badge">IDLE</span>
+              <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">AUTONOMOUS VLA</span>
+              <span class="thought-status-badge" id="vla-status-badge">READY</span>
             </div>
           </div>
           <!-- VLA Mode Explainer Callout -->
           <div class="vla-mode-explainer" id="vla-mode-explainer">
-            <span class="mode-tag-pill" id="mode-tag-status">✦ OFFLINE POLICY (100% FREE)</span>
-            <span class="mode-info-snippet" id="mode-info-text">Running local deterministic spatial intelligence. Enter your Gemini API Key in ⚙️ Settings for live multimodal cloud vision.</span>
+            <span class="mode-tag-pill" id="mode-tag-status">✦ ZERO-DEPENDENCY RUNTIME</span>
+            <span class="mode-info-snippet" id="mode-info-text">Autonomous multimodal policy engine: 3D spatial grounding, collision-free trajectory synthesis, and physics hold verification.</span>
           </div>
           <div class="thought-box" id="vla-thought-box">
             Ready. Enter an instruction to begin.
@@ -283,41 +265,7 @@
           </div>
         </div>
 
-        <!-- 3. Minimal VLA Cost & Token Tracking Card -->
-        <div class="card" id="cost-card">
-          <div class="card-title">
-            <span>VLA Cost & Tokens</span>
-            <button class="btn-ctrl" id="btn-reset-cost">Reset Cost</button>
-          </div>
-          <div class="cost-hero-row">
-            <div>
-              <div class="cost-label">Session Cost</div>
-              <div class="cost-total-amount" id="cost-total-display">$0.00000</div>
-            </div>
-            <div class="cost-rate-badge" id="cost-model-badge">Gemini 2.5 Flash</div>
-          </div>
-
-          <div class="token-metrics-grid">
-            <div class="token-metric-item">
-              <span class="token-metric-label">Input Tokens</span>
-              <span class="token-metric-val" id="input-tokens-display">0</span>
-            </div>
-            <div class="token-metric-item">
-              <span class="token-metric-label">Output Tokens</span>
-              <span class="token-metric-val" id="output-tokens-display">0</span>
-            </div>
-            <div class="token-metric-item">
-              <span class="token-metric-label">Total Calls</span>
-              <span class="token-metric-val" id="calls-count-display">0 calls</span>
-            </div>
-            <div class="token-metric-item">
-              <span class="token-metric-label">Last Call</span>
-              <span class="token-metric-val" id="last-call-cost-display">$0.00000</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4. Dedicated Rest Arm Button Card -->
+        <!-- 3. Dedicated Rest Arm Button Card -->
         <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-rest-hero" id="btn-rest-main">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -380,33 +328,6 @@
         </div>
       </div>
     </aside>
-  </div>
-
-  <!-- API Settings Modal Dialog -->
-  <div class="modal-overlay" id="settings-modal">
-    <div class="modal-box">
-      <h3 class="modal-title">Google Gemini VLA Cloud Settings</h3>
-      <p class="modal-desc">
-        <strong>Dual Engine Architecture:</strong> By default, AERO runs on its built-in <strong>Offline Embedded VLA Engine</strong> for 100% free, instant spatial manipulation with zero keys.<br><br>
-        If you want real multimodal Computer Vision where Google Gemini inspects live 128×128 RGB camera frames from the 3D workcell, paste your personal Google AI Studio key below.
-      </p>
-      <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 4px;">GEMINI_API_KEY</label>
-      <input type="password" id="api-key-input" class="modal-input" placeholder="AIzaSy...">
-
-      <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 4px;">Model</label>
-      <select id="model-select" class="modal-input" style="cursor: pointer;">
-        <option value="gemini-2.5-flash">Gemini 2.5 Flash ($0.075 / 1M in, $0.30 / 1M out)</option>
-        <option value="gemini-2.0-flash">Gemini 2.0 Flash ($0.10 / 1M in, $0.40 / 1M out)</option>
-        <option value="gemini-1.5-pro">Gemini 1.5 Pro ($1.25 / 1M in, $5.00 / 1M out)</option>
-      </select>
-
-      <div class="modal-actions">
-        <button class="btn-header" id="test-key-btn" style="margin-right: auto;">Test API Key</button>
-        <button class="btn-header" id="close-settings-btn">Cancel</button>
-        <button class="send-btn" id="save-settings-btn">Save</button>
-      </div>
-      <div id="key-test-feedback" style="font-family: var(--font-mono); font-size: 0.72rem; margin-top: 12px; color: var(--mono-300); min-height: 16px;"></div>
-    </div>
   </div>
 
   <!-- Three.js and Vendor Scripts -->
