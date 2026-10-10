@@ -113,14 +113,19 @@ class TrajectoryController:
 
         # Gripper physical state convergence check
         current_grip = current_joints.get("gripper", 0.0)
+        action_name = str(current_step.get("action", "")).upper()
         gripper_settled = True
-        if desired_gripper >= 0.5:
+        if desired_gripper >= 0.85 or "GRIP" in action_name or "GRASP" in action_name:
             # Grasp step: jaws must physically close past threshold before advancing
             if current_grip < GRASP_CLOSE_THRESHOLD:
                 gripper_settled = False
-        else:
+        elif desired_gripper <= 0.15 or "RELEASE" in action_name:
             # Release step: jaws must physically open below threshold before advancing
             if current_grip > GRASP_OPEN_THRESHOLD:
+                gripper_settled = False
+        else:
+            # Partial / gesture aperture setpoint (e.g. 0.5 for wave fingers)
+            if abs(current_grip - desired_gripper) > 0.12:
                 gripper_settled = False
 
         # Check if setpoint reached target AND actual TCP is within arrival threshold AND gripper converged
@@ -135,8 +140,7 @@ class TrajectoryController:
         if setpoint_at_target and actual_dist <= arrival_threshold and gripper_settled:
             self.dwell_counter += 1
             # Action-specific minimum dwell to guarantee physical contact stabilization
-            action_name = str(current_step.get("action", "")).upper()
-            if desired_gripper >= 0.5 or "GRIP" in action_name or "GRASP" in action_name:
+            if desired_gripper >= 0.85 or "GRIP" in action_name or "GRASP" in action_name:
                 min_dwell = 18
             elif "RELEASE" in action_name:
                 min_dwell = 20
