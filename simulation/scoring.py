@@ -186,7 +186,7 @@ class StabilityValidator:
                 break
 
         if len(stacked_in_pad) >= 1 and settled:
-            self.hold_ticks += 1
+            self.hold_ticks = min(self.hold_ticks + 1, self.required_ticks)
             if self.hold_ticks >= self.required_ticks:
                 self.is_verified = True
                 self.status = "VERIFIED"

@@ -251,7 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (sc.stability) {
         const stab = sc.stability;
-        const holdText = `${stab.hold_ticks || 0} / ${stab.required_ticks || 18}`;
+        const curTicks = Math.min(stab.hold_ticks || 0, stab.required_ticks || 18);
+        const holdText = `${curTicks} / ${stab.required_ticks || 18}`;
         setVal('hold-ticks-display', holdText);
         setVal('stability-text-display', stab.status || 'Pending');
         setVal('dock-stability-status', stab.is_verified ? 'VERIFIED (0.3s)' : (stab.status || 'IDLE'));
