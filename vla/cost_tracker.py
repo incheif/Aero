@@ -79,10 +79,15 @@ class VLACostTracker:
         else:
             output_tokens = max(1, len(completion_text) // 4)
 
-        # 3. Calculate cost in USD
-        input_cost = (input_tokens / 1_000_000.0) * pricing["input_per_million"]
-        output_cost = (output_tokens / 1_000_000.0) * pricing["output_per_million"]
-        call_cost = input_cost + output_cost
+        # 3. Calculate cost in USD (Offline embedded policy is completely free: $0.00)
+        if is_live_api:
+            input_cost = (input_tokens / 1_000_000.0) * pricing["input_per_million"]
+            output_cost = (output_tokens / 1_000_000.0) * pricing["output_per_million"]
+            call_cost = input_cost + output_cost
+        else:
+            input_cost = 0.0
+            output_cost = 0.0
+            call_cost = 0.0
 
         # 4. Update session aggregations
         self.total_calls += 1
