@@ -14,12 +14,6 @@
 
 [🚀 Quick Start](#-quick-start) • [✨ Key Features](#-key-features) • [🎥 Demos & Visual Showcase](#-demos--visual-showcase) • [🗼 Multi-Tower & Pyramid](#-multi-zone--pyramid-assembly) • [💬 Natural Language Commands](#-example-natural-language-commands) • [🌐 ROS 2](#-ros-2-ecosystem-integration)
 
----
-
-### 🌟 Studio Portal & Architecture
-![AERO Studio Overview](docs/assets/aero_portal_overview.png)
-*AERO Autonomous Manipulation Platform: Multimodal VLA Reasoning, 60 FPS Physics Simulation, and Interactive 3D WebGL Studio.*
-
 </div>
 
 ---
@@ -103,7 +97,6 @@ AERO extends beyond conventional single-column stacking to support multi-zone to
 - **Categorized Event Badges**: Color-coded badges for `IK MOTION`, `GRIP`, `RELEASE`, `EXPLORE`, and `VLA COGNITION`.
 
 ### 3. 🤖 Expressive Communicative Gestures
-![Expressive Waving Gesture](docs/assets/gesture_waving.png)
 - **PlayScript Motion Primitives**: Communicative interactions including high wave greeting (`wave_high`), agreement nods (`nod`), gripper celebrations (`snap_gripper`), victory poses (`celebrate`), and dynamic pointing (`point_block`).
 
 ### 4. 🔬 Tabletop Frontier Exploration & 3D Spatial SLAM
