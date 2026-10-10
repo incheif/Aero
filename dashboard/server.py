@@ -275,7 +275,7 @@ async def lifespan(app: FastAPI):
     yield
     sim_task.cancel()
 
-app = FastAPI(title="AERO Autonomous Manipulation Studio", lifespan=lifespan)
+app = FastAPI(title="AERO: Agentic Execution for Robotic Operations", lifespan=lifespan)
 
 # WebSocket Endpoint
 @app.websocket("/ws")

@@ -44,7 +44,7 @@ def main():
     url = f"http://{host}:{port}"
 
     print("========================================================================")
-    print("[*] AERO: Autonomous Robotic Manipulation Studio")
+    print("[*] AERO: Agentic Execution for Robotic Operations")
     print("    Combining Vision-Language-Action, 3D Semantic Spatial Mapping,")
     print("    Tabletop Frontier Exploration, and Rapier3D Kinematics")
     print(f"    Interactive Dashboard: {url}")

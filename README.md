@@ -1,4 +1,4 @@
-# 🤖 AERO: Autonomous Robotic Manipulation Studio
+# 🤖 AERO: Agentic Execution for Robotic Operations
 
 <div align="center">
 
@@ -10,7 +10,7 @@
 [![Physics](https://img.shields.io/badge/Rapier3D-Rigid%20Body%20Dynamics-red.svg)](https://rapier.rs/)
 [![Security Policy](https://img.shields.io/badge/Security-Policy%20Enforced-green.svg)](SECURITY.md)
 
-**An end-to-end cognitive robotic manipulation platform combining Vision-Language-Action (VLA) multimodal reasoning, 3D tabletop spatial semantic mapping, frontier exploration, 60 FPS physics-aligned kinematics, multi-zone structural assembly, and an interactive Three.js WebGL studio.**
+**AERO (Agentic Execution for Robotic Operations) is an end-to-end cognitive robotic manipulation platform combining Vision-Language-Action (VLA) multimodal reasoning, 3D tabletop spatial semantic mapping, frontier exploration, 60 FPS physics-aligned kinematics, multi-zone structural assembly, and an interactive Three.js WebGL studio.**
 
 [🚀 Quick Start](#-quick-start) • [✨ Key Features](#-key-features) • [🎥 Demos & Visual Showcase](#-demos--visual-showcase) • [🗼 Multi-Tower & Pyramid](#-multi-zone--pyramid-assembly) • [💬 Natural Language Commands](#-example-natural-language-commands) • [🌐 ROS 2](#-ros-2-ecosystem-integration)
 
