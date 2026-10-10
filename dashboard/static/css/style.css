@@ -972,6 +972,40 @@ header {
   justify-content: space-between;
 }
 
+/* VLA Mode Explainer Box */
+.vla-mode-explainer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+
+.mode-tag-pill {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mode-tag-pill.live-cloud {
+  color: #38bdf8;
+}
+
+.mode-info-snippet {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
 /* VLA Thought Stream Card */
 .thought-box {
   background: rgba(9, 9, 11, 0.8);

@@ -223,9 +223,14 @@
           <div class="card-title">
             <span>VLA Agent</span>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">EMBEDDED</span>
+              <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">EMBEDDED (FREE)</span>
               <span class="thought-status-badge" id="vla-status-badge">IDLE</span>
             </div>
+          </div>
+          <!-- VLA Mode Explainer Callout -->
+          <div class="vla-mode-explainer" id="vla-mode-explainer">
+            <span class="mode-tag-pill" id="mode-tag-status">✦ OFFLINE POLICY (100% FREE)</span>
+            <span class="mode-info-snippet" id="mode-info-text">Running local deterministic spatial intelligence. Enter your Gemini API Key in ⚙️ Settings for live multimodal cloud vision.</span>
           </div>
           <div class="thought-box" id="vla-thought-box">
             Ready. Enter an instruction to begin.
@@ -380,9 +385,10 @@
   <!-- API Settings Modal Dialog -->
   <div class="modal-overlay" id="settings-modal">
     <div class="modal-box">
-      <h3 class="modal-title">Google Gemini VLA Settings</h3>
+      <h3 class="modal-title">Google Gemini VLA Cloud Settings</h3>
       <p class="modal-desc">
-        Configure your Google AI Studio API Key for live multimodal Gemini VLA reasoning. If left blank, the embedded offline VLA policy runs autonomously at zero cost.
+        <strong>Dual Engine Architecture:</strong> By default, AERO runs on its built-in <strong>Offline Embedded VLA Engine</strong> for 100% free, instant spatial manipulation with zero keys.<br><br>
+        If you want real multimodal Computer Vision where Google Gemini inspects live 128×128 RGB camera frames from the 3D workcell, paste your personal Google AI Studio key below.
       </p>
       <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 4px;">GEMINI_API_KEY</label>
       <input type="password" id="api-key-input" class="modal-input" placeholder="AIzaSy...">

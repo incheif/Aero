@@ -154,24 +154,51 @@ document.addEventListener('DOMContentLoaded', () => {
         modelPill.innerText = `AERO (${data.vla.model})`;
       }
 
-      // Update VLA Mode Badge (CLOUD vs EMBEDDED)
+      // Update VLA Mode Badge & Explainer (CLOUD vs EMBEDDED)
       const modeBadge = document.getElementById('vla-mode-badge');
+      const modeTagStatus = document.getElementById('mode-tag-status');
+      const modeInfoText = document.getElementById('mode-info-text');
+
       if (modeBadge) {
         if (data.vla.mode === 'live_cloud') {
-          modeBadge.innerText = 'LIVE CLOUD';
-          modeBadge.style.color = '#ffffff';
-          modeBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.22)';
+          modeBadge.innerText = 'LIVE GEMINI (CLOUD)';
+          modeBadge.style.color = '#38bdf8';
+          modeBadge.style.backgroundColor = 'rgba(56, 189, 248, 0.15)';
+          modeBadge.style.borderColor = 'rgba(56, 189, 248, 0.35)';
           modeBadge.title = 'Connected to Google Gemini Cloud Multimodal VLA';
+          if (modeTagStatus) {
+            modeTagStatus.innerText = '☁️ LIVE GEMINI CLOUD ACTIVE';
+            modeTagStatus.className = 'mode-tag-pill live-cloud';
+          }
+          if (modeInfoText) {
+            modeInfoText.innerText = 'Google Gemini is inspecting real 128×128 RGB camera frames to synthesize waypoints.';
+          }
         } else if (data.vla.has_api_key) {
           modeBadge.innerText = 'KEY READY';
           modeBadge.style.color = '#ffffff';
           modeBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+          modeBadge.style.borderColor = 'rgba(255, 255, 255, 0.28)';
           modeBadge.title = 'API key saved. Ready for cloud inference.';
+          if (modeTagStatus) {
+            modeTagStatus.innerText = '✦ GEMINI KEY CONFIGURED';
+            modeTagStatus.className = 'mode-tag-pill live-cloud';
+          }
+          if (modeInfoText) {
+            modeInfoText.innerText = 'API key active. Prompts will query Google Gemini Cloud multimodal reasoning.';
+          }
         } else {
-          modeBadge.innerText = 'EMBEDDED';
-          modeBadge.style.color = '#a1a1aa';
-          modeBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-          modeBadge.title = 'Running Embedded Deterministic VLA Runtime (No API Key)';
+          modeBadge.innerText = 'EMBEDDED (FREE)';
+          modeBadge.style.color = '#10b981';
+          modeBadge.style.backgroundColor = 'rgba(16, 185, 129, 0.12)';
+          modeBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+          modeBadge.title = 'Running Embedded Deterministic VLA Runtime (100% Free / Zero API Key)';
+          if (modeTagStatus) {
+            modeTagStatus.innerText = '✦ OFFLINE POLICY (100% FREE)';
+            modeTagStatus.className = 'mode-tag-pill';
+          }
+          if (modeInfoText) {
+            modeInfoText.innerText = 'Running local deterministic spatial intelligence. Enter your Gemini API Key in ⚙️ Settings for live multimodal cloud vision.';
+          }
         }
       }
 
