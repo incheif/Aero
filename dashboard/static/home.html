@@ -92,8 +92,8 @@
           <div class="stat-label">Dynamic Tabletop Entities</div>
         </div>
         <div class="stat-item">
-          <div class="stat-val" id="stat-cost">$0.00005</div>
-          <div class="stat-label">Avg VLA Inference Cost</div>
+          <div class="stat-val">18 Ticks</div>
+          <div class="stat-label">Physical Stability Hold</div>
         </div>
       </div>
     </section>
@@ -355,17 +355,6 @@
         if (text) text.innerText = 'OFFLINE';
       }
 
-      // Fetch cost metrics for stat display
-      try {
-        const costResp = await fetch('/api/vla/cost');
-        if (costResp.ok) {
-          const costData = await costResp.json();
-          const costEl = document.getElementById('stat-cost');
-          if (costEl && costData.avg_cost_per_call_usd > 0) {
-            costEl.innerText = `$${costData.avg_cost_per_call_usd.toFixed(5)}`;
-          }
-        }
-      } catch (e) {}
     });
   </script>
 </body>
