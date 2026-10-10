@@ -16,9 +16,9 @@
 
 ---
 
-### 🌟 Multi-Zone Studio Overview
-![AERO Studio](docs/assets/hero_studio_multizone.png)
-*High-resolution 3D WebGL Studio featuring articulated 5-DOF Franka-style cobot, dynamic color-calibrated cubes, and multi-zone landing pads (Pad A North, Center, Pad B South).*
+### 🌟 Studio Portal & Architecture
+![AERO Studio Overview](docs/assets/aero_portal_overview.png)
+*AERO Autonomous Manipulation Platform: Multimodal VLA Reasoning, 60 FPS Physics Simulation, and Interactive 3D WebGL Studio.*
 
 </div>
 
@@ -26,23 +26,23 @@
 
 ## 🎥 Demos & Visual Showcase
 
-### Fluid 60 FPS Kinematics & Live Execution Logs
+### Live 60 FPS Autonomous Manipulation
 
 <div align="center">
 
-| ⚡ Smooth 60 FPS Kinematics | 📋 Real-Time Execution Logs |
-| :---: | :---: |
-| ![60 FPS Motion](docs/assets/demo_smooth_60fps.webp) | ![Live Logs](docs/assets/demo_logs_panel.webp) |
-| *Jitter-free joint angle slerp interpolation with zero-impulse drop* | *Telemetry log panel detailing what is happening and how* |
+![AERO Autonomous Manipulation Demo](docs/assets/demo_aero_manipulation.webp)
+*Interactive 60 FPS kinematic execution with Cartesian linear setpoint interpolation and zero-impulse jaw release.*
 
 </div>
 
+### Precision Assembly & Telemetry Stream
+
 <div align="center">
 
-| 🎯 Interactive Challenge Chips | 🗼 Multi-Layer Tower Assembly |
+| 🗼 Multi-Layer Tower Assembly | 📋 Real-Time Execution Logs |
 | :---: | :---: |
-| ![Prompt Chips](docs/assets/demo_chips_interaction.webp) | ![Tower Assembly](docs/assets/tower_assembly_60fps.png) |
-| *Persistent command bar with pre-configured verified actions* | *18-tick physical stability hold verification to avoid toppling* |
+| ![Tower Assembly](docs/assets/aero_studio_tower.png) | ![Live Logs](docs/assets/aero_execution_logs.png) |
+| *Verified multi-layer tower assembly with 18-tick physical stability hold* | *Telemetry execution stream detailing metric targets and IK waypoints* |
 
 </div>
 
@@ -50,11 +50,11 @@
 
 ## 🌟 Architecture & System Pipeline
 
-Aero translates high-level natural language intent into verified robotic manipulation primitives through a real-time multimodal loop:
+AERO translates high-level natural language intent into verified robotic manipulation primitives through a real-time multimodal loop:
 
 ```mermaid
 graph TD
-    User(["Natural-Language Command / Voice Input"]) --> Brain["Google VLA Engine (Gemini 2.5 Flash / Embedded VLA)"]
+    User(["Natural-Language Command / Voice Input"]) --> Brain["VLA Cognitive Engine (Gemini 2.5 Flash / Embedded)"]
     Camera["Workcell Camera (Top-Down / Wrist RGB)"] --> Brain
     State["Proprioception (Joints, TCP, Gripper)"] --> Brain
     Semantic["3D Semantic Spatial Memory (Affordances & Relations)"] <--> Brain
@@ -75,10 +75,7 @@ graph TD
 
 ## 🗼 Multi-Zone & Pyramid Assembly
 
-Aero extends beyond conventional single-column stacking to support multi-zone topological assemblies:
-
-![Dual Towers Execution](docs/assets/dual_towers_execution.png)
-*Robot arm assembling 2 distinct towers across North (Pad A) and South (Pad B) landing zones with collision clearance clamping.*
+AERO extends beyond conventional single-column stacking to support multi-zone topological assemblies across designated landing coordinates:
 
 ### 1. Dual Distinct Towers (`STACK_DUAL_TOWERS`)
 - **Twin Landing Zones**: Designated `STACK_ORIGIN_A` $(0.46, 0.72, 0.10)$ and `STACK_ORIGIN_B` $(0.46, 0.72, 0.32)$, spaced 22 cm apart to guarantee arm and finger clearance.
