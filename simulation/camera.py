@@ -55,10 +55,8 @@ def render_camera_frame(snapshot: Dict[str, Any], size: int = VLA_IMAGE_SIZE) ->
     t_max_u, t_max_v = world_to_pixel(TABLE_HALF_EXTENTS[0], -TABLE_HALF_EXTENTS[2], size)
     draw.rectangle([t_min_u, t_min_v, t_max_u, t_max_v], fill=(28, 32, 40), outline=(45, 52, 65))
 
-    # 2. Draw Target Zone Pad
-    pad_u, pad_v = world_to_pixel(STACK_ORIGIN[0], STACK_ORIGIN[2], size)
-    pad_r = 5
-    draw.ellipse([pad_u - pad_r, pad_v - pad_r, pad_u + pad_r, pad_v + pad_r], fill=(35, 75, 95), outline=(50, 160, 200))
+    # 2. Target Zone (Clean, unmarked tabletop - no visual decals)
+    pass
 
     # 3. Draw Blocks (ordered by altitude so lower blocks are drawn first)
     sorted_blocks = sorted(snapshot.get("blocks", []), key=lambda b: b["position"][1])
