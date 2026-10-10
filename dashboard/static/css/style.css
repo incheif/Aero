@@ -141,6 +141,38 @@ header {
   filter: grayscale(1);
 }
 
+/* Private Session Pill in Header */
+.session-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-dim);
+  padding: 5px 11px;
+  border-radius: var(--radius-full);
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.session-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.session-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  display: inline-block;
+}
+
 /* Prominent Rest Button in Header */
 .btn-rest {
   background: rgba(255, 255, 255, 0.06);

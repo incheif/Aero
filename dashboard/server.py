@@ -2,6 +2,9 @@
 FastAPI Server for Robot Arm VLA Simulation & Three.js Studio.
 Streams real-time 60 FPS physics telemetry over WebSockets and handles
 Google VLA natural-language commands, 3D semantic mapping, and frontier exploration.
+
+Supports multi-tenant Session ID isolation: each browser tab / visitor gets their own
+private robot arm, physics environment, execution logs, and telemetry stream.
 """
 
 import os
@@ -9,10 +12,10 @@ import sys
 import io
 import asyncio
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Set
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -37,23 +40,12 @@ from simulation.constants import (
 )
 from simulation.physics_engine import RobotArmSimulation
 from simulation.camera import render_camera_frame, encode_image_base64
+from simulation.kinematics import inverse_kinematics
 from vla.semantic_mapper import SemanticSpatialMapper
 from vla.frontier_explorer import TabletopFrontierExplorer
 from vla.google_vla_agent import GoogleVLAAgent
 from vla.trajectory_controller import TrajectoryController
 from vla.color_seek_policy import ColorSeekPolicy
-
-# Core singletons
-sim = RobotArmSimulation()
-mapper = SemanticSpatialMapper()
-explorer = TabletopFrontierExplorer()
-vla_agent = GoogleVLAAgent()
-controller = TrajectoryController()
-color_seek = ColorSeekPolicy()
-
-is_paused: bool = False
-manual_mode: bool = False
-color_seek_active: bool = False
 
 VLA_STRIDE = 12  # 5 Hz policy updates over 60 Hz physics (vsarena standard)
 
@@ -61,72 +53,384 @@ class CommandRequest(BaseModel):
     command: str
     api_key: Optional[str] = None
     model: Optional[str] = "gemini-2.5-flash"
+    session_id: Optional[str] = None
 
 class TestKeyRequest(BaseModel):
     api_key: str
     model: Optional[str] = "gemini-2.5-flash"
+    session_id: Optional[str] = None
 
 class TeleopRequest(BaseModel):
     joints: Optional[Dict[str, float]] = None
     gripper: Optional[float] = None
+    session_id: Optional[str] = None
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
+class UserSession:
+    """Encapsulates an isolated simulation and cognitive pipeline for one client session."""
 
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.sim = RobotArmSimulation()
+        self.mapper = SemanticSpatialMapper()
+        self.explorer = TabletopFrontierExplorer()
+        self.vla_agent = GoogleVLAAgent()
+        self.controller = TrajectoryController()
+        self.color_seek = ColorSeekPolicy()
 
-    async def broadcast(self, message: Dict[str, Any]):
-        for connection in list(self.active_connections):
+        self.is_paused: bool = False
+        self.manual_mode: bool = False
+        self.color_seek_active: bool = False
+
+        self.websockets: Set[WebSocket] = set()
+        self.recent_logs: list[Dict[str, Any]] = []
+        self.last_active: float = time.time()
+
+        self.prev_step_idx: int = -1
+        self.prev_stability_verified: bool = False
+        self.frame_count: int = 0
+        self.fps_timer: float = time.time()
+        self.current_fps: float = 60.0
+
+        self.log_event(
+            "system",
+            "STARTUP",
+            f"Session {session_id} initialized with private workcell.",
+            "Rapier3D physics running at 60 FPS (dt=16.6ms). 5 blocks spawned at canonical table coordinates."
+        )
+
+    def log_event(self, category: str, badge: str, what: str, how: str) -> Dict[str, Any]:
+        """Records an execution or cognitive event for this session."""
+        entry = {
+            "id": f"log_{int(time.time()*1000)}_{len(self.recent_logs)}",
+            "timestamp": time.strftime("%H:%M:%S") + f".{int((time.time() % 1) * 100):02d}",
+            "category": category,
+            "badge": badge,
+            "what": what,
+            "how": how,
+        }
+        self.recent_logs.append(entry)
+        if len(self.recent_logs) > 250:
+            self.recent_logs.pop(0)
+        return entry
+
+    def is_active(self) -> bool:
+        return (
+            len(self.websockets) > 0
+            or self.controller.is_active
+            or self.color_seek_active
+            or self.explorer.is_exploring
+        )
+
+    def handle_reset(self):
+        self.color_seek_active = False
+        self.color_seek.reset()
+        self.controller.stop()
+        self.explorer.is_exploring = False
+        self.explorer.exploration_pct = 25.0
+        for k in self.explorer.explored_cells:
+            self.explorer.explored_cells[k] = 0.25
+        self.sim.reset()
+        self.mapper.update_from_simulation(self.sim.get_snapshot())
+        self.vla_agent.execution_status = "RESTING"
+        self.vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
+        self.log_event(
+            "system",
+            "RESET",
+            "Workspace and arm reset to canonical state.",
+            "Joint targets zeroed/rest pose. Blocks re-spawned at baseline coordinates. Trajectory queue stopped."
+        )
+
+    async def handle_vla_command(self, cmd: str) -> Dict[str, Any]:
+        self.manual_mode = False
+        self.last_active = time.time()
+
+        self.log_event(
+            "vla",
+            "INSTRUCTION",
+            f"VLA instruction received: \"{cmd}\"",
+            f"Dispatched to Google VLA reasoning pipeline (Model: {self.vla_agent.model_name}). Synthesizing spatial chain-of-thought."
+        )
+
+        # Automatically reset the system before every new action
+        self.handle_reset()
+
+        snapshot = self.sim.get_snapshot()
+        img = render_camera_frame(snapshot)
+        semantic_summary = self.mapper.get_semantic_summary()
+
+        # Synthesize manipulation, gesture, or feasibility validation through Google VLA
+        result = self.vla_agent.parse_instruction(cmd, img, snapshot, semantic_summary)
+
+        # If rejected as impossible:
+        if not result.get("is_possible", True) or result.get("status") == "IMPOSSIBLE":
+            self.controller.stop()
+            self.log_event(
+                "vla",
+                "REJECT",
+                f"Instruction rejected as infeasible: \"{cmd}\"",
+                f"Reason: {result.get('reason') or result.get('thought') or result.get('reasoning') or 'Action violates spatial reachability or semantic stability constraint.'}"
+            )
+            return result
+
+        # If ColorSeek closed-loop visual servoing was requested:
+        if result.get("action_type") == "COLORSEEK":
+            self.controller.stop()
+            self.explorer.is_exploring = False
+            self.color_seek.reset()
+            self.color_seek_active = True
+            self.vla_agent.execution_status = "EXECUTING"
+            self.vla_agent.latest_thought = "ColorSeek: Closed-loop RGB visual servoing active (5 Hz policy stride)."
+            self.log_event(
+                "vla",
+                "COLORSEEK",
+                "Visual servoing stacking policy initialized",
+                "RGB camera tracking active at 5 Hz control policy stride. Visual servoing closed-loop engaged."
+            )
+            return result
+
+        # If active frontier exploration was requested:
+        if result.get("action_type") == "EXPLORE" or (
+            any(w in cmd.lower() for w in ("explore", "scan table", "survey", "frontier"))
+            and not any(w in cmd.lower() for w in ("wave", "tower", "stack", "pick"))
+        ):
+            self.explorer.start_exploration()
+            self.controller.stop()
+            self.color_seek_active = False
+            self.vla_agent.execution_status = "EXECUTING"
+            self.vla_agent.latest_thought = f"Google VLA: Executing active frontier exploration for '{cmd}'."
+            self.log_event(
+                "motion",
+                "EXPLORE",
+                f"Frontier exploration started: \"{cmd}\"",
+                "Autonomous workspace survey engaged. Updating 3D semantic voxel grid."
+            )
+            return {"status": "ok", "action": "EXPLORATION_STARTED", "thought": self.vla_agent.latest_thought}
+
+        # Load and execute trajectory plan (gestures, stacking, pick-and-place)
+        self.color_seek_active = False
+        plan = result.get("plan", [])
+        if plan:
+            self.controller.load_plan(plan)
+            self.log_event(
+                "vla",
+                "PLAN READY",
+                f"Synthesized trajectory plan with {len(plan)} waypoints.",
+                f"Action: {result.get('action_type', 'TASK')} · CoT reasoning: {result.get('reasoning', result.get('thought', 'Metric waypoint sequence dispatched.'))}"
+            )
+        return result
+
+    def step(self) -> Optional[Dict[str, Any]]:
+        if self.is_paused:
+            return None
+
+        fk_data = self.sim.get_snapshot()["tcp"]["position"]
+        tcp_pos = (fk_data[0], fk_data[1], fk_data[2])
+
+        # 1. Controller step if active plan
+        if self.controller.is_active and not self.manual_mode:
+            target_cmd = self.controller.step(tcp_pos, self.sim.joints)
+            if target_cmd:
+                self.sim.set_joint_targets(target_cmd["joints"], target_cmd["gripper"])
+                cur_idx = self.controller.step_idx
+                if cur_idx != self.prev_step_idx and cur_idx < len(self.controller.current_plan):
+                    self.prev_step_idx = cur_idx
+                    step_data = self.controller.current_plan[cur_idx]
+                    s_desc = step_data.get("desc", f"Waypoint {cur_idx + 1}")
+                    s_tgt = step_data.get("target", (0, 0, 0))
+                    s_grip = step_data.get("gripper", 0.0)
+                    s_dwell = step_data.get("dwell_ticks", 10)
+                    is_contact = "GRIP" in s_desc.upper() or "RELEASE" in s_desc.upper()
+                    s_cat = "contact" if is_contact else "motion"
+                    s_badge = "GRIP" if "GRIP" in s_desc.upper() else ("RELEASE" if "RELEASE" in s_desc.upper() else "IK MOTION")
+                    self.log_event(
+                        s_cat,
+                        s_badge,
+                        f"Waypoint {cur_idx + 1}/{len(self.controller.current_plan)}: {s_desc}",
+                        f"Target TCP: [{s_tgt[0]:.3f}, {s_tgt[1]:.3f}, {s_tgt[2]:.3f}] · Jaws: {'Closed (100%)' if s_grip > 0.5 else 'Open (100%)'} · Dwell: {s_dwell} ticks contact settle"
+                    )
+
+                if target_cmd.get("is_active") is False:
+                    self.vla_agent.execution_status = "COMPLETED"
+                    self.vla_agent.latest_thought = f"Completed action plan: {target_cmd.get('step_desc')}"
+                    self.log_event(
+                        "system",
+                        "COMPLETED",
+                        f"Action completed: {target_cmd.get('step_desc')}",
+                        "All waypoints successfully executed to metric tolerances. Arm holding in standby pose."
+                    )
+
+        # 1b. ColorSeek closed-loop visual servoing step (5 Hz downsampled VLA stride)
+        elif self.color_seek_active and not self.manual_mode:
+            if self.sim.tick % VLA_STRIDE == 0:
+                cam_frame = render_camera_frame(self.sim.get_snapshot())
+                cs_cmd = self.color_seek.step(cam_frame, self.sim.joints, tcp_pos)
+                self.sim.set_joint_targets(cs_cmd["joints"], cs_cmd["gripper"])
+                self.vla_agent.latest_thought = f"ColorSeek (5 Hz VLA): {cs_cmd.get('plan')}"
+                if not cs_cmd.get("is_active", True):
+                    self.color_seek_active = False
+                    self.vla_agent.execution_status = "COMPLETED"
+                    self.vla_agent.latest_thought = "ColorSeek: Closed-loop visual stacking sequence completed!"
+
+        # 2. Frontier exploration step if active
+        elif self.explorer.is_exploring and not self.manual_mode:
+            wp = self.explorer.get_current_waypoint()
+            target_pos = wp["target"]
+            dx = target_pos[0] - tcp_pos[0]
+            dy = target_pos[1] - tcp_pos[1]
+            dz = target_pos[2] - tcp_pos[2]
+            dist = (dx*dx + dy*dy + dz*dz) ** 0.5
+
+            ik_targets = inverse_kinematics(target_pos, gripper=0.0)
+            self.sim.set_joint_targets(ik_targets, gripper=0.0)
+
+            if dist <= 0.02:
+                self.explorer.advance_waypoint()
+                self.mapper.total_scanned_area_pct = self.explorer.exploration_pct
+                if not self.explorer.is_exploring:
+                    self.vla_agent.latest_thought = "Exploration complete. 3D Semantic Spatial Memory fully mapped."
+                    self.vla_agent.execution_status = "IDLE"
+
+        # 3. Step physics simulation
+        snapshot = self.sim.step(FIXED_DT)
+
+        # 4. Update 3D Semantic Spatial Mapper
+        self.mapper.update_from_simulation(snapshot)
+
+        # FPS calculations
+        self.frame_count += 1
+        if time.time() - self.fps_timer >= 1.0:
+            self.current_fps = self.frame_count / (time.time() - self.fps_timer)
+            self.fps_timer = time.time()
+            self.frame_count = 0
+
+        # Stability state change logging
+        stab = snapshot.get("scores", {}).get("stability", {})
+        is_ver = stab.get("is_verified", False)
+        if is_ver and not self.prev_stability_verified:
+            self.prev_stability_verified = True
+            spat_acc = snapshot.get("scores", {}).get("spatial_accuracy", 0.0)
+            self.log_event(
+                "stability",
+                "VERIFIED",
+                "Post-release physical stability hold verified (18/18 ticks = 0.30s).",
+                f"Target stack held without toppling. Linear velocity <= 0.02 m/s, angular velocity <= 0.05 rad/s. Spatial accuracy score: {spat_acc*100:.1f}%."
+            )
+        elif not is_ver:
+            self.prev_stability_verified = False
+
+        return snapshot
+
+    def get_telemetry_payload(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "type": "telemetry",
+            "session_id": self.session_id,
+            "tick": snapshot["tick"],
+            "fps": round(self.current_fps, 1),
+            "joints": snapshot["joints"],
+            "joint_targets": snapshot["joint_targets"],
+            "arm": snapshot["arm"],
+            "tcp": snapshot["tcp"],
+            "blocks": snapshot["blocks"],
+            "grasped_block_id": snapshot["grasped_block_id"],
+            "target_zone": snapshot["target_zone"],
+            "scores": snapshot.get("scores", {}),
+            "tcp_trail": self.controller.tcp_trail[-60:],
+            "semantic_map": self.mapper.to_dict(),
+            "frontier": self.explorer.to_dict(),
+            "vla": {
+                "model": "ColorSeek (Visual Servoing)" if self.color_seek_active else self.vla_agent.model_name,
+                "status": self.vla_agent.execution_status,
+                "thought": self.vla_agent.latest_thought,
+                "progress": self.controller.get_progress() if not self.color_seek_active else {"current_step": self.color_seek.target_idx + 1, "total_steps": len(self.color_seek.order), "pct": int((self.color_seek.target_idx / max(1, len(self.color_seek.order))) * 100)},
+                "grounding": self.vla_agent.latest_grounding,
+                "has_api_key": bool(self.vla_agent.api_key),
+                "mode": "colorseek" if self.color_seek_active else getattr(self.vla_agent, "active_mode", "embedded"),
+                "last_api_error": getattr(self.vla_agent, "last_api_error", None),
+            },
+            "cost": self.vla_agent.get_cost_summary(),
+            "is_paused": self.is_paused,
+            "manual_mode": self.manual_mode,
+            "logs": self.recent_logs[-40:],
+        }
+
+    async def broadcast_telemetry(self, payload: Dict[str, Any]):
+        for ws in list(self.websockets):
             try:
-                await connection.send_json(message)
+                await ws.send_json(payload)
             except Exception:
-                self.disconnect(connection)
+                self.websockets.discard(ws)
 
-manager = ConnectionManager()
 
-# System execution logs buffer (maintains what is happening and how)
-recent_logs: list[Dict[str, Any]] = []
+class SessionManager:
+    """Registry managing active and idle user sessions."""
+
+    def __init__(self):
+        self.sessions: Dict[str, UserSession] = {}
+
+    def get_or_create(self, session_id: Optional[str]) -> UserSession:
+        sid = (session_id or "default").strip()
+        if not sid:
+            sid = "default"
+        if sid not in self.sessions:
+            self.sessions[sid] = UserSession(sid)
+        sess = self.sessions[sid]
+        sess.last_active = time.time()
+        return sess
+
+    def get_active_sessions(self) -> list[UserSession]:
+        active = []
+        for sid, sess in list(self.sessions.items()):
+            if sid == "default" or sess.is_active():
+                active.append(sess)
+        return active
+
+    def cleanup_inactive(self, max_idle_seconds: int = 600):
+        now = time.time()
+        for sid, sess in list(self.sessions.items()):
+            if sid != "default" and not sess.websockets and not sess.controller.is_active:
+                if (now - sess.last_active) > max_idle_seconds:
+                    print(f"[*] Reclaiming idle session: {sid}")
+                    del self.sessions[sid]
+
+
+session_manager = SessionManager()
+
+# Global backwards-compatible singleton references
+default_session = session_manager.get_or_create("default")
+sim = default_session.sim
+mapper = default_session.mapper
+explorer = default_session.explorer
+vla_agent = default_session.vla_agent
+controller = default_session.controller
+color_seek = default_session.color_seek
+recent_logs = default_session.recent_logs
 
 def log_event(category: str, badge: str, what: str, how: str):
-    """
-    Records an execution or cognitive event.
-    category: 'vla' | 'motion' | 'contact' | 'stability' | 'system'
-    badge: e.g. 'COMMAND', 'PLAN', 'MOTION', 'GRIP', 'RELEASE', 'STABILITY', 'RESET', 'REJECT'
-    what: high-level description of what is happening
-    how: technical parameters, metric targets, clearance, dwell ticks, velocities, etc.
-    """
-    entry = {
-        "id": f"log_{int(time.time()*1000)}_{len(recent_logs)}",
-        "timestamp": time.strftime("%H:%M:%S") + f".{int((time.time() % 1) * 100):02d}",
-        "category": category,
-        "badge": badge,
-        "what": what,
-        "how": how,
-    }
-    recent_logs.append(entry)
-    if len(recent_logs) > 250:
-        recent_logs.pop(0)
-    return entry
+    return default_session.log_event(category, badge, what, how)
 
-# Initial boot log
-log_event("system", "STARTUP", "Simulation engine and AERO studio initialized.", "Rapier3D physics running at 60 FPS (dt=16.6ms). 5 blocks spawned at canonical table coordinates.")
+def handle_reset():
+    return default_session.handle_reset()
+
+async def handle_vla_command(cmd: str):
+    return await default_session.handle_vla_command(cmd)
+
+def extract_session_id(request: Request, body_session_id: Optional[str] = None) -> str:
+    if body_session_id and body_session_id.strip():
+        return body_session_id.strip()
+    header_sid = request.headers.get("X-Session-ID") or request.headers.get("x-session-id")
+    if header_sid and header_sid.strip():
+        return header_sid.strip()
+    query_sid = request.query_params.get("session_id")
+    if query_sid and query_sid.strip():
+        return query_sid.strip()
+    return "default"
+
 
 # Background Simulation Loop
 async def simulation_loop():
-    global is_paused, manual_mode, color_seek_active
     last_time = time.time()
-    fps_timer = time.time()
-    frame_count = 0
-    current_fps = 60.0
-    prev_step_idx = -1
-    prev_stability_verified = False
+    cleanup_timer = time.time()
 
     while True:
         now = time.time()
@@ -135,139 +439,23 @@ async def simulation_loop():
         if elapsed >= FIXED_DT:
             last_time = now
 
-            if not is_paused:
-                # 1. Controller step if active plan
-                fk_data = sim.get_snapshot()["tcp"]["position"]
-                tcp_pos = (fk_data[0], fk_data[1], fk_data[2])
+            active_sessions = session_manager.get_active_sessions()
+            for sess in active_sessions:
+                try:
+                    snapshot = sess.step()
+                    if snapshot and sess.websockets:
+                        payload = sess.get_telemetry_payload(snapshot)
+                        await sess.broadcast_telemetry(payload)
+                except Exception as e:
+                    print(f"[Simulation Error in session {sess.session_id}]: {e}")
 
-                if controller.is_active and not manual_mode:
-                    target_cmd = controller.step(tcp_pos, sim.joints)
-                    if target_cmd:
-                        sim.set_joint_targets(target_cmd["joints"], target_cmd["gripper"])
-                        cur_idx = controller.step_idx
-                        if cur_idx != prev_step_idx and cur_idx < len(controller.current_plan):
-                            prev_step_idx = cur_idx
-                            step_data = controller.current_plan[cur_idx]
-                            s_desc = step_data.get("desc", f"Waypoint {cur_idx + 1}")
-                            s_tgt = step_data.get("target", (0, 0, 0))
-                            s_grip = step_data.get("gripper", 0.0)
-                            s_dwell = step_data.get("dwell_ticks", 10)
-                            is_contact = "GRIP" in s_desc.upper() or "RELEASE" in s_desc.upper()
-                            s_cat = "contact" if is_contact else "motion"
-                            s_badge = "GRIP" if "GRIP" in s_desc.upper() else ("RELEASE" if "RELEASE" in s_desc.upper() else "IK MOTION")
-                            log_event(
-                                s_cat,
-                                s_badge,
-                                f"Waypoint {cur_idx + 1}/{len(controller.current_plan)}: {s_desc}",
-                                f"Target TCP: [{s_tgt[0]:.3f}, {s_tgt[1]:.3f}, {s_tgt[2]:.3f}] · Jaws: {'Closed (100%)' if s_grip > 0.5 else 'Open (100%)'} · Dwell: {s_dwell} ticks contact settle"
-                            )
+            if now - cleanup_timer >= 60.0:
+                cleanup_timer = now
+                session_manager.cleanup_inactive(max_idle_seconds=600)
 
-                        if target_cmd.get("is_active") is False:
-                            vla_agent.execution_status = "COMPLETED"
-                            vla_agent.latest_thought = f"Completed action plan: {target_cmd.get('step_desc')}"
-                            log_event(
-                                "system",
-                                "COMPLETED",
-                                f"Action completed: {target_cmd.get('step_desc')}",
-                                "All waypoints successfully executed to metric tolerances. Arm holding in standby pose."
-                            )
-
-                # 1b. ColorSeek closed-loop visual servoing step (5 Hz downsampled VLA stride)
-                elif color_seek_active and not manual_mode:
-                    if sim.tick % VLA_STRIDE == 0:
-                        cam_frame = render_camera_frame(sim.get_snapshot())
-                        cs_cmd = color_seek.step(cam_frame, sim.joints, tcp_pos)
-                        sim.set_joint_targets(cs_cmd["joints"], cs_cmd["gripper"])
-                        vla_agent.latest_thought = f"ColorSeek (5 Hz VLA): {cs_cmd.get('plan')}"
-                        if not cs_cmd.get("is_active", True):
-                            color_seek_active = False
-                            vla_agent.execution_status = "COMPLETED"
-                            vla_agent.latest_thought = "ColorSeek: Closed-loop visual stacking sequence completed!"
-
-                # 2. Frontier exploration step if active
-                elif explorer.is_exploring and not manual_mode:
-                    wp = explorer.get_current_waypoint()
-                    target_pos = wp["target"]
-                    dx = target_pos[0] - tcp_pos[0]
-                    dy = target_pos[1] - tcp_pos[1]
-                    dz = target_pos[2] - tcp_pos[2]
-                    dist = (dx*dx + dy*dy + dz*dz) ** 0.5
-
-                    from simulation.kinematics import inverse_kinematics
-                    ik_targets = inverse_kinematics(target_pos, gripper=0.0)
-                    sim.set_joint_targets(ik_targets, gripper=0.0)
-
-                    if dist <= 0.02:
-                        explorer.advance_waypoint()
-                        mapper.total_scanned_area_pct = explorer.exploration_pct
-                        if not explorer.is_exploring:
-                            vla_agent.latest_thought = "Exploration complete. 3D Semantic Spatial Memory fully mapped."
-                            vla_agent.execution_status = "IDLE"
-
-                # 3. Step physics simulation
-                snapshot = sim.step(FIXED_DT)
-
-                # 4. Update 3D Semantic Spatial Mapper
-                mapper.update_from_simulation(snapshot)
-
-                # FPS calculations
-                frame_count += 1
-                if time.time() - fps_timer >= 1.0:
-                    current_fps = frame_count / (time.time() - fps_timer)
-                    fps_timer = time.time()
-                    frame_count = 0
-
-                # Stability state change logging
-                stab = snapshot.get("scores", {}).get("stability", {})
-                is_ver = stab.get("is_verified", False)
-                if is_ver and not prev_stability_verified:
-                    prev_stability_verified = True
-                    spat_acc = snapshot.get("scores", {}).get("spatial_accuracy", 0.0)
-                    log_event(
-                        "stability",
-                        "VERIFIED",
-                        "Post-release physical stability hold verified (18/18 ticks = 0.30s).",
-                        f"Target stack held without toppling. Linear velocity <= 0.02 m/s, angular velocity <= 0.05 rad/s. Spatial accuracy score: {spat_acc*100:.1f}%."
-                    )
-                elif not is_ver:
-                    prev_stability_verified = False
-
-                # 5. Broadcast live telemetry state
-                payload = {
-                    "type": "telemetry",
-                    "tick": snapshot["tick"],
-                    "fps": round(current_fps, 1),
-                    "joints": snapshot["joints"],
-                    "joint_targets": snapshot["joint_targets"],
-                    "arm": snapshot["arm"],
-                    "tcp": snapshot["tcp"],
-                    "blocks": snapshot["blocks"],
-                    "grasped_block_id": snapshot["grasped_block_id"],
-                    "target_zone": snapshot["target_zone"],
-                    "scores": snapshot.get("scores", {}),
-                    "tcp_trail": controller.tcp_trail[-60:],
-                    "semantic_map": mapper.to_dict(),
-                    "frontier": explorer.to_dict(),
-                    "vla": {
-                        "model": "ColorSeek (Visual Servoing)" if color_seek_active else vla_agent.model_name,
-                        "status": vla_agent.execution_status,
-                        "thought": vla_agent.latest_thought,
-                        "progress": controller.get_progress() if not color_seek_active else {"current_step": color_seek.target_idx + 1, "total_steps": len(color_seek.order), "pct": int((color_seek.target_idx / max(1, len(color_seek.order))) * 100)},
-                        "grounding": vla_agent.latest_grounding,
-                        "has_api_key": bool(vla_agent.api_key),
-                        "mode": "colorseek" if color_seek_active else getattr(vla_agent, "active_mode", "embedded"),
-                        "last_api_error": getattr(vla_agent, "last_api_error", None),
-                    },
-                    "cost": vla_agent.get_cost_summary(),
-                    "is_paused": is_paused,
-                    "manual_mode": manual_mode,
-                    "logs": recent_logs[-40:],
-                }
-                await manager.broadcast(payload)
-
-        # Yield to event loop adaptively based on time until next 60 Hz tick
         rem = FIXED_DT - (time.time() - last_time)
         await asyncio.sleep(max(0.002, rem if rem > 0 else 0.002))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -275,139 +463,76 @@ async def lifespan(app: FastAPI):
     yield
     sim_task.cancel()
 
+
 app = FastAPI(title="AERO: Agentic Execution for Robotic Operations", lifespan=lifespan)
 
-# WebSocket Endpoint
+# WebSocket Endpoint with Session ID Support
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    session_id = websocket.query_params.get("session_id") or "default"
+    sess = session_manager.get_or_create(session_id)
+    await websocket.accept()
+    sess.websockets.add(websocket)
+    sess.last_active = time.time()
     try:
         while True:
             data = await websocket.receive_json()
+            sess.last_active = time.time()
             msg_type = data.get("type")
             if msg_type == "command":
                 cmd = data.get("command", "")
-                await handle_vla_command(cmd)
+                await sess.handle_vla_command(cmd)
             elif msg_type == "teleop":
                 joints = data.get("joints", {})
                 grip = data.get("gripper")
-                sim.set_joint_targets(joints, grip)
+                sess.manual_mode = True
+                sess.controller.stop()
+                sess.explorer.is_exploring = False
+                if joints:
+                    sess.sim.set_joint_targets(joints, grip)
             elif msg_type == "reset":
-                handle_reset()
+                sess.handle_reset()
             elif msg_type == "toggle_pause":
-                global is_paused
-                is_paused = not is_paused
+                sess.is_paused = not sess.is_paused
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        sess.websockets.discard(websocket)
+
 
 @app.post("/api/vla/test_key")
-async def api_test_key(req: TestKeyRequest):
+async def api_test_key(req: TestKeyRequest, request: Request):
+    sid = extract_session_id(request, req.session_id)
+    sess = session_manager.get_or_create(sid)
     if req.model:
-        vla_agent.model_name = req.model
-    valid, message = vla_agent.test_api_key(req.api_key)
+        sess.vla_agent.model_name = req.model
+    valid, message = sess.vla_agent.test_api_key(req.api_key)
     if valid:
-        vla_agent.set_api_key(req.api_key)
+        sess.vla_agent.set_api_key(req.api_key)
     return {"valid": valid, "message": message}
 
-@app.post("/api/vla/command")
-async def api_command(req: CommandRequest):
-    if req.api_key:
-        vla_agent.set_api_key(req.api_key)
-    if req.model:
-        vla_agent.model_name = req.model
 
-    res = await handle_vla_command(req.command)
+@app.post("/api/vla/command")
+async def api_command(req: CommandRequest, request: Request):
+    sid = extract_session_id(request, req.session_id)
+    sess = session_manager.get_or_create(sid)
+    if req.api_key:
+        sess.vla_agent.set_api_key(req.api_key)
+    if req.model:
+        sess.vla_agent.model_name = req.model
+
+    res = await sess.handle_vla_command(req.command)
     return res
 
-async def handle_vla_command(cmd: str) -> Dict[str, Any]:
-    global manual_mode
-    manual_mode = False
-
-    log_event(
-        "vla",
-        "INSTRUCTION",
-        f"VLA instruction received: \"{cmd}\"",
-        f"Dispatched to Google VLA reasoning pipeline (Model: {vla_agent.model_name}). Synthesizing spatial chain-of-thought."
-    )
-
-    # Automatically reset the system before every new action
-    handle_reset()
-
-    snapshot = sim.get_snapshot()
-    img = render_camera_frame(snapshot)
-    semantic_summary = mapper.get_semantic_summary()
-
-    # Synthesize manipulation, gesture, or feasibility validation through Google VLA
-    result = vla_agent.parse_instruction(cmd, img, snapshot, semantic_summary)
-
-    # If rejected as impossible:
-    if not result.get("is_possible", True) or result.get("status") == "IMPOSSIBLE":
-        controller.stop()
-        log_event(
-            "vla",
-            "REJECT",
-            f"Instruction rejected as infeasible: \"{cmd}\"",
-            f"Reason: {result.get('reason') or result.get('thought') or result.get('reasoning') or 'Action violates spatial reachability or semantic stability constraint.'}"
-        )
-        return result
-
-    # If ColorSeek closed-loop visual servoing was requested:
-    if result.get("action_type") == "COLORSEEK":
-        global color_seek_active
-        controller.stop()
-        explorer.is_exploring = False
-        color_seek.reset()
-        color_seek_active = True
-        vla_agent.execution_status = "EXECUTING"
-        vla_agent.latest_thought = "ColorSeek: Closed-loop RGB visual servoing active (5 Hz policy stride)."
-        log_event(
-            "vla",
-            "COLORSEEK",
-            "Visual servoing stacking policy initialized",
-            "RGB camera tracking active at 5 Hz control policy stride. Visual servoing closed-loop engaged."
-        )
-        return result
-
-    # If active frontier exploration was requested:
-    if result.get("action_type") == "EXPLORE" or (
-        any(w in cmd.lower() for w in ("explore", "scan table", "survey", "frontier"))
-        and not any(w in cmd.lower() for w in ("wave", "tower", "stack", "pick"))
-    ):
-        explorer.start_exploration()
-        controller.stop()
-        color_seek_active = False
-        vla_agent.execution_status = "EXECUTING"
-        vla_agent.latest_thought = f"Google VLA: Executing active frontier exploration for '{cmd}'."
-        log_event(
-            "motion",
-            "EXPLORE",
-            f"Frontier exploration started: \"{cmd}\"",
-            "Autonomous workspace survey engaged. Updating 3D semantic voxel grid."
-        )
-        return {"status": "ok", "action": "EXPLORATION_STARTED", "thought": vla_agent.latest_thought}
-
-    # Load and execute trajectory plan (gestures, stacking, pick-and-place)
-    color_seek_active = False
-    plan = result.get("plan", [])
-    if plan:
-        controller.load_plan(plan)
-        log_event(
-            "vla",
-            "PLAN READY",
-            f"Synthesized trajectory plan with {len(plan)} waypoints.",
-            f"Action: {result.get('action_type', 'TASK')} · CoT reasoning: {result.get('reasoning', result.get('thought', 'Metric waypoint sequence dispatched.'))}"
-        )
-    return result
 
 @app.post("/api/vla/explore")
-async def api_explore():
-    global manual_mode, color_seek_active
-    manual_mode = False
-    handle_reset()
-    explorer.start_exploration()
-    vla_agent.execution_status = "EXECUTING"
-    vla_agent.latest_thought = "Active frontier exploration initiated. Scanning table quadrants."
-    log_event(
+async def api_explore(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    sess.manual_mode = False
+    sess.handle_reset()
+    sess.explorer.start_exploration()
+    sess.vla_agent.execution_status = "EXECUTING"
+    sess.vla_agent.latest_thought = "Active frontier exploration initiated. Scanning table quadrants."
+    sess.log_event(
         "motion",
         "EXPLORE",
         "Active frontier exploration triggered",
@@ -415,83 +540,104 @@ async def api_explore():
     )
     return {"status": "ok", "message": "Exploration initiated"}
 
+
 @app.post("/api/sim/reset")
-async def api_reset():
-    handle_reset()
+async def api_reset(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    sess.handle_reset()
     return {"status": "ok", "message": "Arm returned to rest pose and workspace reset."}
+
 
 @app.post("/api/sim/rest")
-async def api_rest():
-    handle_reset()
-    return {"status": "ok", "message": "Arm returned to rest pose and workspace reset."}
+async def api_rest(request: Request):
+    return await api_reset(request)
+
 
 @app.get("/api/logs")
-async def api_get_logs():
-    return {"logs": recent_logs}
+async def api_get_logs(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    return {"logs": sess.recent_logs}
+
 
 @app.post("/api/logs/clear")
-async def api_clear_logs():
-    recent_logs.clear()
-    log_event("system", "CLEARED", "Execution logs cleared by user.", "Log buffer flushed.")
-    return {"status": "ok", "logs": recent_logs}
+async def api_clear_logs(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    sess.recent_logs.clear()
+    sess.log_event("system", "CLEARED", "Execution logs cleared by user.", "Log buffer flushed.")
+    return {"status": "ok", "logs": sess.recent_logs}
 
-def handle_reset():
-    global color_seek_active
-    color_seek_active = False
-    color_seek.reset()
-    controller.stop()
-    explorer.is_exploring = False
-    explorer.exploration_pct = 25.0
-    for k in explorer.explored_cells:
-        explorer.explored_cells[k] = 0.25
-    sim.reset()
-    mapper.update_from_simulation(sim.get_snapshot())
-    vla_agent.execution_status = "RESTING"
-    vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
-    log_event(
-        "system",
-        "RESET",
-        "Workspace and arm reset to canonical state.",
-        "Joint targets zeroed/rest pose. Blocks re-spawned at baseline coordinates. Trajectory queue stopped."
-    )
 
 @app.post("/api/sim/toggle_pause")
-async def api_toggle_pause():
-    global is_paused
-    is_paused = not is_paused
-    return {"is_paused": is_paused}
+async def api_toggle_pause(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    sess.is_paused = not sess.is_paused
+    return {"is_paused": sess.is_paused}
+
 
 @app.post("/api/sim/teleop")
-async def api_teleop(req: TeleopRequest):
-    global manual_mode
-    manual_mode = True
-    controller.stop()
-    explorer.is_exploring = False
+async def api_teleop(req: TeleopRequest, request: Request):
+    sid = extract_session_id(request, req.session_id)
+    sess = session_manager.get_or_create(sid)
+    sess.manual_mode = True
+    sess.controller.stop()
+    sess.explorer.is_exploring = False
     if req.joints:
-        sim.set_joint_targets(req.joints, req.gripper)
+        sess.sim.set_joint_targets(req.joints, req.gripper)
     return {"status": "ok"}
 
+
 @app.get("/api/vla/camera_image")
-async def api_camera_image():
-    snapshot = sim.get_snapshot()
+async def api_camera_image(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    snapshot = sess.sim.get_snapshot()
     img = render_camera_frame(snapshot)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
 
+
 @app.get("/api/semantic_map")
-async def api_semantic_map():
-    return mapper.to_dict()
+async def api_semantic_map(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    return sess.mapper.to_dict()
+
 
 @app.get("/api/vla/cost")
-async def api_get_cost():
-    return vla_agent.get_cost_summary()
+async def api_get_cost(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    return sess.vla_agent.get_cost_summary()
+
 
 @app.post("/api/vla/cost/reset")
-async def api_reset_cost():
-    vla_agent.reset_cost()
-    return {"status": "ok", "cost": vla_agent.get_cost_summary()}
+async def api_reset_cost(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    sess.vla_agent.reset_cost()
+    return {"status": "ok", "cost": sess.vla_agent.get_cost_summary()}
+
+
+@app.get("/api/session/info")
+async def api_session_info(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    return {
+        "session_id": sid,
+        "active_sessions_count": len(session_manager.sessions),
+        "websockets_count": len(sess.websockets),
+        "has_api_key": bool(sess.vla_agent.api_key),
+    }
+
+
+# Static directory
+static_dir = os.path.join(os.path.dirname(__file__), "static")
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_home():
@@ -503,9 +649,11 @@ async def serve_home():
     with open(index_file, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+
 @app.get("/home", response_class=HTMLResponse)
 async def serve_home_alias():
     return await serve_home()
+
 
 @app.get("/studio", response_class=HTMLResponse)
 async def serve_studio():
@@ -515,7 +663,6 @@ async def serve_studio():
             return HTMLResponse(content=f.read())
     return HTMLResponse(content="<h1>Studio file not found</h1>", status_code=404)
 
-# Mount static files
-static_dir = os.path.join(os.path.dirname(__file__), "static")
+
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=False), name="static")

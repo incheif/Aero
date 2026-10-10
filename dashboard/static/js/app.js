@@ -4,6 +4,33 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 0. Session Isolation Management (Private Robot Workcell per Visitor)
+  function getSessionId() {
+    let sid = sessionStorage.getItem('AERO_SESSION_ID');
+    if (!sid) {
+      sid = 'sess_' + Math.random().toString(36).substring(2, 8) + Date.now().toString(36).substring(4);
+      sessionStorage.setItem('AERO_SESSION_ID', sid);
+    }
+    return sid;
+  }
+  const sessionId = getSessionId();
+
+  // Populate Header Session Badge
+  const sessionPillEl = document.getElementById('header-session-id');
+  if (sessionPillEl) {
+    sessionPillEl.innerText = sessionId.substring(0, 11);
+    sessionPillEl.title = `Private Session: ${sessionId}`;
+  }
+
+  // Session-aware fetch helper
+  function sessionFetch(url, options = {}) {
+    options.headers = options.headers || {};
+    if (!options.headers['X-Session-ID']) {
+      options.headers['X-Session-ID'] = sessionId;
+    }
+    return fetch(url, options);
+  }
+
   // 1. Initialize 3D Viewport
   const canvasEl = document.getElementById('canvas-3d');
   const simCanvas = new window.SimCanvas3D(canvasEl);
@@ -14,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/ws?session_id=${encodeURIComponent(sessionId)}`;
 
     ws = new WebSocket(wsUrl);
 
@@ -541,13 +568,14 @@ document.addEventListener('DOMContentLoaded', () => {
     sendBtn.innerText = 'Reasoning...';
 
     try {
-      const resp = await fetch('/api/vla/command', {
+      const resp = await sessionFetch('/api/vla/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           command: text,
           api_key: apiKey,
           model: model,
+          session_id: sessionId,
         }),
       });
       const res = await resp.json();
@@ -676,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 8. Rest & Simulation Controls
   async function triggerRestArm() {
     try {
-      await fetch('/api/sim/reset', { method: 'POST' });
+      await sessionFetch('/api/sim/reset', { method: 'POST' });
       console.log('[System] Arm returned to rest pose and workspace reset.');
     } catch (err) {
       console.error('Error resting arm:', err);
@@ -689,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-reset')?.addEventListener('click', triggerRestArm);
 
   document.getElementById('btn-reset-cost')?.addEventListener('click', async () => {
-    await fetch('/api/vla/cost/reset', { method: 'POST' });
+    await sessionFetch('/api/vla/cost/reset', { method: 'POST' });
   });
 
   // 9. Speech Recognition (Web Speech API)
@@ -764,10 +792,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const resp = await fetch('/api/vla/test_key', {
+      const resp = await sessionFetch('/api/vla/test_key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: testKey, model: modelSelect.value }),
+        body: JSON.stringify({ api_key: testKey, model: modelSelect.value, session_id: sessionId }),
       });
       const data = await resp.json();
       if (data.valid) {
@@ -796,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const vlaImg = document.getElementById('vla-pip-img');
   setInterval(() => {
     if (vlaImg) {
-      vlaImg.src = `/api/vla/camera_image?t=${Date.now()}`;
+      vlaImg.src = `/api/vla/camera_image?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
     }
   }, 600);
 
