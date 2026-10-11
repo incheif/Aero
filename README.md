@@ -14,31 +14,38 @@
 
 **AERO (Agentic Execution for Robotic Operations) is an end-to-end cognitive robotic manipulation platform combining Vision-Language-Action (VLA) multimodal reasoning, 3D tabletop spatial semantic mapping, frontier exploration, 60 FPS physics-aligned kinematics, multi-zone structural assembly, and an interactive Three.js WebGL studio.**
 
-[🚀 Quick Start](#-quick-start) • [✨ Key Features](#-key-features) • [🎥 Demos & Visual Showcase](#-demos--visual-showcase) • [🗼 Multi-Tower & Pyramid](#-multi-zone--pyramid-assembly) • [💬 Natural Language Commands](#-example-natural-language-commands) • [🌐 ROS 2](#-ros-2-ecosystem-integration)
+[🚀 Quick Start](#-quick-start) • [✨ Key Features](#-key-features) • [📸 Visual Showcase](#-visual-showcase) • [🗼 Multi-Tower & Pyramid](#-multi-zone--pyramid-assembly) • [💬 Natural Language Commands](#-example-natural-language-commands) • [🌐 ROS 2](#-ros-2-ecosystem-integration)
 
 </div>
 
 ---
 
-## 🎥 Demos & Visual Showcase
+## 📸 Visual Showcase
 
-### Live 60 FPS Autonomous Manipulation
+### 🏠 AERO Home & System Portal
 
 <div align="center">
 
-![AERO Autonomous Manipulation Demo](docs/assets/demo_aero_manipulation.webp)
-*Interactive 60 FPS kinematic execution with Cartesian linear setpoint interpolation and zero-impulse jaw release.*
+![AERO Home Page](docs/assets/aero_home_page.png)
+*Modern landing portal with architecture breakdown, autonomous VLA feature breakdown, and one-click studio launch.*
 
 </div>
 
-### Precision Assembly & Telemetry Stream
+### 🎮 Interactive 3D Manipulation Dashboard
 
 <div align="center">
 
-| 🗼 Multi-Layer Tower Assembly | 📋 Real-Time Execution Logs |
-| :---: | :---: |
-| ![Tower Assembly](docs/assets/aero_studio_tower.png) | ![Live Logs](docs/assets/aero_execution_logs.png) |
-| *Verified multi-layer tower assembly with 18-tick physical stability hold* | *Telemetry execution stream detailing metric targets and IK waypoints* |
+![AERO 3D Manipulation Dashboard](docs/assets/aero_dashboard_studio.png)
+*Interactive Three.js 60 FPS studio featuring live robotic manipulation, multi-layer tower assembly, 128×128 CV HUD tracking reticle, and real-time physical telemetry.*
+
+</div>
+
+### 📋 Real-Time Execution Logs & Telemetry Stream
+
+<div align="center">
+
+![AERO Real-Time Execution Logs](docs/assets/aero_execution_logs.png)
+*Audit terminal with live chronological waypoints, categorized event badges (IK Motion, Grip, Release, Verified, Completed), What/How breakdowns, and 18-tick stability hold validation.*
 
 </div>
 
@@ -223,15 +230,10 @@ Aero/
 ├── requirements.txt        # Python package dependencies
 ├── run_dashboard.py        # One-click dashboard entrypoint
 ├── docs/
-│   └── assets/             # WebP demo animations and high-res UI screenshots
-│       ├── hero_studio_multizone.png
-│       ├── dual_towers_execution.png
-│       ├── execution_logs_telemetry.png
-│       ├── tower_assembly_60fps.png
-│       ├── gesture_waving.png
-│       ├── demo_smooth_60fps.webp
-│       ├── demo_logs_panel.webp
-│       └── demo_chips_interaction.webp
+│   └── assets/             # High-resolution screenshots of the updated studio
+│       ├── aero_home_page.png
+│       ├── aero_dashboard_studio.png
+│       └── aero_execution_logs.png
 ├── dashboard/              # FastAPI server, WebSockets, Three.js 3D WebGL UI
 │   ├── server.py           # Backend loop, execution logs, WebSocket broadcast
 │   └── static/             # HTML, CSS design system, Three.js renderer

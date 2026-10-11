@@ -6,7 +6,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   // 0. Session Isolation Management (Private Robot Workcell per Visitor)
   function getSessionId() {
-    let sid = sessionStorage.getItem('AERO_SESSION_ID');
+    const urlParams = new URLSearchParams(window.location.search);
+    let sid = urlParams.get('session_id') || sessionStorage.getItem('AERO_SESSION_ID');
     if (!sid) {
       sid = 'sess_' + Math.random().toString(36).substring(2, 8) + Date.now().toString(36).substring(4);
       sessionStorage.setItem('AERO_SESSION_ID', sid);
