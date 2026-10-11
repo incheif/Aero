@@ -81,6 +81,8 @@ class RobotArmSimulation:
         # Telemetry & Playground Verification
         self.torque_tracker = TorqueTracker()
         self.stability_validator = StabilityValidator()
+        self.active_task_blocks: Optional[List[str]] = None
+        self.active_task_targets: Optional[Dict[str, List[float]]] = None
 
     def reset_blocks(self):
         self.blocks.clear()
@@ -99,9 +101,15 @@ class RobotArmSimulation:
         self.joints = copy.deepcopy(DEFAULT_JOINTS)
         self.joint_targets = copy.deepcopy(DEFAULT_JOINTS)
         self.gripper_target = 0.0
+        self.active_task_blocks = None
+        self.active_task_targets = None
         self.reset_blocks()
         self.torque_tracker.reset()
         self.stability_validator.reset()
+
+    def set_active_task(self, block_ids: Optional[List[str]] = None, targets: Optional[Dict[str, List[float]]] = None):
+        self.active_task_blocks = block_ids
+        self.active_task_targets = targets
 
     def set_joint_targets(self, targets: Dict[str, float], gripper: Optional[float] = None):
         for k, v in targets.items():
@@ -274,9 +282,20 @@ class RobotArmSimulation:
             blocks_data, self.grasped_block_id
         )
 
-        # Compute multi-metric scores
-        spat_acc = spatial_accuracy(blocks_data, STACK_ORIGIN)
-        comp_score = task_completion_score(blocks_data, STACK_ORIGIN, self.grasped_block_id)
+        # Compute multi-metric scores (task-adaptive)
+        spat_acc = spatial_accuracy(
+            blocks_data,
+            STACK_ORIGIN,
+            task_block_ids=self.active_task_blocks,
+            task_targets=self.active_task_targets,
+        )
+        comp_score = task_completion_score(
+            blocks_data,
+            STACK_ORIGIN,
+            self.grasped_block_id,
+            task_block_ids=self.active_task_blocks,
+            task_targets=self.active_task_targets,
+        )
         torque_summary = self.torque_tracker.summarize()
 
         return {

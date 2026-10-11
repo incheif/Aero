@@ -52,52 +52,138 @@ def orientation_score(rotation: List[float]) -> float:
     up = quat_rotate_vec(rotation, [0.0, 1.0, 0.0])
     return clamp(abs(up[1]), 0.0, 1.0)
 
-def spatial_accuracy(blocks: List[Dict[str, Any]], target_origin: List[float] = None) -> float:
+def spatial_accuracy(
+    blocks: List[Dict[str, Any]],
+    target_origin: List[float] = None,
+    task_block_ids: Optional[List[str]] = None,
+    task_targets: Optional[Dict[str, List[float]]] = None,
+) -> float:
     """
-    Mean spatial accuracy across active blocks: 70% position alignment, 30% upright orientation.
+    Task-Adaptive Spatial Accuracy:
+    70% position alignment + 30% upright orientation.
+
+    - If task_block_ids are specified (e.g. from VLA plan, ColorSeek, or user command):
+      Evaluates strictly the blocks assigned to this task against their intended target slots.
+      Completing a 1-block pick, 2-block or 3-block stack scores up to 100%.
+    - If task_block_ids is None (idle baseline before task, or free exploration):
+      Identifies blocks that have been moved / placed in target zone. If none are placed yet,
+      returns 0.0 (idle state, no false baseline penalty).
     """
     origin = target_origin or STACK_ORIGIN
     if not blocks:
         return 0.0
+
+    blocks_by_id = {b.get("id"): b for b in blocks}
+
+    # 1. Explicit task specified
+    if task_block_ids is not None and len(task_block_ids) > 0:
+        eval_blocks = []
+        for idx, b_id in enumerate(task_block_ids):
+            b = blocks_by_id.get(b_id)
+            if not b:
+                continue
+            if task_targets and b_id in task_targets:
+                target_pos = task_targets[b_id]
+            else:
+                target_pos = [origin[0], stack_slot_y(idx), origin[2]]
+            eval_blocks.append((b, target_pos))
+
+        if not eval_blocks:
+            return 0.0
+
+        total = 0.0
+        for b, target_pos in eval_blocks:
+            pos = b.get("position", [0.0, 0.0, 0.0])
+            rot = b.get("rotation", [0.0, 0.0, 0.0, 1.0])
+            p_score = position_score(pos, target_pos)
+            o_score = orientation_score(rot)
+            total += 0.7 * p_score + 0.3 * o_score
+
+        return round(total / len(eval_blocks), 4)
+
+    # 2. No explicit task (idle baseline or unconstrained manual play)
+    active_in_pad = [b for b in blocks if b.get("in_pad")]
     
+    if not active_in_pad:
+        return 0.0
+
+    sorted_active = sorted(active_in_pad, key=lambda b: b.get("position", [0, 0, 0])[1])
     total = 0.0
-    for idx, b in enumerate(blocks):
-        # Target slot height based on layer order
+    for idx, b in enumerate(sorted_active):
         target_pos = [origin[0], stack_slot_y(idx), origin[2]]
         pos = b.get("position", [0.0, 0.0, 0.0])
         rot = b.get("rotation", [0.0, 0.0, 0.0, 1.0])
-        
         p_score = position_score(pos, target_pos)
         o_score = orientation_score(rot)
         total += 0.7 * p_score + 0.3 * o_score
-        
-    return round(total / len(blocks), 4)
 
-def task_completion_score(blocks: List[Dict[str, Any]], target_origin: List[float] = None, grasped_block_id: Optional[str] = None) -> float:
+    return round(total / len(sorted_active), 4)
+
+def task_completion_score(
+    blocks: List[Dict[str, Any]],
+    target_origin: List[float] = None,
+    grasped_block_id: Optional[str] = None,
+    task_block_ids: Optional[List[str]] = None,
+    task_targets: Optional[Dict[str, List[float]]] = None,
+) -> float:
     """
-    Returns 1.0 if every block is stably seated in its 3D stack slot.
-    A cube currently grasped in the gripper scores 0.0.
+    Task-Adaptive Task Completion Score in [0, 1]:
+    - Returns 1.0 when all required task blocks are stably seated in their target slots.
+    - A block currently held in gripper jaws scores 0.0.
+    - If no task is active and no blocks are on pad, returns 0.0.
     """
     origin = target_origin or STACK_ORIGIN
     if not blocks:
         return 0.0
-        
+
+    blocks_by_id = {b.get("id"): b for b in blocks}
+
+    # 1. Explicit task specified
+    if task_block_ids is not None and len(task_block_ids) > 0:
+        scores = []
+        for idx, b_id in enumerate(task_block_ids):
+            b = blocks_by_id.get(b_id)
+            if not b or b.get("id") == grasped_block_id or b.get("is_grasped"):
+                scores.append(0.0)
+                continue
+
+            pos = b.get("position", [0.0, 0.0, 0.0])
+            if task_targets and b_id in task_targets:
+                target_pos = task_targets[b_id]
+            else:
+                target_pos = [origin[0], stack_slot_y(idx), origin[2]]
+
+            dist = vec_dist(pos, target_pos)
+            if dist <= STACK_TOLERANCE:
+                scores.append(1.0)
+            else:
+                scores.append(0.5 * clamp(1.0 - dist / 0.55, 0.0, 1.0))
+
+        if not scores:
+            return 0.0
+        if all(s >= 1.0 for s in scores):
+            return 1.0
+        return round(sum(scores) / len(scores), 4)
+
+    # 2. No explicit task specified (manual or idle)
+    active_in_pad = [b for b in blocks if b.get("in_pad")]
+    if not active_in_pad:
+        return 0.0
+
+    sorted_active = sorted(active_in_pad, key=lambda b: b.get("position", [0, 0, 0])[1])
     scores = []
-    for idx, b in enumerate(blocks):
+    for idx, b in enumerate(sorted_active):
         if b.get("id") == grasped_block_id or b.get("is_grasped"):
             scores.append(0.0)
             continue
-            
         pos = b.get("position", [0.0, 0.0, 0.0])
         target_pos = [origin[0], stack_slot_y(idx), origin[2]]
         dist = vec_dist(pos, target_pos)
-        
         if dist <= STACK_TOLERANCE:
             scores.append(1.0)
         else:
-            # Partial credit for proximity to target pad
             scores.append(0.5 * clamp(1.0 - dist / 0.55, 0.0, 1.0))
-            
+
     if all(s >= 1.0 for s in scores):
         return 1.0
     return round(sum(scores) / len(scores), 4)
@@ -174,7 +260,7 @@ class StabilityValidator:
             return False, 0, self.status
 
         # Check if stacked blocks are in target pad
-        stacked_in_pad = [b for b in blocks if b.get("in_pad") and b.get("stacked_layer", 0) >= 0]
+        stacked_in_pad = [b for b in blocks if b.get("in_pad")]
         
         # Velocity check: blocks must be near rest (< 0.03 m/s)
         settled = True
@@ -196,7 +282,7 @@ class StabilityValidator:
             if self.hold_ticks > 0 and not self.is_verified:
                 self.status = "UNSTABLE"
             elif not self.is_verified:
-                self.status = "WAITING"
+                self.status = "IDLE" if len(stacked_in_pad) == 0 else "WAITING"
             self.hold_ticks = 0
 
         return self.is_verified, self.hold_ticks, self.status

@@ -6,7 +6,7 @@ as well as base64 images for the Google Gemini VLA multimodal pipeline.
 
 import io
 import base64
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -38,14 +38,20 @@ def pixel_to_world(u: float, v: float, size: int = VLA_IMAGE_SIZE) -> Tuple[floa
     z = VLA_Z_MAX - (v / denom) * (VLA_Z_MAX - VLA_Z_MIN)
     return x, z
 
-def render_camera_frame(snapshot: Dict[str, Any], size: int = VLA_IMAGE_SIZE) -> Image.Image:
+def render_camera_frame(
+    snapshot: Dict[str, Any],
+    size: int = VLA_IMAGE_SIZE,
+    annotated: bool = False,
+    target_block_id: Optional[str] = None
+) -> Image.Image:
     """
     Renders top-down orthographic RGB view matching new_project_1 evaluation raster:
     - Dark gray studio background
     - Charcoal table surface
     - Blue/green target pad
-    - Colored cubes (Cyan, Orange, Magenta) with height displacement
+    - Colored cubes with height displacement
     - White crosshair for robot TCP
+    - Optional AI Perception Overlay (bounding brackets, tracking vector line, pixel HUD)
     """
     img = Image.new("RGB", (size, size), color=(14, 16, 22))
     draw = ImageDraw.Draw(img)
@@ -61,6 +67,8 @@ def render_camera_frame(snapshot: Dict[str, Any], size: int = VLA_IMAGE_SIZE) ->
     # 3. Draw Blocks (ordered by altitude so lower blocks are drawn first)
     sorted_blocks = sorted(snapshot.get("blocks", []), key=lambda b: b["position"][1])
     cube_half_px = max(2, int(round((CUBE_SIZE / (VLA_X_MAX - VLA_X_MIN)) * size * 0.5)))
+
+    target_center_px: Optional[Tuple[int, int]] = None
 
     for b in sorted_blocks:
         pos = b["position"]
@@ -79,11 +87,54 @@ def render_camera_frame(snapshot: Dict[str, Any], size: int = VLA_IMAGE_SIZE) ->
         # Draw cube top face
         draw.rectangle([bu - cube_half_px, bv - cube_half_px - lift, bu + cube_half_px, bv + cube_half_px - lift], fill=color_rgb, outline=(255, 255, 255, 120))
 
+        # Check if this block is the active target
+        target_str = str(target_block_id).lower() if target_block_id else ""
+        b_id_str = str(b.get("id", "")).lower()
+        b_name_str = str(b.get("name", "")).lower()
+        is_target = bool(target_str and (
+            b_id_str == target_str
+            or b_name_str == target_str
+            or target_str in b_name_str
+            or target_str in b_id_str
+            or b_id_str in target_str
+        ))
+        if is_target:
+            target_center_px = (bu, bv - lift)
+
+        # AI Perception HUD: Draw computer vision bounding brackets
+        if annotated:
+            box_pad = cube_half_px + 3
+            bx1, by1 = bu - box_pad, bv - lift - box_pad
+            bx2, by2 = bu + box_pad, bv - lift + box_pad
+            bracket_len = 3
+
+            bracket_col = (16, 185, 129) if is_target else (100, 116, 139)
+            # Corner brackets
+            draw.line([(bx1, by1), (bx1 + bracket_len, by1)], fill=bracket_col, width=1)
+            draw.line([(bx1, by1), (bx1, by1 + bracket_len)], fill=bracket_col, width=1)
+
+            draw.line([(bx2, by1), (bx2 - bracket_len, by1)], fill=bracket_col, width=1)
+            draw.line([(bx2, by1), (bx2, by1 + bracket_len)], fill=bracket_col, width=1)
+
+            draw.line([(bx1, by2), (bx1 + bracket_len, by2)], fill=bracket_col, width=1)
+            draw.line([(bx1, by2), (bx1, by2 - bracket_len)], fill=bracket_col, width=1)
+
+            draw.line([(bx2, by2), (bx2 - bracket_len, by2)], fill=bracket_col, width=1)
+            draw.line([(bx2, by2), (bx2, by2 - bracket_len)], fill=bracket_col, width=1)
+
     # 4. Draw Robot TCP indicator (white crosshair)
     tcp = snapshot.get("tcp", {}).get("position", [0.0, 0.8, 0.0])
     tu, tv = world_to_pixel(tcp[0], tcp[2], size)
     draw.line([tu - 3, tv, tu + 3, tv], fill=(245, 245, 245), width=1)
     draw.line([tu, tv - 3, tu, tv + 3], fill=(245, 245, 245), width=1)
+
+    # 5. AI Perception HUD tracking vector line from TCP to Target Cube
+    if annotated and target_center_px:
+        # Draw dynamic tracking line
+        tx_u, tx_v = target_center_px
+        draw.line([(tu, tv), (tx_u, tx_v)], fill=(56, 189, 248), width=1)
+        # Small center lock dot on target
+        draw.ellipse([tx_u - 1, tx_v - 1, tx_u + 1, tx_v + 1], fill=(56, 189, 248))
 
     return img
 

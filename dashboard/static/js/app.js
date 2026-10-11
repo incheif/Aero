@@ -278,6 +278,36 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 6C. Update Computer Vision & Camera HUD PiP Telemetry
+    if (data.perception) {
+      const p = data.perception;
+      const targetLabel = document.getElementById('hud-target-label');
+      const pipStatus = document.getElementById('hud-pip-status');
+      if (targetLabel) {
+        if (p.target_block_id) {
+          const cleanName = p.target_block_id.replace('block_', '').toUpperCase();
+          targetLabel.innerText = `TARGET: ${cleanName}`;
+          targetLabel.style.color = '#38bdf8';
+        } else {
+          targetLabel.innerText = 'TARGET: IDLE';
+          targetLabel.style.color = '#a1a1aa';
+        }
+      }
+      if (pipStatus) {
+        if (data.vla && data.vla.status === 'EXECUTING') {
+          pipStatus.innerText = 'TRACKING LOCK';
+          pipStatus.style.color = '#38bdf8';
+          pipStatus.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          pipStatus.style.backgroundColor = 'rgba(56, 189, 248, 0.15)';
+        } else {
+          pipStatus.innerText = 'CV ACQUIRED';
+          pipStatus.style.color = '#6ee7b7';
+          pipStatus.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+          pipStatus.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+        }
+      }
+    }
+
     // 7. Update LLM VLA Cost Tracking Metrics
     if (data.cost) {
       updateCostMetrics(data.cost);
@@ -479,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const badge = log.badge || 'INFO';
       let badgeClass = 'badge-system';
       if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
+      else if (cat === 'perception') badgeClass = 'badge-perception';
       else if (cat === 'vla') badgeClass = 'badge-vla';
       else if (cat === 'motion') badgeClass = 'badge-motion';
       else if (cat === 'contact') badgeClass = 'badge-contact';
@@ -820,13 +851,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 11. Refresh Mini VLA Camera Preview every 500ms
+  // 11. Refresh Mini VLA Camera Preview every 450ms without flicker
   const vlaImg = document.getElementById('vla-pip-img');
-  setInterval(() => {
-    if (vlaImg) {
-      vlaImg.src = `/api/vla/camera_image?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
-    }
-  }, 600);
+  if (vlaImg) {
+    const refreshCam = () => {
+      const nextImg = new Image();
+      nextImg.onload = () => {
+        vlaImg.src = nextImg.src;
+      };
+      nextImg.src = `/api/vla/camera_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
+    };
+    setInterval(refreshCam, 450);
+  }
 
   // 12. Auto-execute command if passed via URL ?cmd=...
   const urlParams = new URLSearchParams(window.location.search);
