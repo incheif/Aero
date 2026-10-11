@@ -1,4 +1,4 @@
-# 🤖 AERO: Agentic Execution for Robotic Operations
+# AERO: Agentic Execution for Robotic Operations
 
 <div align="center">
 
