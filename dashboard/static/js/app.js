@@ -683,46 +683,6 @@ document.addEventListener('DOMContentLoaded', () => {
     simCanvas.resetCamera();
   });
 
-  // Viewport Size Toggle (Full -> Standard -> Expanded -> Full)
-  const sizeToggleBtn = document.getElementById('btn-toggle-viewport-size');
-  const sizeLabel = document.getElementById('viewport-size-label');
-  const viewportBox = document.getElementById('viewport-container');
-  const sizeModes = ['fill', 'standard', 'expanded'];
-  let currentSizeModeIdx = 0; // Starts at full fill
-
-  if (sizeToggleBtn && viewportBox) {
-    sizeToggleBtn.addEventListener('click', () => {
-      currentSizeModeIdx = (currentSizeModeIdx + 1) % sizeModes.length;
-      const nextMode = sizeModes[currentSizeModeIdx];
-
-      viewportBox.classList.remove('viewport-fill', 'viewport-compact', 'viewport-standard', 'viewport-expanded');
-      viewportBox.classList.add(`viewport-${nextMode}`);
-
-      if (sizeLabel) {
-        sizeLabel.innerText = nextMode === 'fill' ? 'Full' : (nextMode.charAt(0).toUpperCase() + nextMode.slice(1));
-      }
-
-      // Allow DOM reflow then recalculate Three.js projection and render buffer
-      setTimeout(() => {
-        simCanvas.onWindowResize();
-      }, 50);
-    });
-  }
-
-  // Performance Mode Toggle (Smooth 60 FPS <-> Retina HD)
-  const perfToggleBtn = document.getElementById('btn-toggle-perf-mode');
-  const perfLabel = document.getElementById('perf-mode-label');
-  if (perfToggleBtn && perfLabel) {
-    const curMode = simCanvas.perfMode || 'smooth';
-    perfLabel.innerText = curMode === 'smooth' ? '⚡ 60 FPS' : '✦ HD';
-
-    perfToggleBtn.addEventListener('click', () => {
-      const newMode = simCanvas.togglePerfMode();
-      perfLabel.innerText = newMode === 'smooth' ? '⚡ 60 FPS' : '✦ HD';
-      console.log(`[Graphics] Performance Mode set to: ${newMode}`);
-    });
-  }
-
   // 7. Toggle Chips
   const trailChip = document.getElementById('toggle-trails');
   if (trailChip) {
