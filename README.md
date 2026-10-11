@@ -1,6 +1,8 @@
-# AERO: Agentic Execution for Robotic Operations
-
 <div align="center">
+
+<img src="logo.png" alt="AERO Logo" width="140" />
+
+# AERO: Agentic Execution for Robotic Operations
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
