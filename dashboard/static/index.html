@@ -33,15 +33,6 @@
           <span>Home</span>
         </a>
 
-        <!-- Prominent Rest Button in Header -->
-        <button class="btn-rest" id="btn-rest-header" title="Return arm to resting home pose and reset table">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-            <path d="M3 3v5h5"/>
-          </svg>
-          <span>Rest Arm</span>
-        </button>
-
         <!-- Private Session Pill -->
         <div class="session-pill" id="header-session-pill" title="Private Isolated Workcell: Actions in this browser tab do not interfere with other visitors.">
           <span class="session-dot"></span>
@@ -69,19 +60,6 @@
           <button class="cam-btn" data-view="top" id="cam-top" title="Top-Down View (128x128 Sensor)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>
             <span>Top</span>
-          </button>
-          <div class="viewport-bar-divider"></div>
-          <button class="cam-btn btn-zoom" id="btn-zoom-out" title="Zoom Out">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>-</span>
-          </button>
-          <button class="cam-btn btn-zoom" id="btn-zoom-in" title="Zoom In">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>+</span>
-          </button>
-          <button class="cam-btn btn-zoom" id="btn-cam-reset" title="Reset Camera">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            <span>Reset</span>
           </button>
         </div>
 
@@ -182,10 +160,6 @@
           placeholder="Type instruction (e.g. 'Build a 3-layer tower', 'Build 2 distinct towers')..."
           autocomplete="off"
         />
-        <!-- Rest Button right inside command area -->
-        <button class="btn-rest-inline" id="btn-rest-inline" title="Rest arm in home pose and reset table">
-          Rest
-        </button>
         <button class="send-btn" id="send-command-btn">
           <span>Execute</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -304,6 +278,14 @@
               <span class="logs-counter-badge" id="logs-total-count">0</span>
             </div>
             <div class="logs-header-actions">
+              <button class="btn-logs-action" id="btn-open-logs-tab" title="Open Execution Stream in a New Tab">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+                <span>New Tab</span>
+              </button>
               <button class="btn-logs-action active" id="btn-toggle-autoscroll" title="Toggle Auto-Scroll">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
                 <span id="autoscroll-label">Scroll: ON</span>

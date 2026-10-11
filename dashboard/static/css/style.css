@@ -64,7 +64,7 @@ body {
 #app-layout {
   display: grid;
   grid-template-rows: 56px 1fr auto;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 440px;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -766,7 +766,7 @@ header {
   border-radius: var(--radius-lg);
   padding: 14px;
   box-shadow: var(--shadow-card);
-  min-height: 520px;
+  min-height: 0;
   height: 100%;
 }
 
@@ -890,8 +890,9 @@ header {
 .logs-stream-container {
   flex: 1;
   overflow-y: auto;
-  min-height: 280px;
-  max-height: 520px;
+  min-height: 340px;
+  max-height: none;
+  height: 100%;
   padding-right: 4px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;

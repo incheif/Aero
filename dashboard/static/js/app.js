@@ -435,13 +435,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnClearLogs?.addEventListener('click', async () => {
     try {
-      await fetch('/api/logs/clear', { method: 'POST' });
+      await sessionFetch('/api/logs/clear', { method: 'POST' });
       localLogs = [];
       lastLogsSignature = '';
       renderLogs();
     } catch (err) {
       console.error('Error clearing logs:', err);
     }
+  });
+
+  document.getElementById('btn-open-logs-tab')?.addEventListener('click', () => {
+    window.open(`/logs?session_id=${encodeURIComponent(sessionId)}`, '_blank');
   });
 
   filterChips.forEach((chip) => {
@@ -591,6 +595,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Retain and display command in text box so user can reference what was queried
     cmdInput.value = text;
+
+    // Immediately clear execution logs on client and server before starting new instruction
+    localLogs = [];
+    lastLogsSignature = '';
+    renderLogs();
+    try {
+      await sessionFetch('/api/logs/clear', { method: 'POST' });
+    } catch (_) {}
 
     const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
     const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';

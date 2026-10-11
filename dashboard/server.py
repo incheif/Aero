@@ -790,5 +790,14 @@ async def serve_studio():
     return HTMLResponse(content="<h1>Studio file not found</h1>", status_code=404)
 
 
+@app.get("/logs", response_class=HTMLResponse)
+async def serve_logs():
+    logs_file = os.path.join(static_dir, "logs.html")
+    if os.path.exists(logs_file):
+        with open(logs_file, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Execution Logs file not found</h1>", status_code=404)
+
+
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=False), name="static")

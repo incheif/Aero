@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERO | Execution Stream &amp; Audit Terminal</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="stylesheet" href="/css/style.css?v=2.4">
+  <style>
+    body {
+      background-color: #09090b;
+      color: #f4f4f5;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .logs-standalone-header {
+      height: 56px;
+      background: rgba(14, 14, 18, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      flex-shrink: 0;
+      backdrop-filter: blur(16px);
+      z-index: 20;
+    }
+
+    .brand-standalone {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-standalone .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: #000;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .brand-standalone .brand-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-subtitle-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #d8b4fe;
+      margin-left: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .live-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      color: #a1a1aa;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .btn-return-studio {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .btn-return-studio:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .logs-standalone-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 24px;
+      overflow: hidden;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .logs-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-shrink: 0;
+    }
+
+    .logs-filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .standalone-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logs-feed-container {
+      flex: 1;
+      min-height: 0;
+      background: rgba(14, 14, 18, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .standalone-logs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .standalone-logs-list .log-entry {
+      background: rgba(18, 18, 22, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-left: 3px solid #52525b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: background 0.2s ease;
+    }
+
+    .standalone-logs-list .log-entry:hover {
+      background: rgba(24, 24, 28, 0.95);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .standalone-logs-list .log-what {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #fafafa;
+    }
+
+    .standalone-logs-list .log-how {
+      font-size: 0.74rem;
+      padding: 7px 10px;
+      line-height: 1.45;
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .standalone-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      margin-top: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: #71717a;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Minimal Dark-Mode Header -->
+  <header class="logs-standalone-header">
+    <a href="/studio" class="brand-standalone" title="Return to 3D Studio">
+      <div class="brand-icon">
+        <img src="/logo.png" alt="AERO Logo" class="brand-logo-img" style="width: 100%; height: 100%; object-fit: cover;">
+      </div>
+      <div>
+        <span class="brand-title">AERO</span>
+        <span class="brand-subtitle-badge">EXECUTION STREAM</span>
+      </div>
+    </a>
+
+    <div class="header-actions">
+      <div class="live-status-pill" id="live-status-pill">
+        <span class="live-dot" id="live-dot"></span>
+        <span id="live-status-text">CONNECTING</span>
+      </div>
+
+      <div class="live-status-pill" id="session-badge" title="Active Private Session ID">
+        <span>Session:</span>
+        <strong id="session-display" style="color: #fff;">--</strong>
+      </div>
+
+      <a href="/studio" class="btn-return-studio" title="Return to 3D Simulation Studio">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+        <span>3D Studio</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Standalone Logs Body -->
+  <main class="logs-standalone-body">
+    <!-- Filter Chips and Stream Controls -->
+    <div class="logs-toolbar">
+      <div class="logs-filter-group">
+        <button class="log-filter-chip active" data-filter="all">All Events</button>
+        <button class="log-filter-chip" data-filter="perception">Vision</button>
+        <button class="log-filter-chip" data-filter="vla">VLA Reasoner</button>
+        <button class="log-filter-chip" data-filter="motion">Motion</button>
+        <button class="log-filter-chip" data-filter="contact">Contact</button>
+        <button class="log-filter-chip" data-filter="stability">Stability</button>
+        <button class="log-filter-chip" data-filter="system">System</button>
+      </div>
+
+      <div class="standalone-controls">
+        <span class="logs-counter-badge" id="logs-total-count">0 events</span>
+        <button class="btn-logs-action active" id="btn-toggle-autoscroll" title="Toggle Auto-Scroll">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          <span id="autoscroll-label">Scroll: ON</span>
+        </button>
+        <button class="btn-logs-action" id="btn-clear-logs" title="Clear Event Logs">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Clear Buffer</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Feed Container -->
+    <div class="logs-feed-container" id="logs-stream-container">
+      <div class="standalone-logs-list" id="logs-list">
+        <!-- Dynamically rendered logs -->
+      </div>
+    </div>
+
+    <!-- Status Footer -->
+    <div class="standalone-footer">
+      <span>Real-time Kinematic &amp; Multimodal Audit · Synchronized with 3D Physics Core</span>
+      <span id="last-event-timestamp">Waiting for incoming telemetry...</span>
+    </div>
+  </main>
+
+  <!-- Script for standalone real-time log ingestion and filtering -->
+  <script>
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id') || localStorage.getItem('AERO_SESSION_ID') || 'sess_default';
+      
+      document.getElementById('session-display').innerText = sessionId;
+
+      let localLogs = [];
+      let activeFilter = 'all';
+      let autoScroll = true;
+      let lastSignature = '';
+
+      const logsList = document.getElementById('logs-list');
+      const container = document.getElementById('logs-stream-container');
+      const totalCount = document.getElementById('logs-total-count');
+      const statusText = document.getElementById('live-status-text');
+      const statusDot = document.getElementById('live-dot');
+      const autoscrollBtn = document.getElementById('btn-toggle-autoscroll');
+      const autoscrollLabel = document.getElementById('autoscroll-label');
+      const clearBtn = document.getElementById('btn-clear-logs');
+      const lastTimestampText = document.getElementById('last-event-timestamp');
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function render() {
+        if (!logsList) return;
+
+        const filtered = activeFilter === 'all'
+          ? localLogs
+          : localLogs.filter(l => (l.category || '').toLowerCase() === activeFilter.toLowerCase());
+
+        totalCount.innerText = `${localLogs.length} events`;
+
+        if (filtered.length === 0) {
+          logsList.innerHTML = `
+            <div class="logs-empty-state" style="padding: 60px 20px; text-align: center; color: #71717a;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-bottom: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div>No log entries recorded for filter: <strong>${activeFilter.toUpperCase()}</strong></div>
+            </div>
+          `;
+          return;
+        }
+
+        const html = filtered.map(log => {
+          const cat = (log.category || 'system').toLowerCase();
+          const badge = log.badge || 'INFO';
+          let badgeClass = 'badge-system';
+          if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
+          else if (cat === 'perception') badgeClass = 'badge-perception';
+          else if (cat === 'vla') badgeClass = 'badge-vla';
+          else if (cat === 'motion') badgeClass = 'badge-motion';
+          else if (cat === 'contact') badgeClass = 'badge-contact';
+          else if (cat === 'stability') badgeClass = 'badge-stability';
+
+          return `
+            <div class="log-entry cat-${cat}" data-id="${log.id}">
+              <div class="log-entry-header">
+                <span class="log-time">${log.timestamp || ''}</span>
+                <span class="log-badge ${badgeClass}">${badge}</span>
+              </div>
+              <div class="log-what">
+                <span class="log-what-tag">WHAT:</span> ${escapeHtml(log.what || '')}
+              </div>
+              <div class="log-how">
+                <span class="log-how-tag">HOW:</span> ${escapeHtml(log.how || '')}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        logsList.innerHTML = html;
+
+        if (autoScroll && container) {
+          container.scrollTop = container.scrollHeight;
+        }
+
+        if (localLogs.length > 0) {
+          const latest = localLogs[localLogs.length - 1];
+          lastTimestampText.innerText = `Last event: ${latest.timestamp || ''} · ${latest.badge || ''} [${latest.category || ''}]`;
+        }
+      }
+
+      function updateLogs(incoming) {
+        if (!incoming || incoming.length === 0) return;
+        const sig = incoming.map(l => l.id).join(',');
+        if (sig === lastSignature) return;
+        lastSignature = sig;
+
+        const existingIds = new Set(localLogs.map(l => l.id));
+        let added = false;
+        for (const log of incoming) {
+          if (!existingIds.has(log.id)) {
+            localLogs.push(log);
+            existingIds.add(log.id);
+            added = true;
+          }
+        }
+
+        if (localLogs.length > 300) {
+          localLogs = localLogs.slice(localLogs.length - 300);
+        }
+
+        if (added) {
+          render();
+        }
+      }
+
+      // Filter chips
+      document.querySelectorAll('.log-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.log-filter-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          activeFilter = chip.getAttribute('data-filter') || 'all';
+          render();
+        });
+      });
+
+      // Auto-scroll toggle
+      autoscrollBtn?.addEventListener('click', () => {
+        autoScroll = !autoScroll;
+        autoscrollBtn.classList.toggle('active', autoScroll);
+        autoscrollLabel.innerText = autoScroll ? 'Scroll: ON' : 'Scroll: OFF';
+        if (autoScroll && container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+
+      // Clear logs button
+      clearBtn?.addEventListener('click', async () => {
+        try {
+          await fetch(`/api/logs/clear?session_id=${encodeURIComponent(sessionId)}`, { method: 'POST' });
+          localLogs = [];
+          lastSignature = '';
+          render();
+        } catch (e) {
+          console.error('Failed to clear logs:', e);
+        }
+      });
+
+      // Fetch initial logs
+      fetch(`/api/logs?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.logs) {
+            updateLogs(data.logs);
+          }
+        })
+        .catch(console.error);
+
+      // WebSocket connection
+      let ws = null;
+      function connectWS() {
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${proto}//${window.location.host}/ws?session_id=${encodeURIComponent(sessionId)}`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          statusText.innerText = 'STREAMING LIVE';
+          statusDot.style.backgroundColor = '#10b981';
+          statusDot.style.boxShadow = '0 0 8px #10b981';
+        };
+
+        ws.onmessage = (evt) => {
+          try {
+            const data = JSON.parse(evt.data);
+            if (data.logs) {
+              updateLogs(data.logs);
+            }
+          } catch (_) {}
+        };
+
+        ws.onclose = () => {
+          statusText.innerText = 'RECONNECTING';
+          statusDot.style.backgroundColor = '#f59e0b';
+          statusDot.style.boxShadow = '0 0 8px #f59e0b';
+          setTimeout(connectWS, 2000);
+        };
+
+        ws.onerror = () => {
+          ws.close();
+        };
+      }
+
+      connectWS();
+
+      // Poll periodically as fallback
+      setInterval(() => {
+        fetch(`/api/logs?session_id=${encodeURIComponent(sessionId)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.logs) updateLogs(data.logs);
+          })
+          .catch(() => {});
+      }, 1500);
+
+    })();
+  </script>
+</body>
+</html>
