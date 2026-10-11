@@ -28,6 +28,7 @@
         <li><a href="#overview" class="nav-link">Overview</a></li>
         <li><a href="#capabilities" class="nav-link">Capabilities</a></li>
         <li><a href="#commands" class="nav-link">Commands</a></li>
+        <li><a href="#roadmap" class="nav-link">Roadmap</a></li>
       </ul>
 
       <div class="nav-actions">
@@ -375,6 +376,92 @@
         </div>
       </div>
     </section>
+
+    <!-- Future Roadmap: Integrations with Google VLA -->
+    <section id="roadmap" style="padding-top: 40px; margin-bottom: 20px;">
+      <div class="section-header">
+        <div class="section-subtitle">Development Roadmap</div>
+        <h2 class="section-title">Integrations with Google VLA</h2>
+      </div>
+
+      <div class="phase2-banner">
+        <div class="phase2-content">
+          <div>
+            <span class="phase2-tag">✦ NEXT-GEN MULTIMODAL HORIZON</span>
+            <h3 class="phase2-title">Direct Visuomotor &amp; Multimodal Cloud Intelligence</h3>
+            <p class="phase2-desc">
+              Building upon AERO's high-speed local kinematics and 3D spatial SLAM, the future development roadmap introduces direct integrations with Google Vision-Language-Action (VLA) foundation models. This evolution expands the platform from structured tabletop tasks to open-world visual-spatial reasoning directly over multi-camera sensor streams.
+            </p>
+            <div class="phase2-features">
+              <div class="phase2-feature-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Direct Visual-Spatial Grounding</span>
+              </div>
+              <div class="phase2-feature-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Multimodal Chain-of-Thought (CoT)</span>
+              </div>
+              <div class="phase2-feature-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Zero-Shot Object Generalization</span>
+              </div>
+            </div>
+          </div>
+          <div style="flex-shrink: 0; text-align: center;">
+            <div style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: 140px; height: 140px; border-radius: 50%; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); box-shadow: 0 0 30px rgba(59, 130, 246, 0.15);">
+              <span style="font-family: var(--font-mono); font-size: 0.72rem; color: #93c5fd; letter-spacing: 0.05em; font-weight: 600;">PLANNED</span>
+              <span style="font-size: 1.25rem; font-weight: 800; color: #fff; margin-top: 4px;">GOOGLE VLA</span>
+              <span style="font-size: 0.68rem; color: var(--text-dim); margin-top: 2px;">Phase 2 Core</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Roadmap Feature Pillars -->
+      <div class="features-grid" style="margin-top: 24px; margin-bottom: 60px;">
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </div>
+          <h3 class="feature-title">Multi-Camera Visual Reasoning</h3>
+          <p class="feature-desc">
+            Direct ingestion of overhead and wrist-mounted RGB sensor frames into Google VLA, synthesizing waypoint trajectories directly from real-time pixel inputs.
+          </p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Open-Vocabulary Manipulation</h3>
+          <p class="feature-desc">
+            Expanding past geometric blocks to arbitrary tools, everyday tabletop clutter, and deformable materials using semantic transfer and zero-shot action grounding.
+          </p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <h3 class="feature-title">Hybrid Cloud-Edge Execution</h3>
+          <p class="feature-desc">
+            Decoupled architecture: Google VLA handles high-level cognitive task plans in the cloud, while local Rapier3D physics enforces microsecond compliance and collision safety.
+          </p>
+        </article>
+      </div>
+    </section>
   </main>
 
   <!-- Footer -->
@@ -404,6 +491,7 @@
         <a href="#overview" class="footer-link">Overview</a>
         <a href="#capabilities" class="footer-link">Architecture</a>
         <a href="#commands" class="footer-link">Commands</a>
+        <a href="#roadmap" class="footer-link">Roadmap</a>
       </div>
     </div>
   </footer>
