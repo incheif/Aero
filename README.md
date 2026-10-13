@@ -9,7 +9,7 @@
 [![ROS 2](https://img.shields.io/badge/ROS_2-Humble%20%7C%20Iron-orange.svg)](https://ros.org)
 [![Google Gemini VLA](https://img.shields.io/badge/Google%20Gemini-VLA%20Reasoning-4285F4.svg)](https://aistudio.google.com/)
 [![WebGL / Three.js](https://img.shields.io/badge/Three.js-WebGL%2060%20FPS-000000.svg)](https://threejs.org/)
-[![Physics](https://img.shields.io/badge/Rapier3D-Rigid%20Body%20Dynamics-red.svg)](https://rapier.rs/)
+[![Physics](https://img.shields.io/badge/Physics-60%20Hz%20Rapier--Aligned-red.svg)](#-key-features)
 [![Security Policy](https://img.shields.io/badge/Security-Policy%20Enforced-green.svg)](SECURITY.md)
 
 **AERO (Agentic Execution for Robotic Operations) is an end-to-end cognitive robotic manipulation platform combining Vision-Language-Action (VLA) multimodal reasoning, 3D tabletop spatial semantic mapping, frontier exploration, 60 FPS physics-aligned kinematics, multi-zone structural assembly, and an interactive Three.js WebGL studio.**
@@ -57,21 +57,24 @@ AERO translates high-level natural language intent into verified robotic manipul
 
 ```mermaid
 graph TD
-    User(["Natural-Language Command / Voice Input"]) --> Brain["VLA Cognitive Engine (Gemini 2.5 Flash / Embedded)"]
-    Camera["Workcell Camera (Top-Down / Wrist RGB)"] --> Brain
-    State["Proprioception (Joints, TCP, Gripper)"] --> Brain
-    Semantic["3D Semantic Spatial Memory (Affordances & Relations)"] <--> Brain
+    User(["Natural-Language Command / Voice Input"]) --> VLAEngine["VLA Cognitive Engine (Gemini 2.5 Flash / Embedded)"]
+    Camera["Workcell Camera (Top-Down / Wrist RGB)"] --> VLAEngine
+    State["Proprioception (Joints, TCP, Gripper)"] --> VLAEngine
+    Semantic["3D Semantic Spatial Memory (Affordances & Relations)"] <--> VLAEngine
 
-    Brain --> Decomposer["Cognitive Action Planner & Grounding"]
+    VLAEngine --> Decomposer["Cognitive Action Planner & Grounding"]
     Decomposer --> TrajectoryCtrl["Trajectory Controller (Geometric IK)"]
     Decomposer --> Explorer["Tabletop Frontier Explorer (Active Multi-View Scanning)"]
 
-    TrajectoryCtrl --> Sim["60 Hz Physics Engine (Multi-Zone Pads, Grasp Dynamics)"]
+    TrajectoryCtrl --> Sim["60 Hz Physics Engine (Rapier-Aligned Dynamics)"]
     Explorer --> Sim
 
     Sim --> Telemetry["WebSocket Telemetry Stream (60 FPS)"]
     Telemetry --> ThreeJS["Three.js 3D WebGL Studio (Panda Cobot, Logs Panel)"]
-    Telemetry --> ROS2["ROS 2 Native Bridge (/vla/action_plan, /vla/semantic_map)"]
+
+    subgraph ROS2_Ecosystem["ROS 2 Ecosystem (ros2_ws)"]
+        ROS2_Nodes["ROS 2 Nodes (/vla/action_plan, /vla/semantic_map)"] <--> VLAEngine
+    end
 ```
 
 ---
@@ -95,7 +98,7 @@ AERO extends beyond conventional single-column stacking to support multi-zone to
 
 ## ✨ Key Features
 
-### 1. 🧠 Google VLA (Vision-Language-Action)
+### 1. 🤖 Google VLA (Vision-Language-Action)
 - **Multimodal Visual Grounding**: Ingests $128 \times 128$ orthographic RGB frames, joint states, and 3D bounding coordinates.
 - **Cognitive Decomposition**: Employs Google Gemini (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-pro`) to reason about physical affordances and synthesize structured JSON waypoint sequences.
 - **Offline Embedded VLA Runtime**: Features a deterministic, metric-locked policy executing with **zero external API keys or cloud dependencies** out of the box.
@@ -113,6 +116,7 @@ AERO extends beyond conventional single-column stacking to support multi-zone to
 - **Relational Affordance Graphs**: Continuously classifies blocks into `ON_TABLE`, `IN_GRIPPER`, and layer tiers with center-of-mass stability indices.
 
 ### 5. ⚡ 60 FPS Physics & Jitter-Free Kinematics
+- **Rapier-Aligned Dynamics (Native Python)**: Implements 60 Hz rigid-body dynamics, gravity damping, table collision bounds, and stacking tolerances directly in Python matching VSArena Rapier physical specifications—with zero external simulator binaries (e.g., Gazebo) required.
 - **5-DOF Geometric IK & FK**: Solves analytical joint angles with singular boundary clamping.
 - **Kinematic Slerp Smoothing**: Smooth joint angle and block orientation interpolation across 60 Hz animation frames eliminates laptop frame judder.
 - **Laptop Performance Mode**: Dynamic toggle between Smooth mode (DPR 1.2, optimized shadows) and High-Fidelity mode (DPR 1.75, PCF soft shadows).
@@ -198,6 +202,9 @@ Aero adopts the rigorous benchmarking standards from **VSArena**:
 ## 🌐 ROS 2 Ecosystem Integration
 
 A full ROS 2 package (`vla_robot_arm`) is included under `ros2_ws/`:
+
+> [!NOTE]
+> **Simulation vs. ROS 2 Role**: The 60 Hz physics simulation, kinematics, and real-time visualization run autonomously in Python and Three.js WebGL (no ROS 2 installation or Gazebo simulator required). The `ros2_ws` workspace provides standard ROS 2 topic nodes for seamless robotics ecosystem integration:
 
 | Topic Name | Type | Description |
 | :--- | :--- | :--- |

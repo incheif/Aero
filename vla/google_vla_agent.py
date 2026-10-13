@@ -290,7 +290,7 @@ class GoogleVLAAgent:
         if not self.api_key:
             return None
 
-        prompt = f"""You are Google VLA (Vision-Language-Action) robotic manipulation brain for a 5-DOF table-mounted robot arm.
+        prompt = f"""You are Google VLA (Vision-Language-Action) robotic manipulation reasoning engine for a 5-DOF table-mounted robot arm.
 Your end-effector is a parallel-jaw gripper.
 Table coordinates are metric (meters) with Y-up:
 - Tabletop surface is Y = 0.72m
