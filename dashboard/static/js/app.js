@@ -39,8 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. WebSocket Telemetry Client
   let ws = null;
   let isConnected = false;
+  let isSuspended = false;
 
   function connectWebSocket() {
+    if (isSuspended) return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws?session_id=${encodeURIComponent(sessionId)}`;
 
@@ -55,8 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === 'session_suspended' || data.is_suspended) {
+          handleSessionSuspended(data);
+          return;
+        }
         if (data.type === 'telemetry') {
           handleTelemetry(data);
+        } else if (data.logs && Array.isArray(data.logs)) {
+          updateLogsFromTelemetry(data.logs);
         }
       } catch (err) {
         console.error('Error parsing telemetry JSON:', err);
@@ -65,9 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ws.onclose = () => {
       isConnected = false;
-      updateConnectionStatus(false);
-      console.warn('[WebSocket] Disconnected. Reconnecting in 1.5s...');
-      setTimeout(connectWebSocket, 1500);
+      if (!isSuspended) {
+        updateConnectionStatus(false);
+        console.warn('[WebSocket] Disconnected. Reconnecting in 1.5s...');
+        setTimeout(connectWebSocket, 1500);
+      }
     };
 
     ws.onerror = (err) => {
@@ -76,23 +86,85 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  function handleSessionSuspended(data) {
+    isSuspended = true;
+    isConnected = false;
+    updateConnectionStatus(false, 'SUSPENDED (25 MIN)');
+    showSuspensionBanner(data && data.reason ? data.reason : 'Session suspended after 25 minutes to conserve cloud bandwidth.');
+    if (data && data.logs && Array.isArray(data.logs)) {
+      updateLogsFromTelemetry(data.logs);
+    }
+  }
+
+  async function resumeSession() {
+    isSuspended = false;
+    hideSuspensionBanner();
+    try {
+      await sessionFetch('/api/session/resume', { method: 'POST' });
+    } catch (_) {}
+    if (!isConnected) {
+      connectWebSocket();
+    }
+  }
+
+  function showSuspensionBanner(reason) {
+    let banner = document.getElementById('session-suspended-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'session-suspended-banner';
+      banner.className = 'session-suspended-banner';
+      banner.innerHTML = `
+        <div class="suspended-banner-content">
+          <div class="suspended-banner-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="suspended-banner-text">
+            <strong>Session Suspended (25-Min Cap)</strong>
+            <span>${escapeHtml(reason || 'Session paused to conserve cloud resources & prevent bandwidth overuse.')}</span>
+          </div>
+          <button id="btn-resume-session" class="btn-resume-session">▶ Resume Session</button>
+        </div>
+      `;
+      document.body.appendChild(banner);
+      document.getElementById('btn-resume-session')?.addEventListener('click', resumeSession);
+    }
+    banner.style.display = 'flex';
+  }
+
+  function hideSuspensionBanner() {
+    const banner = document.getElementById('session-suspended-banner');
+    if (banner) {
+      banner.style.display = 'none';
+    }
+  }
+
   connectWebSocket();
 
   // 3. UI State Handlers
-  function updateConnectionStatus(connected) {
+  function updateConnectionStatus(connected, customText) {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
     if (dot) {
       if (connected) {
         dot.style.backgroundColor = '#ffffff';
         dot.style.boxShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
+      } else if (isSuspended) {
+        dot.style.backgroundColor = '#f59e0b';
+        dot.style.boxShadow = '0 0 8px rgba(245, 158, 11, 0.5)';
       } else {
         dot.style.backgroundColor = '#52525b';
         dot.style.boxShadow = 'none';
       }
     }
     if (text) {
-      text.innerText = connected ? 'ONLINE / 60 FPS' : 'RECONNECTING...';
+      if (customText) {
+        text.innerText = customText;
+      } else {
+        text.innerText = connected ? 'ONLINE / 60 FPS' : 'RECONNECTING...';
+      }
     }
   }
 
@@ -594,6 +666,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const text = (commandText || cmdInput.value || '').trim();
     if (!text) return;
 
+    if (isSuspended) {
+      resumeSession();
+    }
+
     // Retain and display command in text box so user can reference what was queried
     cmdInput.value = text;
 
@@ -846,4 +922,64 @@ document.addEventListener('DOMContentLoaded', () => {
       submitCommand(initialCmd);
     }, 1200);
   }
+
+  // 13. Responsive Drawer & Viewport Controls (Mobile & Laptop Adaptation)
+  const appLayout = document.getElementById('app-layout');
+  const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+  const btnCloseSidebar = document.getElementById('btn-close-sidebar');
+  const telemetryPanel = document.getElementById('telemetry-panel');
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+  const btnPipToggle = document.getElementById('btn-pip-toggle');
+  const cameraHudPip = document.getElementById('camera-hud-pip');
+
+  function openMobileDrawer() {
+    telemetryPanel?.classList.add('drawer-open');
+    sidebarBackdrop?.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMobileDrawer() {
+    telemetryPanel?.classList.remove('drawer-open');
+    sidebarBackdrop?.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  function toggleSidebar() {
+    if (window.innerWidth <= 768) {
+      if (telemetryPanel?.classList.contains('drawer-open')) {
+        closeMobileDrawer();
+      } else {
+        openMobileDrawer();
+      }
+    } else {
+      appLayout?.classList.toggle('sidebar-collapsed');
+      btnToggleSidebar?.classList.toggle('active', !appLayout?.classList.contains('sidebar-collapsed'));
+      // Notify Three.js renderer to instantly resize canvas to available space
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
+    }
+  }
+
+  btnToggleSidebar?.addEventListener('click', toggleSidebar);
+  btnCloseSidebar?.addEventListener('click', closeMobileDrawer);
+  sidebarBackdrop?.addEventListener('click', closeMobileDrawer);
+
+  // Close drawer with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileDrawer();
+    }
+  });
+
+  // Toggle Camera PiP minimization
+  btnPipToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cameraHudPip?.classList.toggle('minimized');
+    const isMin = cameraHudPip?.classList.contains('minimized');
+    btnPipToggle.innerHTML = isMin 
+      ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>'
+      : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+  });
 });
+

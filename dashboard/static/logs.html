@@ -224,6 +224,40 @@
       color: #71717a;
       flex-shrink: 0;
     }
+
+    @media (max-width: 768px) {
+      .logs-standalone-header {
+        height: 48px;
+        padding: 0 12px;
+      }
+      .brand-subtitle-badge {
+        display: none;
+      }
+      .logs-standalone-body {
+        padding: 12px;
+      }
+      .header-actions {
+        gap: 8px;
+      }
+      #session-badge {
+        display: none;
+      }
+      .logs-toolbar {
+        gap: 8px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+      }
+      .log-filter-chip {
+        padding: 4px 8px;
+        font-size: 0.68rem;
+      }
+      .standalone-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        font-size: 0.62rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -476,6 +510,11 @@
         ws.onmessage = (evt) => {
           try {
             const data = JSON.parse(evt.data);
+            if (data.type === 'session_suspended' || data.is_suspended) {
+              statusText.innerText = 'SUSPENDED (25 MIN)';
+              statusDot.style.backgroundColor = '#f59e0b';
+              statusDot.style.boxShadow = 'none';
+            }
             if (data.logs) {
               updateLogs(data.logs);
             }

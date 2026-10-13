@@ -49,6 +49,7 @@ from vla.trajectory_controller import TrajectoryController
 from vla.color_seek_policy import ColorSeekPolicy, find_blobs
 
 VLA_STRIDE = 12  # 5 Hz policy updates over 60 Hz physics (vsarena standard)
+SESSION_MAX_DURATION = 25 * 60  # 25 minutes (1500 seconds) auto-suspension timeout
 
 class CommandRequest(BaseModel):
     command: str
@@ -87,7 +88,12 @@ class UserSession:
 
         self.websockets: Set[WebSocket] = set()
         self.recent_logs: list[Dict[str, Any]] = []
+        self.pending_logs: list[Dict[str, Any]] = []
+        self.created_at: float = time.time()
+        self.session_start_time: float = time.time()
         self.last_active: float = time.time()
+        self.is_suspended: bool = False
+        self.suspension_reason: Optional[str] = None
 
         self.prev_step_idx: int = -1
         self.prev_stability_verified: bool = False
@@ -115,7 +121,62 @@ class UserSession:
         self.recent_logs.append(entry)
         if len(self.recent_logs) > 250:
             self.recent_logs.pop(0)
+        self.pending_logs.append(entry)
+        if len(self.pending_logs) > 50:
+            self.pending_logs.pop(0)
         return entry
+
+    async def suspend(self, reason: str = "Session auto-suspended after 25 minutes to conserve cloud bandwidth."):
+        """Suspends the session to halt continuous physics streaming and bandwidth consumption."""
+        if self.is_suspended:
+            return
+        self.is_suspended = True
+        self.suspension_reason = reason
+        self.controller.stop()
+        self.color_seek_active = False
+        self.explorer.is_exploring = False
+        self.is_paused = True
+
+        self.log_event(
+            "system",
+            "SUSPENDED",
+            "Session auto-suspended (25 min limit reached).",
+            "Telemetry streaming halted to conserve outbound cloud bandwidth."
+        )
+
+        notification = {
+            "type": "session_suspended",
+            "is_suspended": True,
+            "session_id": self.session_id,
+            "reason": reason,
+            "duration_minutes": 25,
+        }
+        if self.pending_logs:
+            notification["logs"] = list(self.pending_logs)
+            self.pending_logs.clear()
+
+        for ws in list(self.websockets):
+            try:
+                await ws.send_json(notification)
+            except Exception:
+                self.websockets.discard(ws)
+
+    def resume(self):
+        """Resumes a suspended session and resets the 25-minute timer."""
+        was_suspended = self.is_suspended
+        self.is_suspended = False
+        self.suspension_reason = None
+        self.session_start_time = time.time()
+        self.last_active = time.time()
+        self.is_paused = False
+        if was_suspended:
+            self.log_event(
+                "system",
+                "RESUMED",
+                "Session resumed by user interaction.",
+                "Telemetry streaming re-engaged (new 25-minute window)."
+            )
+
 
     def is_active(self) -> bool:
         return (
@@ -477,8 +538,14 @@ class UserSession:
             },
             "is_paused": self.is_paused,
             "manual_mode": self.manual_mode,
-            "logs": self.recent_logs[-40:],
         }
+
+        # Send logs ONLY when new log events occur, rather than bundling recent_logs on every tick
+        if self.pending_logs:
+            payload["logs"] = list(self.pending_logs)
+            self.pending_logs.clear()
+
+        return payload
 
     async def broadcast_telemetry(self, payload: Dict[str, Any]):
         for ws in list(self.websockets):
@@ -565,9 +632,21 @@ async def simulation_loop():
         if elapsed >= FIXED_DT:
             last_time = now
 
-            active_sessions = session_manager.get_active_sessions()
-            for sess in active_sessions:
+            for sid, sess in list(session_manager.sessions.items()):
                 try:
+                    # 1. Automatically suspend session after 25 minutes of continuous run
+                    if not sess.is_suspended and (now - sess.session_start_time) >= SESSION_MAX_DURATION:
+                        await sess.suspend()
+                        continue
+
+                    # 2. Skip simulation step and broadcast if suspended
+                    if sess.is_suspended:
+                        continue
+
+                    # 3. For sessions with no connections and no active task, skip
+                    if sid != "default" and not sess.is_active():
+                        continue
+
                     snapshot = sess.step()
                     if snapshot and sess.websockets:
                         payload = sess.get_telemetry_payload(snapshot)
@@ -596,19 +675,51 @@ app = FastAPI(title="AERO: Agentic Execution for Robotic Operations", lifespan=l
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     session_id = websocket.query_params.get("session_id") or "default"
+    resume_flag = websocket.query_params.get("resume")
     sess = session_manager.get_or_create(session_id)
+    if resume_flag in ("1", "true", "yes"):
+        sess.resume()
     await websocket.accept()
     sess.websockets.add(websocket)
     sess.last_active = time.time()
+
+    # If currently suspended, notify the client immediately
+    if sess.is_suspended:
+        try:
+            await websocket.send_json({
+                "type": "session_suspended",
+                "is_suspended": True,
+                "session_id": sess.session_id,
+                "reason": sess.suspension_reason or "Session auto-suspended after 25 minutes to conserve cloud bandwidth.",
+                "duration_minutes": 25,
+            })
+        except Exception:
+            pass
+    elif sess.recent_logs:
+        # Sync initial logs once on connect
+        try:
+            await websocket.send_json({
+                "type": "logs_sync",
+                "logs": sess.recent_logs[-40:],
+            })
+        except Exception:
+            pass
+
     try:
         while True:
             data = await websocket.receive_json()
             sess.last_active = time.time()
             msg_type = data.get("type")
-            if msg_type == "command":
+            if msg_type == "resume":
+                sess.resume()
+            elif msg_type == "command":
+                if sess.is_suspended:
+                    sess.resume()
                 cmd = data.get("command", "")
                 await sess.handle_vla_command(cmd)
             elif msg_type == "teleop":
+                if sess.is_suspended:
+                    sess.resume()
                 joints = data.get("joints", {})
                 grip = data.get("gripper")
                 sess.manual_mode = True
@@ -617,8 +728,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 if joints:
                     sess.sim.set_joint_targets(joints, grip)
             elif msg_type == "reset":
+                if sess.is_suspended:
+                    sess.resume()
                 sess.handle_reset()
             elif msg_type == "toggle_pause":
+                if sess.is_suspended:
+                    sess.resume()
                 sess.is_paused = not sess.is_paused
     except WebSocketDisconnect:
         sess.websockets.discard(websocket)
@@ -640,6 +755,8 @@ async def api_test_key(req: TestKeyRequest, request: Request):
 async def api_command(req: CommandRequest, request: Request):
     sid = extract_session_id(request, req.session_id)
     sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
     if req.api_key:
         sess.vla_agent.set_api_key(req.api_key)
     if req.model:
@@ -653,6 +770,8 @@ async def api_command(req: CommandRequest, request: Request):
 async def api_explore(request: Request):
     sid = extract_session_id(request)
     sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
     sess.manual_mode = False
     sess.handle_reset()
     sess.explorer.start_exploration()
@@ -671,8 +790,19 @@ async def api_explore(request: Request):
 async def api_reset(request: Request):
     sid = extract_session_id(request)
     sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
     sess.handle_reset()
     return {"status": "ok", "message": "Arm returned to rest pose and workspace reset."}
+
+
+@app.post("/api/session/resume")
+async def api_resume_session(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    sess.resume()
+    return {"status": "ok", "message": "Session resumed", "session_id": sid}
+
 
 
 @app.post("/api/sim/rest")
@@ -754,11 +884,17 @@ async def api_reset_cost(request: Request):
 async def api_session_info(request: Request):
     sid = extract_session_id(request)
     sess = session_manager.get_or_create(sid)
+    elapsed = time.time() - sess.session_start_time
+    remaining = max(0.0, SESSION_MAX_DURATION - elapsed)
     return {
         "session_id": sid,
         "active_sessions_count": len(session_manager.sessions),
         "websockets_count": len(sess.websockets),
         "has_api_key": bool(sess.vla_agent.api_key),
+        "is_suspended": sess.is_suspended,
+        "elapsed_seconds": round(elapsed, 1),
+        "remaining_seconds": round(remaining, 1),
+        "max_duration_seconds": SESSION_MAX_DURATION,
     }
 
 
