@@ -11,9 +11,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: true
+      - name: Install Git LFS
+        run: git lfs install
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://incheif:$HF_TOKEN@huggingface.co/spaces/incheif/aera-studio main:main
+        run: |
+          git config user.name "incheif"
+          git config user.email "incheif@users.noreply.github.com"
+          git checkout --orphan hf-sync
+          git add -A
+          git commit -m "Deploy to Hugging Face"
+          git push --force https://incheif:$HF_TOKEN@huggingface.co/spaces/incheif/aera-studio hf-sync:main
