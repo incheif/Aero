@@ -1,13 +1,3 @@
----
-title: AERO Robotics Studio
-emoji: 🤖
-colorFrom: blue
-colorTo: gray
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 <div align="center">
 
 <img src="logo.png" alt="AERO Logo" width="140" />
