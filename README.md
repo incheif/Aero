@@ -56,52 +56,40 @@
 AERO translates high-level natural language intent into verified robotic manipulation primitives through an embedded, real-time closed-loop pipeline running 100% locally:
 
 ```mermaid
-graph TD
-    subgraph Client_Studio["Interactive Web Studio (Browser)"]
-        UserCmd["Natural-Language Command / Challenge Chips"]
-        ThreeJS["Three.js 3D WebGL Studio (Panda-Style Cobot, CV HUD)"]
-        LogsPanel["Real-Time Execution Logs Panel (What & How Audit)"]
+flowchart TD
+    subgraph InputStage ["Input & Perception"]
+        CMD["Natural Language Command"]
+        PERC["Vision & 3D Spatial Memory"]
     end
 
-    subgraph Live_Pipeline["AERO Core Runtime (FastAPI & Native Python Loop)"]
-        Camera["Workcell Camera (128×128 Overhead RGB Raster)"]
-        State["Proprioception (Joints, TCP Pose, Gripper)"]
-        Semantic["3D Semantic Spatial Memory (Affordances & Relations)"]
-
-        Feasibility["Cognitive Feasibility Validator (Workcell & Kinematic Limits)"]
-        Planner["Embedded Cognitive Action Planner (Deterministic Grounding)"]
-        TrajectoryCtrl["Trajectory Controller (5-DOF Analytical Geometric IK)"]
-        Explorer["Tabletop Frontier Explorer (4-Quadrant Active Survey)"]
-
-        Sim["60 Hz Physics Engine (Rapier-Aligned Rigid-Body Dynamics)"]
-        Stability["18-Tick Physical Stability Verifier (Hold Settle)"]
-        Telemetry["WebSocket Telemetry Stream (60 FPS Broadcast)"]
+    subgraph VLAStage ["Cognitive VLA Engine"]
+        FEAS["Feasibility Guardrails"]
+        PLAN["Cognitive Action Planner"]
     end
 
-    subgraph Standalone_ROS2["Standalone ROS 2 Package (ros2_ws - Optional / Headless)"]
-        ROS2_Nodes["ROS 2 Nodes (/vla/natural_language_command, /vla/action_plan, /vla/semantic_map)"]
+    subgraph ExecStage ["Kinematics & Physics"]
+        IK["5-DOF Kinematics (IK)"]
+        SIM["60 Hz Physics Engine"]
+        STAB["Stability Verifier"]
     end
 
-    UserCmd --> Feasibility
-    Camera --> Planner
-    State --> Planner
-    Semantic <--> Planner
+    subgraph UIStage ["Studio & Telemetry"]
+        STUDIO["3D WebGL Studio"]
+        LOGS["Real-Time Execution Logs"]
+    end
 
-    Feasibility -->|Feasible| Planner
-    Feasibility -.->|Infeasible Rejection| LogsPanel
+    CMD --> FEAS
+    FEAS -->|Feasible| PLAN
+    PERC --> PLAN
 
-    Planner --> TrajectoryCtrl
-    Planner --> Explorer
+    PLAN --> IK
+    IK --> SIM
+    SIM --> STAB
 
-    TrajectoryCtrl --> Sim
-    Explorer --> Sim
-    Sim --> Stability
-    Stability --> Telemetry
+    STAB --> STUDIO
+    STAB --> LOGS
 
-    Telemetry --> ThreeJS
-    Telemetry --> LogsPanel
-
-    Planner -.->|Optional Headless Bridge| ROS2_Nodes
+    PLAN -.->|Optional Bridge| ROS2["ROS 2 Ecosystem"]
 ```
 
 ---
