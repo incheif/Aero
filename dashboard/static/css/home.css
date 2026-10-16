@@ -765,6 +765,7 @@ footer {
   .stat-item:nth-child(2)::after { display: none; }
   .showcase-grid { grid-template-columns: 1fr; }
   .phase2-content { flex-direction: column; align-items: flex-start; }
+  .story-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 
 @media (max-width: 640px) {
@@ -773,4 +774,228 @@ footer {
   .nav-links { display: none; }
   .stats-strip { grid-template-columns: 1fr; }
   .stat-item::after { display: none !important; }
+  .story-stats-grid { grid-template-columns: 1fr; gap: 12px; }
+  .story-cta-buttons { flex-direction: column; width: 100%; }
+  .btn-story-launch, .btn-story-explore { width: 100%; justify-content: center; }
+  .story-slide-hud { left: 16px; top: 72px; }
 }
+
+/* ==========================================================================
+   Scroll-Driven Frame-by-Frame Robot Arm Storytelling Slides
+   ========================================================================== */
+.scroll-story-wrapper {
+  position: relative;
+  width: 100%;
+  height: 600vh;
+  background: #09090b;
+}
+
+.scroll-story-sticky {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #18181b 0%, #09090b 70%);
+}
+
+#scrolly-robot-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.story-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+  padding: 32px 24px;
+  text-align: center;
+  will-change: opacity, transform;
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+/* Slide 1: Monumental AERO */
+.giant-aero-title {
+  font-size: clamp(4.8rem, 15vw, 11.5rem);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  color: #ffffff;
+  line-height: 0.95;
+  margin: 0;
+  text-shadow: 0 0 80px rgba(255, 255, 255, 0.2), 0 8px 30px rgba(0, 0, 0, 0.8);
+  user-select: none;
+}
+
+.scroll-indicator {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 36px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  animation: floatBounce 2.4s ease-in-out infinite;
+}
+
+@keyframes floatBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+
+/* Slide 2: Tagline Subtitle */
+.sub-agency-title {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  max-width: 860px;
+  line-height: 1.25;
+  margin: 0;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.9);
+}
+
+/* Slide 3: Robot HUD Status */
+.story-slide-hud {
+  top: 84px;
+  bottom: auto;
+  left: 32px;
+  right: auto;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0;
+  z-index: 5;
+}
+
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(18, 18, 21, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.hud-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: hudPulse 1.8s infinite;
+}
+
+@keyframes hudPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.hud-text {
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.hud-frame {
+  color: #93c5fd;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Slide 4: Description Statement */
+.story-mission-statement {
+  font-size: clamp(1.25rem, 2.8vw, 2.1rem);
+  font-weight: 500;
+  color: #ffffff;
+  max-width: 880px;
+  line-height: 1.5;
+  margin: 0;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 0, 0, 0.8);
+  padding: 24px;
+  border-radius: 16px;
+  background: rgba(9, 9, 11, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+/* Slide 5: Stats Strip */
+.story-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  max-width: 1040px;
+  width: 100%;
+}
+
+.story-stat-card {
+  padding: 26px 20px;
+  border-radius: 14px;
+  background: rgba(18, 18, 21, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  text-align: center;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+}
+
+.story-stat-card .stat-number {
+  font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.story-stat-card .stat-caption {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+/* Slide 6: Try it yourself CTAs */
+.try-yourself-header {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  margin-bottom: 24px;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.9);
+}
+
+.story-cta-buttons {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-story-launch {
+  padding: 14px 28px;
+  font-size: 1rem;
+}
+
+.btn-story-explore {
+  padding: 14px 28px;
+  font-size: 1rem;
+}
+
