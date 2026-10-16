@@ -50,17 +50,12 @@
   <!-- Hero Section -->
   <main class="home-container" id="overview">
     <section class="hero">
-      <div class="hero-tag">
-        <span class="badge-star">✦</span>
-        <span>Autonomous Vision-Language-Action (VLA) + 3D WebGL Studio</span>
-      </div>
-
       <h1 class="hero-title">
         AERO: Agentic Execution for Robotic Operations
       </h1>
 
       <p class="hero-desc">
-        A unified manipulation platform translating natural-language instructions into metric-locked trajectories using agentic VLA reasoning, 3D Tabletop Semantic Spatial Mapping, Rapier3D physics-aligned kinematics, and live 60 FPS Three.js telemetry.
+        We enable simulated robots to interpret commands, manipulate objects, assemble structures, and perform complex tasks.
       </p>
 
       <div class="hero-ctas">
@@ -103,10 +98,6 @@
     <section class="dual-mode-section" id="cognitive-modes">
       <div class="dual-mode-card">
         <div class="dual-mode-header">
-          <div class="hero-tag" style="margin-bottom: 8px;">
-            <span class="badge-star">✦</span>
-            <span>AUTONOMOUS VLA ARCHITECTURE</span>
-          </div>
           <h2 style="font-size: 1.45rem; font-weight: 700; color: #fff; margin-top: 6px;">Zero-Dependency Cognitive Manipulation Platform</h2>
           <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 740px; line-height: 1.55; margin-top: 8px;">
             AERO is engineered to operate 100% out of the box with zero external dependencies, synthesizing multi-step geometric plans and articulated trajectories in real time.
@@ -156,7 +147,6 @@
     <!-- Capabilities Grid -->
     <section id="capabilities" style="padding-top: 20px;">
       <div class="section-header">
-        <div class="section-subtitle">System Architecture</div>
         <h2 class="section-title">Core Engineering Foundations</h2>
       </div>
 
@@ -246,27 +236,12 @@
             Complete ROS 2 package (<code style="font-family: var(--font-mono); font-size: 0.85em;">vla_robot_arm</code>) with cognitive thought publishers, action plan streams, semantic map nodes, and launch configurations for ROS 2 Humble/Jazzy.
           </p>
         </article>
-
-        <!-- Card 7: Playground Evaluation & Stability Suite -->
-        <article class="feature-card">
-          <div class="feature-icon-box">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-          <h3 class="feature-title">Playground Evaluation Suite</h3>
-          <p class="feature-desc">
-            VSArena-aligned benchmarking featuring 18-tick (0.3s) physical stability hold verification, spatial accuracy scoring (70% pos, 30% orientation), closed-loop visual servoing, and joint torque telemetry.
-          </p>
-        </article>
       </div>
     </section>
 
     <!-- Command Showcase Section -->
     <section id="commands" style="padding-top: 20px;">
       <div class="section-header">
-        <div class="section-subtitle">Natural-Language Interaction</div>
         <h2 class="section-title">Verified Manipulation Commands</h2>
       </div>
 
@@ -380,30 +355,28 @@
     <!-- Future Roadmap: Integrations with Google VLA -->
     <section id="roadmap" style="padding-top: 40px; margin-bottom: 20px;">
       <div class="section-header">
-        <div class="section-subtitle">Development Roadmap</div>
         <h2 class="section-title">Integrations with Google VLA</h2>
       </div>
 
       <div class="phase2-banner">
         <div class="phase2-content">
           <div>
-            <span class="phase2-tag">✦ NEXT-GEN MULTIMODAL HORIZON</span>
-            <h3 class="phase2-title">Direct Visuomotor &amp; Multimodal Cloud Intelligence</h3>
+            <h3 class="phase2-title">Connecting Google VLA to Real-Time Robotics</h3>
             <p class="phase2-desc">
-              Building upon AERO's high-speed local kinematics and 3D spatial SLAM, the future development roadmap introduces direct integrations with Google Vision-Language-Action (VLA) foundation models. This evolution expands the platform from structured tabletop tasks to open-world visual-spatial reasoning directly over multi-camera sensor streams.
+              Integrating Google Vision-Language-Action (VLA) models enables robots to understand complex scenes from live camera feeds, reason through steps in plain language, and interact with everyday objects beyond simple blocks.
             </p>
             <div class="phase2-features">
               <div class="phase2-feature-item">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Direct Visual-Spatial Grounding</span>
+                <span>Live Camera Understanding</span>
               </div>
               <div class="phase2-feature-item">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Multimodal Chain-of-Thought (CoT)</span>
+                <span>Step-by-Step Task Reasoning</span>
               </div>
               <div class="phase2-feature-item">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Zero-Shot Object Generalization</span>
+                <span>Everyday Objects &amp; Tools</span>
               </div>
             </div>
           </div>
@@ -411,7 +384,7 @@
             <div style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: 140px; height: 140px; border-radius: 50%; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); box-shadow: 0 0 30px rgba(59, 130, 246, 0.15);">
               <span style="font-family: var(--font-mono); font-size: 0.72rem; color: #93c5fd; letter-spacing: 0.05em; font-weight: 600;">PLANNED</span>
               <span style="font-size: 1.25rem; font-weight: 800; color: #fff; margin-top: 4px;">GOOGLE VLA</span>
-              <span style="font-size: 0.68rem; color: var(--text-dim); margin-top: 2px;">Phase 2 Core</span>
+              <span style="font-size: 0.68rem; color: var(--text-dim); margin-top: 2px;">Phase 2</span>
             </div>
           </div>
         </div>
@@ -426,9 +399,9 @@
               <circle cx="12" cy="13" r="4"></circle>
             </svg>
           </div>
-          <h3 class="feature-title">Multi-Camera Visual Reasoning</h3>
+          <h3 class="feature-title">Multi-Camera Vision</h3>
           <p class="feature-desc">
-            Direct ingestion of overhead and wrist-mounted RGB sensor frames into Google VLA, synthesizing waypoint trajectories directly from real-time pixel inputs.
+            Processes live video from overhead and gripper cameras, guiding robot movements directly from visual feeds.
           </p>
         </article>
 
@@ -440,9 +413,9 @@
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
           </div>
-          <h3 class="feature-title">Open-Vocabulary Manipulation</h3>
+          <h3 class="feature-title">Everyday Objects &amp; Tools</h3>
           <p class="feature-desc">
-            Expanding past geometric blocks to arbitrary tools, everyday tabletop clutter, and deformable materials using semantic transfer and zero-shot action grounding.
+            Expands beyond simple colored blocks to handle household items, tools, and cluttered tables without retraining.
           </p>
         </article>
 
@@ -455,9 +428,9 @@
               <line x1="6" y1="18" x2="6.01" y2="18"></line>
             </svg>
           </div>
-          <h3 class="feature-title">Hybrid Cloud-Edge Execution</h3>
+          <h3 class="feature-title">Cloud Planning, Local Safety</h3>
           <p class="feature-desc">
-            Decoupled architecture: Google VLA handles high-level cognitive task plans in the cloud, while local Rapier-aligned physics enforces microsecond compliance and collision safety.
+            Google VLA handles high-level reasoning in the cloud, while AERO's local physics engine ensures real-time collision safety and precision.
           </p>
         </article>
       </div>
