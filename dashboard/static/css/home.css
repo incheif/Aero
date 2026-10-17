@@ -309,13 +309,16 @@ body {
   pointer-events: none;
   padding: clamp(16px, 3vh, 40px) clamp(16px, 2.5vw, 40px);
   text-align: center;
+  opacity: 0;
   will-change: opacity, transform;
   transition: opacity 0.15s ease-out, transform 0.15s ease-out;
 }
 
-/* Slide 0: Suspense Thriller Hook */
+/* Slide 0: Suspense Thriller Hook (Visible initially) */
 #slide-suspense {
   z-index: 10;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .suspense-lines-box {
