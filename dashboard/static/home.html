@@ -9,7 +9,7 @@
     content="AERO (Agentic Execution for Robotic Operations): Autonomous robotic manipulation studio combining Vision-Language-Action, 3D Semantic Spatial SLAM, Rapier3D physics-aligned kinematics, and real-time Three.js WebGL studio.">
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/home.css?v=3.0">
+  <link rel="stylesheet" href="/css/home.css?v=4.0">
 </head>
 
 <body>
@@ -31,7 +31,7 @@
         <li><a href="#overview" class="nav-link">Overview</a></li>
         <li><a href="#capabilities" class="nav-link">Capabilities</a></li>
         <li><a href="#commands" class="nav-link">Commands</a></li>
-        <li><a href="#roadmap" class="nav-link">Roadmap</a></li>
+        <li><a href="#roadmap" class="nav-link">Road Ahead</a></li>
       </ul>
 
       <div class="nav-actions">
@@ -85,8 +85,8 @@
       <!-- Slide 4: Description -->
       <div class="story-slide" id="slide-desc">
         <p class="story-mission-statement">
-          AERO enables simulated robots to interpret natural language commands, plan actions, assemble structures and
-          execute complex tasks.
+          We enable simulated robots to interpret natural language commands, plan actions, execute operations and
+          perform complex tasks.
         </p>
       </div>
 
@@ -112,7 +112,7 @@
         </div>
       </div>
 
-      <!-- Slide 6: Try it yourself CTAs -->
+      <!-- Slide 6: Try it yourself CTAs & Verified Manipulation Commands -->
       <div class="story-slide" id="slide-ctas">
         <div class="try-yourself-header">Try it yourself</div>
         <div class="story-cta-buttons">
@@ -123,13 +123,126 @@
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
           </a>
-          <a href="#capabilities" class="btn-secondary btn-story-explore" id="btn-explore-specs">
-            <span>Explore Architecture</span>
+          <a href="#roadmap" class="btn-secondary btn-story-explore" id="btn-explore-specs">
+            <span>What's Next</span>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </a>
+        </div>
+
+        <!-- Verified Manipulation Commands -->
+        <div class="story-commands-wrap" id="commands">
+          <div class="story-commands-header">
+            <h3 class="story-commands-title">Try the following commands</h3>
+          </div>
+
+          <div class="story-commands-grid">
+            <!-- Command 1 -->
+            <div class="story-cmd-card">
+              <div class="story-cmd-top">
+                <span class="story-cmd-type">Multi-Layer Stacking</span>
+                <span class="story-cmd-tag">3 Layers</span>
+              </div>
+              <div class="story-cmd-text">
+                "Build a 3-layer tower with red, blue, and yellow."
+              </div>
+              <div class="story-cmd-footer">
+                <span class="story-cmd-metric">Verified Metric Alignment</span>
+                <a href="/studio?cmd=Make+a+3-layer+tower+of+red,+blue+and+yellow." class="story-cmd-run">
+                  <span>Run in Studio</span> &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- Command 2 -->
+            <div class="story-cmd-card">
+              <div class="story-cmd-top">
+                <span class="story-cmd-type">Apex Stacking</span>
+                <span class="story-cmd-tag">5 Layers</span>
+              </div>
+              <div class="story-cmd-text">
+                "Build a 5-layer tower with all 5 blocks on the target pad."
+              </div>
+              <div class="story-cmd-footer">
+                <span class="story-cmd-metric">Full Workcell Utilization</span>
+                <a href="/studio?cmd=Build+a+5-layer+tower+with+all+5+blocks+on+the+target+pad." class="story-cmd-run">
+                  <span>Run in Studio</span> &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- Command 3 -->
+            <div class="story-cmd-card">
+              <div class="story-cmd-top">
+                <span class="story-cmd-type">Single-Object Pick</span>
+                <span class="story-cmd-tag">Pick &amp; Place</span>
+              </div>
+              <div class="story-cmd-text">
+                "Pick the green cube and place it inside the target zone pad."
+              </div>
+              <div class="story-cmd-footer">
+                <span class="story-cmd-metric">Centering Tolerance &plusmn;30mm</span>
+                <a href="/studio?cmd=Pick+the+green+cube+and+place+it+inside+the+target+zone+pad."
+                  class="story-cmd-run">
+                  <span>Run in Studio</span> &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- Command 4 -->
+            <div class="story-cmd-card">
+              <div class="story-cmd-top">
+                <span class="story-cmd-type">Active Perception</span>
+                <span class="story-cmd-tag">SLAM Coverage</span>
+              </div>
+              <div class="story-cmd-text">
+                "Explore the workspace, scan table quadrants, and update the 3D semantic memory map."
+              </div>
+              <div class="story-cmd-footer">
+                <span class="story-cmd-metric">100% Tabletop Coverage</span>
+                <a href="/studio?cmd=Explore+the+workspace,+scan+table+quadrants,+and+update+the+3D+semantic+memory+map."
+                  class="story-cmd-run">
+                  <span>Run in Studio</span> &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- Command 5 -->
+            <div class="story-cmd-card">
+              <div class="story-cmd-top">
+                <span class="story-cmd-type">Multi-Zone Assembly</span>
+                <span class="story-cmd-tag">2 Distinct Towers</span>
+              </div>
+              <div class="story-cmd-text">
+                "Make 2 distinct towers of 2 blocks each."
+              </div>
+              <div class="story-cmd-footer">
+                <span class="story-cmd-metric">Collision Clearance Locked</span>
+                <a href="/studio?cmd=Make+2+distinct+towers+of+2+blocks+each." class="story-cmd-run">
+                  <span>Run in Studio</span> &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- Command 6 -->
+            <div class="story-cmd-card">
+              <div class="story-cmd-top">
+                <span class="story-cmd-type">Structural Geometry</span>
+                <span class="story-cmd-tag">Pyramid Assembly</span>
+              </div>
+              <div class="story-cmd-text">
+                "Build a pyramid tower."
+              </div>
+              <div class="story-cmd-footer">
+                <span class="story-cmd-metric">Multi-Contact Equilibrium</span>
+                <a href="/studio?cmd=Build+a+pyramid+tower." class="story-cmd-run">
+                  <span>Run in Studio</span> &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -251,218 +364,140 @@
       </div>
     </section>
 
-    <!-- Command Showcase Section -->
-    <section id="commands" style="padding-top: 20px;">
+
+    <!-- Future Roadmap: The Road Ahead -->
+    <section id="roadmap" class="road-ahead-section">
       <div class="section-header">
-        <h2 class="section-title">Verified Manipulation Commands</h2>
+        <h2 class="section-title">The Road Ahead: Building Toward More Autonomous Robotics</h2>
       </div>
 
-      <div class="cmd-showcase-section">
-        <div class="showcase-grid">
-          <!-- Item 1 -->
-          <div class="cmd-card">
-            <div class="cmd-badge-row">
-              <span class="cmd-type">Multi-Layer Stacking</span>
-              <span class="cmd-tag">3 Layers</span>
-            </div>
-            <div class="cmd-text">
-              "Build a 3-layer tower with red, blue, and yellow."
-            </div>
-            <div class="cmd-footer">
-              <span>Verified Metric Alignment</span>
-              <a href="/studio?cmd=Make+a+3-layer+tower+of+red,+blue+and+yellow." class="cmd-action-link">
-                <span>Run in Studio</span> →
-              </a>
-            </div>
+      <!-- 3 Core Engineering Focus Pillars (Horizontal Blocks) -->
+      <div class="road-ahead-list">
+        <!-- Pillar 01: Closed-Loop Execution & Multi-Camera Perception -->
+        <article class="road-card-horizontal">
+          <div class="road-card-left">
+            <span class="road-card-index">01</span>
+            <h3 class="road-card-title">Closed-Loop Execution &amp; Multi-Camera Perception</h3>
           </div>
-
-          <!-- Item 2 -->
-          <div class="cmd-card">
-            <div class="cmd-badge-row">
-              <span class="cmd-type">Apex Stacking</span>
-              <span class="cmd-tag">5 Layers</span>
-            </div>
-            <div class="cmd-text">
-              "Build a 5-layer tower with all 5 blocks on the target pad."
-            </div>
-            <div class="cmd-footer">
-              <span>Full Workcell Utilization</span>
-              <a href="/studio?cmd=Build+a+5-layer+tower+with+all+5+blocks+on+the+target+pad." class="cmd-action-link">
-                <span>Run in Studio</span> →
-              </a>
-            </div>
-          </div>
-
-          <!-- Item 3 -->
-          <div class="cmd-card">
-            <div class="cmd-badge-row">
-              <span class="cmd-type">Single-Object Pick</span>
-              <span class="cmd-tag">Pick & Place</span>
-            </div>
-            <div class="cmd-text">
-              "Pick the green cube and place it inside the target zone pad."
-            </div>
-            <div class="cmd-footer">
-              <span>Centering Tolerance &plusmn;30mm</span>
-              <a href="/studio?cmd=Pick+the+green+cube+and+place+it+inside+the+target+zone+pad."
-                class="cmd-action-link">
-                <span>Run in Studio</span> →
-              </a>
-            </div>
-          </div>
-
-          <!-- Item 4 -->
-          <div class="cmd-card">
-            <div class="cmd-badge-row">
-              <span class="cmd-type">Active Perception</span>
-              <span class="cmd-tag">SLAM Coverage</span>
-            </div>
-            <div class="cmd-text">
-              "Explore the workspace, scan table quadrants, and update the 3D semantic memory map."
-            </div>
-            <div class="cmd-footer">
-              <span>100% Tabletop Coverage</span>
-              <a href="/studio?cmd=Explore+the+workspace,+scan+table+quadrants,+and+update+the+3D+semantic+memory+map."
-                class="cmd-action-link">
-                <span>Run in Studio</span> →
-              </a>
-            </div>
-          </div>
-
-          <!-- Item 5 -->
-          <div class="cmd-card">
-            <div class="cmd-badge-row">
-              <span class="cmd-type">Multi-Zone Assembly</span>
-              <span class="cmd-tag">2 Distinct Towers</span>
-            </div>
-            <div class="cmd-text">
-              "Make 2 distinct towers of 2 blocks each."
-            </div>
-            <div class="cmd-footer">
-              <span>Collision Clearance Locked</span>
-              <a href="/studio?cmd=Make+2+distinct+towers+of+2+blocks+each." class="cmd-action-link">
-                <span>Run in Studio</span> →
-              </a>
-            </div>
-          </div>
-
-          <!-- Item 6 -->
-          <div class="cmd-card">
-            <div class="cmd-badge-row">
-              <span class="cmd-type">Structural Geometry</span>
-              <span class="cmd-tag">Pyramid Assembly</span>
-            </div>
-            <div class="cmd-text">
-              "Build a pyramid tower."
-            </div>
-            <div class="cmd-footer">
-              <span>Multi-Contact Equilibrium</span>
-              <a href="/studio?cmd=Build+a+pyramid+tower." class="cmd-action-link">
-                <span>Run in Studio</span> →
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Future Roadmap: Integrations with Google VLA -->
-    <section id="roadmap" style="padding-top: 40px; margin-bottom: 20px;">
-      <div class="section-header">
-        <h2 class="section-title">Integrations with Google VLA</h2>
-      </div>
-
-      <div class="phase2-banner">
-        <div class="phase2-content">
-          <div>
-            <h3 class="phase2-title">Connecting Google VLA to Real-Time Robotics</h3>
-            <p class="phase2-desc">
-              Integrating Google Vision-Language-Action (VLA) models enables robots to understand complex scenes from
-              live camera feeds, reason through steps in plain language, and interact with everyday objects beyond
-              simple blocks.
+          <div class="road-card-right">
+            <p class="road-card-desc">
+              Moving beyond fixed sequences to continuous real-time perception. Overhead and wrist camera feeds
+              eliminate
+              occlusions, while active execution monitoring verifies grasp stability, detects deviations, and triggers
+              dynamic
+              replanning.
             </p>
-            <div class="phase2-features">
-              <div class="phase2-feature-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <span>Live Camera Understanding</span>
-              </div>
-              <div class="phase2-feature-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <span>Step-by-Step Task Reasoning</span>
-              </div>
-              <div class="phase2-feature-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <span>Everyday Objects &amp; Tools</span>
-              </div>
+            <div class="road-tags">
+              <span class="road-tag">Multi-Camera Perception</span>
+              <span class="road-tag">Execution Monitoring</span>
+              <span class="road-tag">Dynamic Replanning</span>
             </div>
           </div>
-          <div style="flex-shrink: 0; text-align: center;">
-            <div
-              style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: 140px; height: 140px; border-radius: 50%; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); box-shadow: 0 0 30px rgba(59, 130, 246, 0.15);">
-              <span
-                style="font-family: var(--font-mono); font-size: 0.72rem; color: #93c5fd; letter-spacing: 0.05em; font-weight: 600;">PLANNED</span>
-              <span style="font-size: 1.25rem; font-weight: 800; color: #fff; margin-top: 4px;">GOOGLE VLA</span>
-              <span style="font-size: 0.68rem; color: var(--text-dim); margin-top: 2px;">Phase 2</span>
+        </article>
+
+        <!-- Pillar 02: Vision-Language-Action Integration -->
+        <article class="road-card-horizontal">
+          <div class="road-card-left">
+            <span class="road-card-index">02</span>
+            <h3 class="road-card-title">Vision-Language-Action (VLA) Integration</h3>
+          </div>
+          <div class="road-card-right">
+            <p class="road-card-desc">
+              Integrating pretrained VLA models (including Google VLA and OpenVLA) to bind visual observations and
+              natural
+              language to physical control, interfacing learned policies with inverse kinematics, joint constraints, and
+              latency-aware arbitration.
+            </p>
+            <div class="road-tags">
+              <span class="road-tag">Google VLA &amp; OpenVLA</span>
+              <span class="road-tag">Kinematic Safety Bounds</span>
+              <span class="road-tag">Action Arbitration</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Pillar 03: Expanding Simulation Scenarios -->
+        <article class="road-card-horizontal">
+          <div class="road-card-left">
+            <span class="road-card-index">03</span>
+            <h3 class="road-card-title">Expanding Simulation Scenarios</h3>
+          </div>
+          <div class="road-card-right">
+            <p class="road-card-desc">
+              Evaluating AERO across complex assemblies, unfamiliar geometries, and unexpected failure modes. Simulation
+              provides
+              a controlled sandbox for measuring task completion, recovery behaviors, and policy consistency before
+              physical deployment.
+            </p>
+            <div class="road-tags">
+              <span class="road-tag">Complex Assemblies</span>
+              <span class="road-tag">Failure Injection</span>
+              <span class="road-tag">Hardware-Transfer Bench</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- The Broader Goal Panel -->
+      <div class="broader-goal-panel">
+        <div class="broader-goal-content">
+          <div class="broader-goal-header-row">
+            <div class="broader-goal-badge-wrap">
+              <span class="pulse-dot-cyan"></span>
+              <span class="broader-goal-badge">THE BROADER GOAL</span>
+            </div>
+            <span class="broader-goal-phase">End-to-End Autonomy</span>
+          </div>
+          <h3 class="broader-goal-title">Perception, Planning, Action &amp; Verification in a Continuous Loop</h3>
+          <p class="broader-goal-desc">
+            Rather than treating manipulation as a fixed chain of commands, AERO is building toward a unified
+            architecture
+            that brings perception, planning, action, and verification into an unbroken feedback cycle. By exploring how
+            learned
+            models, explicit planning, geometric constraints, and feedback-driven control reinforce one another, robotic
+            systems
+            can become truly adaptive, reliable, and capable of solving complex tasks.
+          </p>
+
+          <!-- Feedback Loop Pipeline Architecture Visual -->
+          <div class="feedback-loop-pipeline">
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 01</div>
+              <div class="pipeline-step-title">Observe</div>
+              <div class="pipeline-step-detail">Multi-angle visual perception &amp; SLAM</div>
+            </div>
+            <div class="pipeline-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 02</div>
+              <div class="pipeline-step-title">Reason</div>
+              <div class="pipeline-step-detail">VLA policies &amp; cognitive decomposition</div>
+            </div>
+            <div class="pipeline-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 03</div>
+              <div class="pipeline-step-title">Act</div>
+              <div class="pipeline-step-detail">Joint-bounded IK &amp; physical execution</div>
+            </div>
+            <div class="pipeline-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 04</div>
+              <div class="pipeline-step-title">Verify &amp; Replan</div>
+              <div class="pipeline-step-detail">Stability checks &amp; autonomous recovery</div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Roadmap Feature Pillars -->
-      <div class="features-grid" style="margin-top: 24px; margin-bottom: 60px;">
-        <article class="feature-card">
-          <div class="feature-icon-box">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-              <circle cx="12" cy="13" r="4"></circle>
-            </svg>
-          </div>
-          <h3 class="feature-title">Multi-Camera Vision</h3>
-          <p class="feature-desc">
-            Processes live video from overhead and gripper cameras, guiding robot movements directly from visual feeds.
-          </p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-icon-box">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
-              </path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Everyday Objects &amp; Tools</h3>
-          <p class="feature-desc">
-            Expands beyond simple colored blocks to handle household items, tools, and cluttered tables without
-            retraining.
-          </p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-icon-box">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-              <line x1="6" y1="6" x2="6.01" y2="6"></line>
-              <line x1="6" y1="18" x2="6.01" y2="18"></line>
-            </svg>
-          </div>
-          <h3 class="feature-title">Cloud Planning, Local Safety</h3>
-          <p class="feature-desc">
-            Google VLA handles high-level reasoning in the cloud, while AERO's local physics engine ensures real-time
-            collision safety and precision.
-          </p>
-        </article>
       </div>
     </section>
   </main>
@@ -509,12 +544,12 @@
         <a href="#overview" class="footer-link">Overview</a>
         <a href="#capabilities" class="footer-link">Architecture</a>
         <a href="#commands" class="footer-link">Commands</a>
-        <a href="#roadmap" class="footer-link">Roadmap</a>
+        <a href="#roadmap" class="footer-link">The Road Ahead</a>
       </div>
     </div>
   </footer>
 
-  <!-- Script for live status polling on home page -->
+  <!-- Script for live status polling and smooth anchor navigation on home page -->
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       try {
@@ -530,6 +565,17 @@
         if (text) text.innerText = 'OFFLINE';
       }
 
+      // Smooth scroll navigation to Commands in the scrollytelling section
+      document.querySelectorAll('a[href="#commands"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const story = document.getElementById('scroll-story');
+          if (story) {
+            const targetY = story.offsetTop + story.offsetHeight - window.innerHeight;
+            window.scrollTo({ top: targetY, behavior: 'smooth' });
+          }
+        });
+      });
     });
   </script>
 
