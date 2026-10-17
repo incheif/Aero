@@ -9,15 +9,15 @@
     content="AERO (Agentic Execution for Robotic Operations): Autonomous robotic manipulation studio combining Vision-Language-Action, 3D Semantic Spatial SLAM, Rapier3D physics-aligned kinematics, and real-time Three.js WebGL studio.">
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/home.css?v=4.0">
+  <link rel="stylesheet" href="/css/home.css?v=9.0">
 </head>
 
-<body>
+<body id="top">
 
-  <!-- Sticky Navigation Bar -->
-  <header class="navbar">
+  <!-- Navigation Bar (Hidden during full-screen robot story, smoothly reveals for bottom sections) -->
+  <header class="navbar" id="navbar">
     <div class="home-container nav-wrapper">
-      <a href="/" class="brand" id="brand-link">
+      <a href="#top" class="brand" id="brand-link">
         <div class="brand-icon">
           <img src="/logo.png" alt="AERO Logo" class="brand-logo-img">
         </div>
@@ -28,10 +28,9 @@
       </a>
 
       <ul class="nav-links">
-        <li><a href="#overview" class="nav-link">Overview</a></li>
-        <li><a href="#capabilities" class="nav-link">Capabilities</a></li>
+        <li><a href="#roadmap" class="nav-link">The Road Ahead</a></li>
+        <li><a href="#capabilities" class="nav-link">Foundations</a></li>
         <li><a href="#commands" class="nav-link">Commands</a></li>
-        <li><a href="#roadmap" class="nav-link">Road Ahead</a></li>
       </ul>
 
       <div class="nav-actions">
@@ -39,7 +38,7 @@
           <span class="status-dot" id="server-status-dot"></span>
           <span id="server-status-text">ONLINE / 60 FPS</span>
         </div>
-        <a href="/studio" class="btn-primary" id="btn-launch-nav">
+        <a href="/studio" class="btn-primary" id="btn-launch-nav" style="padding: clamp(6px, 1vh, 9px) clamp(14px, 1.2vw, 20px);">
           <span>Launch Studio</span>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
             stroke-linecap="round" stroke-linejoin="round">
@@ -118,14 +117,14 @@
         <div class="story-cta-buttons">
           <a href="/studio" class="btn-primary btn-story-launch" id="btn-hero-launch-primary">
             <span>Launch Interactive 3D Studio</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"
               stroke-linecap="round" stroke-linejoin="round">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
           </a>
           <a href="#roadmap" class="btn-secondary btn-story-explore" id="btn-explore-specs">
             <span>What's Next</span>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
               stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
@@ -250,8 +249,144 @@
 
   <main class="home-container" id="overview">
 
+    <!-- Future Roadmap: The Road Ahead -->
+    <section id="roadmap" class="road-ahead-section">
+      <div class="section-header">
+        <h2 class="section-title">The Road Ahead: Building Toward More Autonomous Robotics</h2>
+      </div>
+
+      <!-- The Broader Goal Panel (First) -->
+      <div class="broader-goal-panel">
+        <div class="broader-goal-content">
+          <div class="broader-goal-header-row">
+            <div class="broader-goal-badge-wrap">
+              <span class="pulse-dot-cyan"></span>
+              <span class="broader-goal-badge">THE BROADER GOAL</span>
+            </div>
+            <span class="broader-goal-phase">End-to-End Autonomy</span>
+          </div>
+          <h3 class="broader-goal-title">Perception, Planning, Action &amp; Verification in a Continuous Loop</h3>
+          <p class="broader-goal-desc">
+            Rather than treating manipulation as a fixed chain of commands, AERO is building toward a unified
+            architecture
+            that brings perception, planning, action, and verification into an unbroken feedback cycle. By exploring how
+            learned
+            models, explicit planning, geometric constraints, and feedback-driven control reinforce one another, robotic
+            systems
+            can become truly adaptive, reliable, and capable of solving complex tasks.
+          </p>
+
+          <!-- Feedback Loop Pipeline Architecture Visual -->
+          <div class="feedback-loop-pipeline">
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 01</div>
+              <div class="pipeline-step-title">Observe</div>
+              <div class="pipeline-step-detail">Multi-angle visual perception &amp; SLAM</div>
+            </div>
+            <div class="pipeline-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 02</div>
+              <div class="pipeline-step-title">Reason</div>
+              <div class="pipeline-step-detail">VLA policies &amp; cognitive decomposition</div>
+            </div>
+            <div class="pipeline-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 03</div>
+              <div class="pipeline-step-title">Act</div>
+              <div class="pipeline-step-detail">Joint-bounded IK &amp; physical execution</div>
+            </div>
+            <div class="pipeline-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-step-badge">STEP 04</div>
+              <div class="pipeline-step-title">Verify &amp; Replan</div>
+              <div class="pipeline-step-detail">Stability checks &amp; autonomous recovery</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Core Engineering Focus Pillars (Horizontal Blocks) -->
+      <div class="road-ahead-list">
+        <!-- Pillar 01: Closed-Loop Execution & Multi-Camera Perception -->
+        <article class="road-card-horizontal">
+          <div class="road-card-left">
+            <span class="road-card-index">01</span>
+            <h3 class="road-card-title">Closed-Loop Execution &amp; Multi-Camera Perception</h3>
+          </div>
+          <div class="road-card-right">
+            <p class="road-card-desc">
+              Moving beyond fixed sequences to continuous real-time perception. Overhead and wrist camera feeds
+              eliminate
+              occlusions, while active execution monitoring verifies grasp stability, detects deviations, and triggers
+              dynamic
+              replanning.
+            </p>
+            <div class="road-tags">
+              <span class="road-tag">Multi-Camera Perception</span>
+              <span class="road-tag">Execution Monitoring</span>
+              <span class="road-tag">Dynamic Replanning</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Pillar 02: Vision-Language-Action Integration -->
+        <article class="road-card-horizontal">
+          <div class="road-card-left">
+            <span class="road-card-index">02</span>
+            <h3 class="road-card-title">Vision-Language-Action (VLA) Integration</h3>
+          </div>
+          <div class="road-card-right">
+            <p class="road-card-desc">
+              Integrating pretrained VLA models (including Google VLA and OpenVLA) to bind visual observations and
+              natural
+              language to physical control, interfacing learned policies with inverse kinematics, joint constraints, and
+              latency-aware arbitration.
+            </p>
+            <div class="road-tags">
+              <span class="road-tag">Google VLA &amp; OpenVLA</span>
+              <span class="road-tag">Kinematic Safety Bounds</span>
+              <span class="road-tag">Action Arbitration</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Pillar 03: Expanding Simulation Scenarios -->
+        <article class="road-card-horizontal">
+          <div class="road-card-left">
+            <span class="road-card-index">03</span>
+            <h3 class="road-card-title">Expanding Simulation Scenarios</h3>
+          </div>
+          <div class="road-card-right">
+            <p class="road-card-desc">
+              Evaluating AERO across complex assemblies, unfamiliar geometries, and unexpected failure modes. Simulation
+              provides
+              a controlled sandbox for measuring task completion, recovery behaviors, and policy consistency before
+              physical deployment.
+            </p>
+            <div class="road-tags">
+              <span class="road-tag">Complex Assemblies</span>
+              <span class="road-tag">Failure Injection</span>
+              <span class="road-tag">Hardware-Transfer Bench</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <!-- Capabilities Grid -->
-    <section id="capabilities" style="padding-top: 20px;">
+    <section id="capabilities">
       <div class="section-header">
         <h2 class="section-title">Core Engineering Foundations</h2>
       </div>
@@ -363,143 +498,6 @@
         </article>
       </div>
     </section>
-
-
-    <!-- Future Roadmap: The Road Ahead -->
-    <section id="roadmap" class="road-ahead-section">
-      <div class="section-header">
-        <h2 class="section-title">The Road Ahead: Building Toward More Autonomous Robotics</h2>
-      </div>
-
-      <!-- 3 Core Engineering Focus Pillars (Horizontal Blocks) -->
-      <div class="road-ahead-list">
-        <!-- Pillar 01: Closed-Loop Execution & Multi-Camera Perception -->
-        <article class="road-card-horizontal">
-          <div class="road-card-left">
-            <span class="road-card-index">01</span>
-            <h3 class="road-card-title">Closed-Loop Execution &amp; Multi-Camera Perception</h3>
-          </div>
-          <div class="road-card-right">
-            <p class="road-card-desc">
-              Moving beyond fixed sequences to continuous real-time perception. Overhead and wrist camera feeds
-              eliminate
-              occlusions, while active execution monitoring verifies grasp stability, detects deviations, and triggers
-              dynamic
-              replanning.
-            </p>
-            <div class="road-tags">
-              <span class="road-tag">Multi-Camera Perception</span>
-              <span class="road-tag">Execution Monitoring</span>
-              <span class="road-tag">Dynamic Replanning</span>
-            </div>
-          </div>
-        </article>
-
-        <!-- Pillar 02: Vision-Language-Action Integration -->
-        <article class="road-card-horizontal">
-          <div class="road-card-left">
-            <span class="road-card-index">02</span>
-            <h3 class="road-card-title">Vision-Language-Action (VLA) Integration</h3>
-          </div>
-          <div class="road-card-right">
-            <p class="road-card-desc">
-              Integrating pretrained VLA models (including Google VLA and OpenVLA) to bind visual observations and
-              natural
-              language to physical control, interfacing learned policies with inverse kinematics, joint constraints, and
-              latency-aware arbitration.
-            </p>
-            <div class="road-tags">
-              <span class="road-tag">Google VLA &amp; OpenVLA</span>
-              <span class="road-tag">Kinematic Safety Bounds</span>
-              <span class="road-tag">Action Arbitration</span>
-            </div>
-          </div>
-        </article>
-
-        <!-- Pillar 03: Expanding Simulation Scenarios -->
-        <article class="road-card-horizontal">
-          <div class="road-card-left">
-            <span class="road-card-index">03</span>
-            <h3 class="road-card-title">Expanding Simulation Scenarios</h3>
-          </div>
-          <div class="road-card-right">
-            <p class="road-card-desc">
-              Evaluating AERO across complex assemblies, unfamiliar geometries, and unexpected failure modes. Simulation
-              provides
-              a controlled sandbox for measuring task completion, recovery behaviors, and policy consistency before
-              physical deployment.
-            </p>
-            <div class="road-tags">
-              <span class="road-tag">Complex Assemblies</span>
-              <span class="road-tag">Failure Injection</span>
-              <span class="road-tag">Hardware-Transfer Bench</span>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <!-- The Broader Goal Panel -->
-      <div class="broader-goal-panel">
-        <div class="broader-goal-content">
-          <div class="broader-goal-header-row">
-            <div class="broader-goal-badge-wrap">
-              <span class="pulse-dot-cyan"></span>
-              <span class="broader-goal-badge">THE BROADER GOAL</span>
-            </div>
-            <span class="broader-goal-phase">End-to-End Autonomy</span>
-          </div>
-          <h3 class="broader-goal-title">Perception, Planning, Action &amp; Verification in a Continuous Loop</h3>
-          <p class="broader-goal-desc">
-            Rather than treating manipulation as a fixed chain of commands, AERO is building toward a unified
-            architecture
-            that brings perception, planning, action, and verification into an unbroken feedback cycle. By exploring how
-            learned
-            models, explicit planning, geometric constraints, and feedback-driven control reinforce one another, robotic
-            systems
-            can become truly adaptive, reliable, and capable of solving complex tasks.
-          </p>
-
-          <!-- Feedback Loop Pipeline Architecture Visual -->
-          <div class="feedback-loop-pipeline">
-            <div class="pipeline-step">
-              <div class="pipeline-step-badge">STEP 01</div>
-              <div class="pipeline-step-title">Observe</div>
-              <div class="pipeline-step-detail">Multi-angle visual perception &amp; SLAM</div>
-            </div>
-            <div class="pipeline-arrow" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </div>
-            <div class="pipeline-step">
-              <div class="pipeline-step-badge">STEP 02</div>
-              <div class="pipeline-step-title">Reason</div>
-              <div class="pipeline-step-detail">VLA policies &amp; cognitive decomposition</div>
-            </div>
-            <div class="pipeline-arrow" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </div>
-            <div class="pipeline-step">
-              <div class="pipeline-step-badge">STEP 03</div>
-              <div class="pipeline-step-title">Act</div>
-              <div class="pipeline-step-detail">Joint-bounded IK &amp; physical execution</div>
-            </div>
-            <div class="pipeline-arrow" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </div>
-            <div class="pipeline-step">
-              <div class="pipeline-step-badge">STEP 04</div>
-              <div class="pipeline-step-title">Verify &amp; Replan</div>
-              <div class="pipeline-step-detail">Stability checks &amp; autonomous recovery</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
   </main>
 
   <!-- Footer -->
@@ -541,10 +539,9 @@
           </svg>
         </a>
         <a href="/studio" class="footer-link">3D Studio</a>
-        <a href="#overview" class="footer-link">Overview</a>
-        <a href="#capabilities" class="footer-link">Architecture</a>
-        <a href="#commands" class="footer-link">Commands</a>
         <a href="#roadmap" class="footer-link">The Road Ahead</a>
+        <a href="#capabilities" class="footer-link">Foundations</a>
+        <a href="#commands" class="footer-link">Commands</a>
       </div>
     </div>
   </footer>
@@ -565,6 +562,14 @@
         if (text) text.innerText = 'OFFLINE';
       }
 
+      // Smooth scroll navigation to Top for Overview / Brand links
+      document.querySelectorAll('a[href="#top"], a[href="#"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+
       // Smooth scroll navigation to Commands in the scrollytelling section
       document.querySelectorAll('a[href="#commands"]').forEach(link => {
         link.addEventListener('click', (e) => {
@@ -576,6 +581,35 @@
           }
         });
       });
+
+      // Dynamic navbar visibility: hidden only during scroll robot story, visible for bottom sections
+      const navbar = document.getElementById('navbar');
+      const overview = document.getElementById('overview');
+      const story = document.getElementById('scroll-story');
+
+      function updateNavbarVisibility() {
+        if (!navbar) return;
+        if (overview) {
+          const rect = overview.getBoundingClientRect();
+          // Overview begins right below the robot story. When it reaches near the viewport top, show navbar
+          if (rect.top <= 80) {
+            navbar.classList.add('navbar-visible');
+          } else {
+            navbar.classList.remove('navbar-visible');
+          }
+        } else if (story) {
+          const storyBottom = story.offsetTop + story.offsetHeight;
+          if (window.scrollY >= storyBottom - window.innerHeight + 80) {
+            navbar.classList.add('navbar-visible');
+          } else {
+            navbar.classList.remove('navbar-visible');
+          }
+        }
+      }
+
+      window.addEventListener('scroll', updateNavbarVisibility, { passive: true });
+      window.addEventListener('resize', updateNavbarVisibility);
+      updateNavbarVisibility();
     });
   </script>
 
