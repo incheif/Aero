@@ -539,7 +539,7 @@
           cubeGreen.position.set(...greenStacked);
         }
       }
-      // Segment 0.74 - 1.00: 3-Layer Tower Complete — Arm has risen and is completely STOPPED
+      // Segment 0.74 - 1.00: 3 Layer Tower Complete, Arm has risen and is completely STOPPED
       else {
         cubeBlue.position.set(...blueStacked);
         cubeGreen.position.set(...greenStacked);
@@ -704,7 +704,7 @@
         slidePrompt.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
 
         // Typing Effect: types the command between p = 0.32 and 0.40
-        const fullInstruction = "Build a 3-layer tower: stack blue on red, then green on apex.";
+        const fullInstruction = "Build a 3 layer tower: stack blue on red, then green on apex.";
         const typeT = Math.max(0, Math.min(1, (p - 0.32) / 0.08));
         const count = Math.floor(typeT * fullInstruction.length);
 
@@ -737,7 +737,7 @@
         }
       }
 
-      // Slide 4: Description (Active: 0.77 - 0.86) — Revealed strictly after arm stops
+      // Slide 4: Description (Active: 0.77 - 0.86), Revealed strictly after arm stops
       if (slideDesc) {
         let op = 0;
         if (p >= 0.77 && p <= 0.80) op = smoothstep(0.77, 0.80, p);
