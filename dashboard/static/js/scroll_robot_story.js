@@ -15,9 +15,21 @@
       return;
     }
 
-    // Story Slide Elements
+    // Story Slide Elements & Interactive Instruction Terminal
+    const storySticky = document.getElementById('scroll-story-sticky');
+    const suspenseOverlay = document.getElementById('suspense-overlay');
+    const slideSuspense = document.getElementById('slide-suspense');
+    const suspenseLine1 = document.getElementById('suspense-line-1');
+    const suspenseIndicator = document.getElementById('suspense-indicator');
     const slideAero = document.getElementById('slide-aero');
+    const giantAeroTitle = document.getElementById('giant-aero-title');
     const slideTagline = document.getElementById('slide-tagline');
+    const slidePrompt = document.getElementById('slide-prompt');
+    const instructionBox = document.getElementById('instruction-box');
+    const instructionTypedText = document.getElementById('instruction-typed-text');
+    const instructionCursor = document.getElementById('instruction-cursor');
+    const instructionStatusPill = document.getElementById('instruction-status-pill');
+    const instructionPillText = document.getElementById('instruction-pill-text');
     const slideRobotHud = document.getElementById('slide-robot-hud');
     const hudFrameCounter = document.getElementById('hud-frame-counter');
     const slideDesc = document.getElementById('slide-desc');
@@ -253,6 +265,8 @@
     const cubeRed = createCube(0xef4444);   // Base Red
     const cubeBlue = createCube(0x38bdf8);  // Mid Blue
     const cubeGreen = createCube(0x10b981); // Apex Green
+    const cubeYellow = createCube(0xfacc15); // Tabletop Yellow (4th workcell cube)
+    const cubeOrange = createCube(0xf97316); // Tabletop Orange (5th workcell cube)
 
     // Physical World Constants
     const TOWER_X = 0.18;
@@ -272,6 +286,14 @@
 
     cubeBlue.position.set(...blueStart);
     cubeGreen.position.set(...greenStart);
+
+    // 5-block workcell tabletop positions for Yellow & Orange cubes
+    const yellowStart = [0.30, TABLE_Y + CUBE_HALF, -0.11];
+    const orangeStart = [0.28, TABLE_Y + CUBE_HALF, 0.13];
+    cubeYellow.position.set(...yellowStart);
+    cubeYellow.rotation.y = 0.22;
+    cubeOrange.position.set(...orangeStart);
+    cubeOrange.rotation.y = -0.28;
 
     // Target Stacked Positions in 3-layer tower: Red -> Blue -> Green
     const blueStacked = [TOWER_X, TABLE_Y + CUBE_HALF + CUBE_SIZE, TOWER_Z];
@@ -351,9 +373,9 @@
       let carryingBlue = false;
       let carryingGreen = false;
 
-      // Segment 0.0 - 0.26: Standby & Initial Wakeup
-      if (p <= 0.26) {
-        const sub = smoothstep(0.12, 0.26, p);
+      // Segment 0.0 - 0.44: Suspense Darkness, AERO Reveal, Tagline & Instruction Typing
+      if (p <= 0.44) {
+        const sub = smoothstep(0.38, 0.44, p);
         ik.yaw = lerp(0.0, -0.08, sub);
         ik.shoulder = lerp(0.72, 0.65, sub);
         ik.elbow = lerp(-1.18, -1.06, sub);
@@ -365,9 +387,9 @@
 
         camPos = [lerp(2.25, 2.10, sub), lerp(1.55, 1.48, sub), lerp(1.95, 1.85, sub)];
       }
-      // Segment 0.26 - 0.44: STEP 1: Go to BLUE, pick BLUE, place on RED
-      else if (p > 0.26 && p <= 0.44) {
-        const t = (p - 0.26) / 0.18; // normalized 0.0 to 1.0
+      // Segment 0.44 - 0.58: STEP 1: Go to BLUE, pick BLUE, place on RED
+      else if (p > 0.44 && p <= 0.58) {
+        const t = (p - 0.44) / 0.14; // normalized 0.0 to 1.0
 
         // Exact Waypoints for Blue Pick & Place
         const wp_hoverBlue = [blueStart[0], blueStart[1] + 0.14, blueStart[2]];
@@ -443,10 +465,10 @@
 
         cubeGreen.position.set(...greenStart);
       }
-      // Segment 0.44 - 0.62: STEP 2: Go to GREEN, pick GREEN, place on BLUE
-      else if (p > 0.44 && p <= 0.62) {
+      // Segment 0.58 - 0.74: STEP 2: Go to GREEN, pick GREEN, place on BLUE, arm rises up
+      else if (p > 0.58 && p <= 0.74) {
         cubeBlue.position.set(...blueStacked);
-        const t = (p - 0.44) / 0.18; // normalized 0.0 to 1.0
+        const t = (p - 0.58) / 0.16; // normalized 0.0 to 1.0
 
         // Exact Waypoints for Green Pick & Place
         const wp_clearBlue = [blueStacked[0], 0.96, blueStacked[2]];
@@ -455,83 +477,78 @@
         const wp_liftGreen = [greenStart[0], 1.02, greenStart[2]];
         const wp_transitGreen = [greenStacked[0], 1.02, greenStacked[2]];
         const wp_placeGreen = [greenStacked[0], greenStacked[1], greenStacked[2]];
-        const wp_clearGreen = [greenStacked[0], 1.02, greenStacked[2]];
+        const wp_clearGreen = [greenStacked[0], 1.05, greenStacked[2]];
 
         let currentTcp = wp_hoverGreen;
 
-        if (t < 0.18) {
+        if (t < 0.16) {
           // Swing from tower clear over to Green Cube hover
-          const k = smoothstep(0.0, 0.18, t);
+          const k = smoothstep(0.0, 0.16, t);
           currentTcp = vec3Lerp(wp_clearBlue, wp_hoverGreen, k);
           ik = solveIK(currentTcp[0], currentTcp[1], currentTcp[2]);
           gripper = 1.0;
           cubeGreen.position.set(...greenStart);
-        } else if (t < 0.28) {
+        } else if (t < 0.26) {
           // Pure vertical descent to grasp Green Cube
-          const k = smoothstep(0.18, 0.28, t);
+          const k = smoothstep(0.16, 0.26, t);
           currentTcp = vec3Lerp(wp_hoverGreen, wp_graspGreen, k);
           ik = solveIK(currentTcp[0], currentTcp[1], currentTcp[2]);
           gripper = 1.0;
           cubeGreen.position.set(...greenStart);
-        } else if (t < 0.35) {
+        } else if (t < 0.34) {
           // Stationary dwell: Clamp gripper jaws firmly around Green Cube
-          const k = smoothstep(0.28, 0.35, t);
+          const k = smoothstep(0.26, 0.34, t);
           currentTcp = wp_graspGreen;
           ik = solveIK(wp_graspGreen[0], wp_graspGreen[1], wp_graspGreen[2]);
           gripper = lerp(1.0, 0.0, k);
           cubeGreen.position.set(...greenStart);
         } else if (t < 0.48) {
           // Pure vertical lift with Green Cube securely in jaws
-          const k = smoothstep(0.35, 0.48, t);
+          const k = smoothstep(0.34, 0.48, t);
           currentTcp = vec3Lerp(wp_graspGreen, wp_liftGreen, k);
           ik = solveIK(currentTcp[0], currentTcp[1], currentTcp[2]);
           gripper = 0.0;
           carryingGreen = true;
-        } else if (t < 0.68) {
+        } else if (t < 0.66) {
           // Horizontal transit swing across table directly over Apex of tower (over Blue)
-          const k = smoothstep(0.48, 0.68, t);
+          const k = smoothstep(0.48, 0.66, t);
           currentTcp = vec3Lerp(wp_liftGreen, wp_transitGreen, k);
           ik = solveIK(currentTcp[0], currentTcp[1], currentTcp[2]);
           gripper = 0.0;
           carryingGreen = true;
-        } else if (t < 0.80) {
+        } else if (t < 0.78) {
           // Pure vertical descent to Apex stack height (on Blue)
-          const k = smoothstep(0.68, 0.80, t);
+          const k = smoothstep(0.66, 0.78, t);
           currentTcp = vec3Lerp(wp_transitGreen, wp_placeGreen, k);
           ik = solveIK(currentTcp[0], currentTcp[1], currentTcp[2]);
           gripper = 0.0;
           carryingGreen = true;
-        } else if (t < 0.88) {
-          // Stationary dwell: Release gripper jaws on top of Blue Cube
-          const k = smoothstep(0.80, 0.88, t);
+        } else if (t < 0.86) {
+          // Stationary dwell: Release gripper jaws on top of Blue Cube (Green placed!)
+          const k = smoothstep(0.78, 0.86, t);
           currentTcp = wp_placeGreen;
           ik = solveIK(wp_placeGreen[0], wp_placeGreen[1], wp_placeGreen[2]);
           gripper = lerp(0.0, 1.0, k);
           cubeGreen.position.set(...greenStacked);
         } else {
-          // Pure vertical ascent away from completed 3-layer tower
-          const k = smoothstep(0.88, 1.0, t);
+          // Pure vertical ascent away from completed 3-layer tower: Arm rises up!
+          const k = smoothstep(0.86, 1.0, t);
           currentTcp = vec3Lerp(wp_placeGreen, wp_clearGreen, k);
           ik = solveIK(currentTcp[0], currentTcp[1], currentTcp[2]);
           gripper = 1.0;
           cubeGreen.position.set(...greenStacked);
         }
       }
-      // Segment 0.62 - 1.0: Tower Complete — Arm Ascends to High Standby
+      // Segment 0.74 - 1.00: 3-Layer Tower Complete — Arm has risen and is completely STOPPED
       else {
         cubeBlue.position.set(...blueStacked);
         cubeGreen.position.set(...greenStacked);
 
-        const sub = smoothstep(0.62, 0.76, p);
-        const clearPose = solveIK(greenStacked[0], 1.02, greenStacked[2]);
-
-        ik.yaw = lerp(clearPose.yaw, -0.15, sub);
-        ik.shoulder = lerp(clearPose.shoulder, 0.76, sub);
-        ik.elbow = lerp(clearPose.elbow, -1.24, sub);
-        ik.wrist = lerp(clearPose.wrist, -0.32, sub);
+        // Completely stationary in elevated clear posture directly above completed tower
+        ik = solveIK(greenStacked[0], 1.05, greenStacked[2]);
         gripper = 1.0;
 
-        camPos = [lerp(2.10, 1.95, sub), lerp(1.48, 1.38, sub), lerp(1.85, 1.72, sub)];
+        camPos = [2.15, 1.50, 1.85];
       }
 
       // Apply joint rotations directly to arm hierarchy
@@ -563,68 +580,191 @@
 
     // 8. Synchronize HTML Slide Visibility & Animation
     function updateSlides(p) {
-      // Slide 1: Big AERO (Active: 0.00 - 0.15)
-      if (slideAero) {
-        const op = p < 0.10 ? 1.0 : smoothstep(0.15, 0.10, p);
-        const scale = lerp(1.0, 0.88, smoothstep(0.0, 0.15, p));
-        slideAero.style.opacity = op;
-        slideAero.style.transform = `scale(${scale}) translateY(${lerp(0, -30, smoothstep(0.0, 0.15, p))}px)`;
-        slideAero.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
+      // Suspense Thriller Vignette Overlay
+      if (suspenseOverlay) {
+        if (p < 0.12) {
+          suspenseOverlay.style.opacity = '1.0';
+        } else if (p <= 0.20) {
+          suspenseOverlay.style.opacity = String(lerp(1.0, 0.0, smoothstep(0.12, 0.20, p)));
+        } else {
+          suspenseOverlay.style.opacity = '0.0';
+        }
       }
 
-      // Slide 2: Agentic Execution (Active: 0.14 - 0.28)
+      // Dynamic 3D Workcell Lighting: Dark Suspense -> Smooth Rise to Studio Brilliance
+      if (p < 0.10) {
+        keySpot.intensity = 0.0;
+        fillSpot.intensity = 0.06;
+        ambLight.intensity = 0.02;
+        hemiLight.intensity = 0.05;
+        rimLight.intensity = 0.25;
+        scene.background.setHex(0x020204);
+        scene.fog.color.setHex(0x020204);
+      } else if (p >= 0.10 && p <= 0.20) {
+        const lit = smoothstep(0.10, 0.20, p);
+        keySpot.intensity = lerp(0.0, 2.4, lit);
+        fillSpot.intensity = lerp(0.06, 1.1, lit);
+        ambLight.intensity = lerp(0.02, 0.4, lit);
+        hemiLight.intensity = lerp(0.05, 0.85, lit);
+        rimLight.intensity = lerp(0.25, 0.6, lit);
+        scene.background.setHex(0x09090b);
+        scene.fog.color.setHex(0x09090b);
+      } else {
+        keySpot.intensity = 2.4;
+        fillSpot.intensity = 1.1;
+        ambLight.intensity = 0.4;
+        hemiLight.intensity = 0.85;
+        rimLight.intensity = 0.6;
+        scene.background.setHex(0x09090b);
+        scene.fog.color.setHex(0x09090b);
+      }
+
+      // Slide 0: Suspense Thriller Hook (Active: 0.00 - 0.09)
+      if (slideSuspense) {
+        if (p <= 0.09) {
+          slideSuspense.style.opacity = '1';
+          slideSuspense.style.pointerEvents = 'auto';
+
+          if (suspenseLine1) {
+            let op1 = 1.0;
+            if (p > 0.05) op1 = smoothstep(0.085, 0.05, p);
+            const y1 = lerp(0, -25, smoothstep(0.04, 0.085, p));
+            suspenseLine1.style.opacity = op1;
+            suspenseLine1.style.transform = `translateY(${y1}px)`;
+          }
+
+          if (suspenseIndicator) {
+            suspenseIndicator.style.opacity = p < 0.04 ? 1.0 : smoothstep(0.06, 0.04, p);
+          }
+        } else {
+          slideSuspense.style.opacity = '0';
+          slideSuspense.style.pointerEvents = 'none';
+        }
+      }
+
+      // Slide 1: Word AERO (Appears normally: 0.08 - 0.21)
+      if (slideAero) {
+        let opAero = 0;
+        if (p >= 0.08 && p <= 0.12) {
+          opAero = smoothstep(0.08, 0.12, p);
+        } else if (p > 0.12 && p <= 0.17) {
+          opAero = 1.0;
+        } else if (p > 0.17 && p <= 0.21) {
+          opAero = smoothstep(0.21, 0.17, p);
+        }
+
+        const scale = lerp(0.96, 1.0, smoothstep(0.08, 0.14, p));
+        if (giantAeroTitle) {
+          giantAeroTitle.style.transform = `scale(${scale})`;
+        }
+        slideAero.style.opacity = opAero;
+        slideAero.style.pointerEvents = opAero > 0.1 ? 'auto' : 'none';
+      }
+
+      // Sticky transform reset (no shaking)
+      if (storySticky) {
+        storySticky.style.transform = '';
+      }
+
+      // Slide 2: Agentic Execution Tagline (Appears normally: 0.19 - 0.32)
       if (slideTagline) {
         let op = 0;
-        if (p >= 0.12 && p <= 0.20) {
-          op = smoothstep(0.12, 0.18, p);
-        } else if (p > 0.20 && p <= 0.29) {
-          op = smoothstep(0.29, 0.23, p);
+        let yTagline = 20;
+        if (p >= 0.19 && p <= 0.23) {
+          op = smoothstep(0.19, 0.23, p);
+          yTagline = lerp(20, 0, smoothstep(0.19, 0.23, p));
+        } else if (p > 0.23 && p <= 0.28) {
+          op = 1.0;
+          yTagline = 0;
+        } else if (p > 0.28 && p <= 0.32) {
+          op = smoothstep(0.32, 0.28, p);
+          yTagline = lerp(0, -20, smoothstep(0.28, 0.32, p));
         }
         slideTagline.style.opacity = op;
-        slideTagline.style.transform = `translateY(${lerp(25, -20, smoothstep(0.12, 0.29, p))}px)`;
+        slideTagline.style.transform = `translateY(${yTagline}px)`;
         slideTagline.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 3: Robot HUD overlay (Active during arm action: 0.26 - 0.64)
+      // Slide 2.5: Interactive Natural Language Instruction Typing Box (Active: 0.30 - 0.44)
+      if (slidePrompt) {
+        let op = 0;
+        let yPrompt = 25;
+        if (p >= 0.30 && p <= 0.33) {
+          op = smoothstep(0.30, 0.33, p);
+          yPrompt = lerp(25, 0, smoothstep(0.30, 0.33, p));
+        } else if (p > 0.33 && p <= 0.41) {
+          op = 1.0;
+          yPrompt = 0;
+        } else if (p > 0.41 && p <= 0.44) {
+          op = smoothstep(0.44, 0.41, p);
+          yPrompt = lerp(0, -25, smoothstep(0.41, 0.44, p));
+        }
+        slidePrompt.style.opacity = op;
+        slidePrompt.style.transform = `translateY(${yPrompt}px)`;
+        slidePrompt.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
+
+        // Typing Effect: types the command between p = 0.32 and 0.40
+        const fullInstruction = "Build a 3-layer tower: stack blue on red, then green on apex.";
+        const typeT = Math.max(0, Math.min(1, (p - 0.32) / 0.08));
+        const count = Math.floor(typeT * fullInstruction.length);
+
+        if (instructionTypedText && op > 0.02) {
+          instructionTypedText.textContent = fullInstruction.slice(0, count);
+        }
+
+        if (typeT >= 1.0) {
+          if (instructionBox) instructionBox.classList.add('active-executing');
+          if (instructionStatusPill) instructionStatusPill.classList.add('status-dispatched');
+          if (instructionPillText) instructionPillText.textContent = "✓ Compiled & Dispatched to Workcell";
+        } else {
+          if (instructionBox) instructionBox.classList.remove('active-executing');
+          if (instructionStatusPill) instructionStatusPill.classList.remove('status-dispatched');
+          if (instructionPillText) instructionPillText.textContent = typeT > 0 ? "Typing instruction..." : "Awaiting command...";
+        }
+      }
+
+      // Slide 3: Robot HUD overlay (Active during arm action: 0.43 - 0.76)
       if (slideRobotHud) {
         let op = 0;
-        if (p >= 0.25 && p <= 0.32) op = smoothstep(0.25, 0.32, p);
-        else if (p > 0.32 && p <= 0.62) op = 1.0;
-        else if (p > 0.62 && p <= 0.67) op = smoothstep(0.67, 0.62, p);
+        if (p >= 0.43 && p <= 0.47) op = smoothstep(0.43, 0.47, p);
+        else if (p > 0.47 && p <= 0.72) op = 1.0;
+        else if (p > 0.72 && p <= 0.76) op = smoothstep(0.76, 0.72, p);
         slideRobotHud.style.opacity = op;
 
         if (hudFrameCounter && op > 0.05) {
-          const frameProgress = Math.round(smoothstep(0.26, 0.62, p) * 100);
+          const frameProgress = Math.min(100, Math.round(smoothstep(0.44, 0.72, p) * 100));
           hudFrameCounter.innerText = `FRAME ${frameProgress < 10 ? '0' + frameProgress : frameProgress} / 100`;
         }
       }
 
-      // Slide 4: Description (Active: 0.64 - 0.77)
+      // Slide 4: Description (Active: 0.77 - 0.86) — Revealed strictly after arm stops
       if (slideDesc) {
         let op = 0;
-        if (p >= 0.63 && p <= 0.70) op = smoothstep(0.63, 0.69, p);
-        else if (p > 0.70 && p <= 0.77) op = smoothstep(0.77, 0.72, p);
+        if (p >= 0.77 && p <= 0.80) op = smoothstep(0.77, 0.80, p);
+        else if (p > 0.80 && p <= 0.83) op = 1.0;
+        else if (p > 0.83 && p <= 0.86) op = smoothstep(0.86, 0.83, p);
         slideDesc.style.opacity = op;
-        slideDesc.style.transform = `translateY(${lerp(30, -20, smoothstep(0.63, 0.77, p))}px)`;
+        slideDesc.style.transform = `translateY(${lerp(30, -20, smoothstep(0.77, 0.86, p))}px)`;
         slideDesc.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 5: Stats (Active: 0.76 - 0.88)
+      // Slide 5: Stats (Active: 0.85 - 0.94)
       if (slideStats) {
         let op = 0;
-        if (p >= 0.75 && p <= 0.81) op = smoothstep(0.75, 0.81, p);
-        else if (p > 0.81 && p <= 0.88) op = smoothstep(0.88, 0.83, p);
+        if (p >= 0.85 && p <= 0.88) op = smoothstep(0.85, 0.88, p);
+        else if (p > 0.88 && p <= 0.91) op = 1.0;
+        else if (p > 0.91 && p <= 0.94) op = smoothstep(0.94, 0.91, p);
         slideStats.style.opacity = op;
-        slideStats.style.transform = `translateY(${lerp(30, -20, smoothstep(0.75, 0.88, p))}px)`;
+        slideStats.style.transform = `translateY(${lerp(30, -20, smoothstep(0.85, 0.94, p))}px)`;
         slideStats.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 6: Try it yourself CTAs (Active: 0.88 - 1.00)
+      // Slide 6: Try it yourself CTAs (Active: 0.93 - 1.00)
       if (slideCtas) {
         let op = 0;
-        if (p >= 0.87) op = smoothstep(0.87, 0.94, p);
+        if (p >= 0.93) op = smoothstep(0.93, 0.97, p);
         slideCtas.style.opacity = op;
-        slideCtas.style.transform = `translateY(${lerp(30, 0, smoothstep(0.87, 0.96, p))}px)`;
+        slideCtas.style.transform = `translateY(${lerp(30, 0, smoothstep(0.93, 0.98, p))}px)`;
         slideCtas.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
     }

@@ -9,7 +9,7 @@
     content="AERO (Agentic Execution for Robotic Operations): Autonomous robotic manipulation studio combining Vision-Language-Action, 3D Semantic Spatial SLAM, Rapier3D physics-aligned kinematics, and real-time Three.js WebGL studio.">
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/home.css?v=9.0">
+  <link rel="stylesheet" href="/css/home.css?v=12.0">
 </head>
 
 <body id="top">
@@ -52,14 +52,22 @@
 
   <!-- Full-Page Frame-by-Frame Robot Arm Scrollytelling Presentation -->
   <div class="scroll-story-wrapper" id="scroll-story">
-    <div class="scroll-story-sticky">
+    <div class="scroll-story-sticky" id="scroll-story-sticky">
       <canvas id="scrolly-robot-canvas"></canvas>
 
-      <!-- Slide 1: Big AERO on full page -->
-      <div class="story-slide" id="slide-aero">
-        <h1 class="giant-aero-title">AERO</h1>
-        <div class="scroll-indicator">
-          <span>Scroll to explore</span>
+      <!-- Suspense Thriller Vignette / Darkness Layer -->
+      <div class="suspense-overlay" id="suspense-overlay"></div>
+
+      <!-- Slide 0: Suspense Thriller Hook (Pitch Black Mystery Atmosphere) -->
+      <div class="story-slide" id="slide-suspense">
+        <div class="suspense-lines-box">
+          <div class="suspense-line" id="suspense-line-1">
+            <span class="suspense-tag">SYSTEM STATE: STANDBY</span>
+            <p class="suspense-text">Beyond pre-programmed trajectories.</p>
+          </div>
+        </div>
+        <div class="scroll-indicator suspense-indicator" id="suspense-indicator">
+          <span>Scroll to initiate</span>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"></polyline>
@@ -67,16 +75,44 @@
         </div>
       </div>
 
-      <!-- Slide 2: Agentic Execution for Robotic Operations -->
+      <!-- Slide 1: Big AERO (Appears smoothly) -->
+      <div class="story-slide" id="slide-aero">
+        <h1 class="giant-aero-title" id="giant-aero-title">AERO</h1>
+      </div>
+
+      <!-- Slide 2: Agentic Execution for Robotic Operations (Appears smoothly) -->
       <div class="story-slide" id="slide-tagline">
         <h2 class="sub-agency-title">Agentic Execution for Robotic Operations</h2>
+      </div>
+
+      <!-- Slide 2.5: Interactive Natural Language Instruction Typing Box -->
+      <div class="story-slide" id="slide-prompt">
+        <div class="instruction-box" id="instruction-box">
+          <div class="instruction-top-bar">
+            <div class="terminal-dots">
+              <span class="term-dot term-dot-red"></span>
+              <span class="term-dot term-dot-yellow"></span>
+              <span class="term-dot term-dot-green"></span>
+            </div>
+          </div>
+          <div class="instruction-input-area">
+            <span class="instruction-prompt-symbol">&gt;</span>
+            <span class="instruction-typed-text" id="instruction-typed-text"></span><span class="instruction-cursor" id="instruction-cursor">|</span>
+          </div>
+          <div class="instruction-footer">
+            <div class="instruction-status-pill" id="instruction-status-pill">
+              <span class="status-spin-dot" id="instruction-spin-dot"></span>
+              <span id="instruction-pill-text">Typing instruction...</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Slide 3: Robot Arm in action making a 3-layer tower frame by frame -->
       <div class="story-slide story-slide-hud" id="slide-robot-hud">
         <div class="hud-pill">
           <span class="hud-pulse-dot"></span>
-          <span class="hud-text">AUTONOMOUS 3-LAYER STACKING</span>
+          <span class="hud-text">3-Layer Stacking</span>
           <span class="hud-frame" id="hud-frame-counter">FRAME 00 / 100</span>
         </div>
       </div>
@@ -193,15 +229,15 @@
             <!-- Command 4 -->
             <div class="story-cmd-card">
               <div class="story-cmd-top">
-                <span class="story-cmd-type">Active Perception</span>
-                <span class="story-cmd-tag">SLAM Coverage</span>
+                <span class="story-cmd-type">Expressive Gesture</span>
+                <span class="story-cmd-tag">Celebration</span>
               </div>
               <div class="story-cmd-text">
-                "Explore the workspace, scan table quadrants, and update the 3D semantic memory map."
+                "Celebrate task completion with a victory pose."
               </div>
               <div class="story-cmd-footer">
-                <span class="story-cmd-metric">100% Tabletop Coverage</span>
-                <a href="/studio?cmd=Explore+the+workspace,+scan+table+quadrants,+and+update+the+3D+semantic+memory+map."
+                <span class="story-cmd-metric">Expressive Motion Profile</span>
+                <a href="/studio?cmd=Celebrate+task+completion+with+a+victory+pose."
                   class="story-cmd-run">
                   <span>Run in Studio</span> &rarr;
                 </a>
@@ -615,7 +651,7 @@
 
   <!-- Three.js Core and Scroll Robot Storytelling Engine -->
   <script src="/js/vendor/three.min.js"></script>
-  <script src="/js/scroll_robot_story.js?v=4.0"></script>
+  <script src="/js/scroll_robot_story.js?v=9.0"></script>
 </body>
 
 </html>
