@@ -21,6 +21,7 @@ from simulation.constants import (
     TABLE_TOP_Y,
     stack_slot_y,
     get_pyramid_slots,
+    get_train_slots,
     get_distinct_tower_origins,
     BLOCK_TARGETS,
 )
@@ -382,6 +383,10 @@ Output a JSON object ONLY with the following schema:
                 "yellow": "block_yellow",
                 "green": "block_emerald",
                 "emerald": "block_emerald",
+                "purple": "block_purple",
+                "violet": "block_purple",
+                "pink": "block_pink",
+                "rose": "block_pink",
             }
 
             grounded_seq = []
@@ -402,14 +407,14 @@ Output a JSON object ONLY with the following schema:
                     elif clr in color_to_id and color_to_id[clr] not in grounded_seq:
                         grounded_seq.append(color_to_id[clr])
 
-            if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "BUILD_PYRAMID", "SWEEP_TRAJECTORY"):
+            if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "BUILD_PYRAMID", "BLOCK_TRAIN", "SWEEP_TRAJECTORY"):
                 embedded_res = self._embedded_vla_policy(instruction, snapshot, interpretation)
                 self.active_plan = embedded_res.get("plan", [])
                 self.latest_thought = embedded_res.get("thought", "")
                 self.latest_grounding = embedded_res.get("grounding", [])
             else:
                 is_stack_cmd = any(w in instruction.lower() for w in ("stack", "tower", "layer", "tier", "pad", "build", "twer", "towr"))
-                target_layers = interpretation.get("layer_count", len(grounded_seq) or 5) if interpretation else 5
+                target_layers = interpretation.get("layer_count", len(grounded_seq) or 7) if interpretation else 7
 
                 # If interpretation provided target blocks (handles color mapping like red->magenta, blue->cyan), prioritize them
                 if interpretation and interpretation.get("target_blocks"):
@@ -503,7 +508,7 @@ Output a JSON object ONLY with the following schema:
         thought: str = ""
         grounding: List[Dict[str, Any]] = []
 
-        all_block_ids = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald"]
+        all_block_ids = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
         action_type = interpretation.get("action_type", "STACK_TOWER")
 
         # 1. Autonomous Exploration Command
@@ -511,7 +516,7 @@ Output a JSON object ONLY with the following schema:
             thought = (
                 "Google VLA Perception: High-level exploration command detected. "
                 "Synthesizing multi-quadrant sweeping trajectory at safe hover altitude (0.920m) "
-                "to inspect unmapped regions, resolve occlusions, and construct 3D spatial memory for all 5 blocks."
+                "to inspect unmapped regions, resolve occlusions, and construct 3D spatial memory for all 7 blocks."
             )
             plan = [
                 {"action": "EXPLORE_SCAN", "target": (0.25, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "desc": "Center overview survey"},
@@ -604,7 +609,7 @@ Output a JSON object ONLY with the following schema:
                     f"Transit clearance dynamically maintained at Y>={final_clearance:.3f}m to eliminate inter-tower collision."
                 )
 
-        # 5. Pyramid Tower Assembly (Multi-Contact Stepped / Square Pyramid)
+        # 5. Pyramid Tower Assembly (Multi-Contact Stepped / Square / 6-Block Pyramid)
         elif action_type == "BUILD_PYRAMID":
             pyramid_type = interpretation.get("pyramid_type", "3_block_stepped")
             pyramid_targets = interpretation.get("target_blocks", [])
@@ -618,7 +623,18 @@ Output a JSON object ONLY with the following schema:
                 bx, by, bz = b["position"]
                 tx, ty, tz = slot_target
                 is_apex = (idx == len(slots) - 1)
-                slot_role = "Apex Cap" if is_apex else f"Base {idx + 1}"
+                if pyramid_type == "6_block_stepped":
+                    if idx < 3:
+                        slot_role = f"Base Tier {idx + 1}"
+                    elif idx < 5:
+                        slot_role = f"Mid Tier {idx - 2}"
+                    else:
+                        slot_role = "Apex Cap"
+                elif pyramid_type == "5_block_square":
+                    slot_role = "Apex Cap" if is_apex else f"Base {idx + 1}"
+                else:
+                    slot_role = "Apex Cap" if is_apex else f"Base {idx + 1}"
+
                 grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "role": slot_role, "target_coords": [tx, ty, tz]})
                 extra_dwell = 10 if is_apex else 0
                 steps = self._generate_pick_and_place(
@@ -638,9 +654,49 @@ Output a JSON object ONLY with the following schema:
 
             thought = interpretation.get("thought", "")
             if not thought:
+                if pyramid_type == "6_block_stepped":
+                    pyr_label = "6-block stepped"
+                elif pyramid_type == "5_block_square":
+                    pyr_label = "5-block 3D square"
+                else:
+                    pyr_label = "3-block stepped"
                 thought = (
-                    f"Google VLA Pyramid Stacking: Synthesizing {'5-block 3D square' if pyramid_type == '5_block_square' else '3-block stepped'} pyramid assembly. "
+                    f"Google VLA Pyramid Stacking: Synthesizing {pyr_label} pyramid assembly. "
                     f"Sequence: {' | '.join(pyr_strs)}. Applying zero-impulse vertical descent holding to maintain contact stability."
+                )
+
+        # 5B. Block Train Assembly (All Boxes In One Line)
+        elif action_type == "BLOCK_TRAIN":
+            train_targets = interpretation.get("target_blocks", all_block_ids)
+            slots = get_train_slots(len(train_targets), origin=(0.38, TABLE_TOP_Y, 0.0))
+
+            train_strs = []
+            for idx, (b_id, slot_target) in enumerate(zip(train_targets, slots)):
+                b = blocks.get(b_id)
+                if not b:
+                    continue
+                bx, by, bz = b["position"]
+                tx, ty, tz = slot_target
+                car_label = "Engine (Lead)" if idx == 0 else f"Carriage {idx}"
+                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "role": car_label, "target_coords": [tx, ty, tz]})
+                steps = self._generate_pick_and_place(bx, bz, tx, tz, ty, b["name"])
+                plan.extend(steps)
+                train_strs.append(f"{car_label}:{b['name']}")
+
+            plan.append({
+                "action": "HOME",
+                "target": (0.20, SAFE_HOVER_Y, 0.0),
+                "gripper": 0.0,
+                "desc": f"Block train ({len(train_targets)} boxes in line) complete: Arm retracting to standby",
+                "dwell_ticks": 10,
+            })
+
+            thought = interpretation.get("thought", "")
+            if not thought:
+                thought = (
+                    f"Google VLA Block Train Assembly: Arranging {len(train_targets)} boxes in a single line. "
+                    f"Sequence: {' | '.join(train_strs)}. "
+                    "Aligning linearly along tabletop Z-axis with collision-safe pick-and-place trajectories."
                 )
 
         # 6. Cartesian Spatial Trajectories (Left-to-Right & Top-to-Bottom Sweeps)
@@ -661,7 +717,7 @@ Output a JSON object ONLY with the following schema:
 
         # 7. Single Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
         else:
-            target_layers = interpretation.get("layer_count", 5)
+            target_layers = interpretation.get("layer_count", 7)
             interp_targets = interpretation.get("target_blocks", [])
             blocks_to_use = [b for b in interp_targets if b in blocks][:target_layers]
 
@@ -690,7 +746,7 @@ Output a JSON object ONLY with the following schema:
             thought = interpretation.get("thought", "")
             if not thought:
                 unused_names = [blocks[uid]["name"] for uid in unused_blocks if uid in blocks]
-                leave_str = f"Remaining block(s) ({', '.join(unused_names)}) remain resting on table." if unused_names else "All 5 blocks stacked."
+                leave_str = f"Remaining block(s) ({', '.join(unused_names)}) remain resting on table." if unused_names else "All 7 blocks stacked."
                 thought = (
                     f"Google VLA Cognitive Reasoner: User requested {target_layers}-layer tower assembly on designated target pad. "
                     f"Synthesizing {target_layers}-layer sequence: " + " | ".join(layer_strs) + f". {leave_str} "
