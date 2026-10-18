@@ -35,6 +35,8 @@
     const slideDesc = document.getElementById('slide-desc');
     const slideStats = document.getElementById('slide-stats');
     const slideCtas = document.getElementById('slide-ctas');
+    const storyCtaHeroBlock = document.getElementById('story-cta-hero-block');
+    const storyCommandsWrap = document.getElementById('commands');
 
     // 1. Setup Three.js Scene
     const scene = new THREE.Scene();
@@ -373,9 +375,9 @@
       let carryingBlue = false;
       let carryingGreen = false;
 
-      // Segment 0.0 - 0.44: Suspense Darkness, AERO Reveal, Tagline & Instruction Typing
-      if (p <= 0.44) {
-        const sub = smoothstep(0.38, 0.44, p);
+      // Segment 0.0 - 0.43: Suspense Darkness, AERO Reveal, Tagline & Instruction Typing
+      if (p <= 0.43) {
+        const sub = smoothstep(0.38, 0.43, p);
         ik.yaw = lerp(0.0, -0.08, sub);
         ik.shoulder = lerp(0.72, 0.65, sub);
         ik.elbow = lerp(-1.18, -1.06, sub);
@@ -387,9 +389,9 @@
 
         camPos = [lerp(2.25, 2.10, sub), lerp(1.55, 1.48, sub), lerp(1.95, 1.85, sub)];
       }
-      // Segment 0.44 - 0.58: STEP 1: Go to BLUE, pick BLUE, place on RED
-      else if (p > 0.44 && p <= 0.58) {
-        const t = (p - 0.44) / 0.14; // normalized 0.0 to 1.0
+      // Segment 0.43 - 0.57: STEP 1: Go to BLUE, pick BLUE, place on RED
+      else if (p > 0.43 && p <= 0.57) {
+        const t = (p - 0.43) / 0.14; // normalized 0.0 to 1.0
 
         // Exact Waypoints for Blue Pick & Place
         const wp_hoverBlue = [blueStart[0], blueStart[1] + 0.14, blueStart[2]];
@@ -465,10 +467,10 @@
 
         cubeGreen.position.set(...greenStart);
       }
-      // Segment 0.58 - 0.74: STEP 2: Go to GREEN, pick GREEN, place on BLUE, arm rises up
-      else if (p > 0.58 && p <= 0.74) {
+      // Segment 0.57 - 0.71: STEP 2: Go to GREEN, pick GREEN, place on BLUE, arm rises up
+      else if (p > 0.57 && p <= 0.71) {
         cubeBlue.position.set(...blueStacked);
-        const t = (p - 0.58) / 0.16; // normalized 0.0 to 1.0
+        const t = (p - 0.57) / 0.14; // normalized 0.0 to 1.0
 
         // Exact Waypoints for Green Pick & Place
         const wp_clearBlue = [blueStacked[0], 0.96, blueStacked[2]];
@@ -539,7 +541,7 @@
           cubeGreen.position.set(...greenStacked);
         }
       }
-      // Segment 0.74 - 1.00: 3 Layer Tower Complete, Arm has risen and is completely STOPPED
+      // Segment 0.71 - 1.00: 3 Layer Tower Complete, Arm has risen and is completely STOPPED
       else {
         cubeBlue.position.set(...blueStacked);
         cubeGreen.position.set(...greenStacked);
@@ -582,17 +584,17 @@
     function updateSlides(p) {
       // Suspense Thriller Vignette Overlay
       if (suspenseOverlay) {
-        if (p < 0.12) {
+        if (p < 0.10) {
           suspenseOverlay.style.opacity = '1.0';
-        } else if (p <= 0.20) {
-          suspenseOverlay.style.opacity = String(lerp(1.0, 0.0, smoothstep(0.12, 0.20, p)));
+        } else if (p <= 0.18) {
+          suspenseOverlay.style.opacity = String(lerp(1.0, 0.0, smoothstep(0.10, 0.18, p)));
         } else {
           suspenseOverlay.style.opacity = '0.0';
         }
       }
 
       // Dynamic 3D Workcell Lighting: Dark Suspense -> Smooth Rise to Studio Brilliance
-      if (p < 0.10) {
+      if (p < 0.08) {
         keySpot.intensity = 0.0;
         fillSpot.intensity = 0.06;
         ambLight.intensity = 0.02;
@@ -600,8 +602,8 @@
         rimLight.intensity = 0.25;
         scene.background.setHex(0x020204);
         scene.fog.color.setHex(0x020204);
-      } else if (p >= 0.10 && p <= 0.20) {
-        const lit = smoothstep(0.10, 0.20, p);
+      } else if (p >= 0.08 && p <= 0.18) {
+        const lit = smoothstep(0.08, 0.18, p);
         keySpot.intensity = lerp(0.0, 2.4, lit);
         fillSpot.intensity = lerp(0.06, 1.1, lit);
         ambLight.intensity = lerp(0.02, 0.4, lit);
@@ -619,22 +621,22 @@
         scene.fog.color.setHex(0x09090b);
       }
 
-      // Slide 0: Suspense Thriller Hook (Active: 0.00 - 0.09)
+      // Slide 0: Suspense Thriller Hook (Active: 0.00 - 0.08)
       if (slideSuspense) {
-        if (p <= 0.09) {
+        if (p <= 0.08) {
           slideSuspense.style.opacity = '1';
           slideSuspense.style.pointerEvents = 'auto';
 
           if (suspenseLine1) {
             let op1 = 1.0;
-            if (p > 0.05) op1 = smoothstep(0.085, 0.05, p);
-            const y1 = lerp(0, -25, smoothstep(0.04, 0.085, p));
+            if (p > 0.045) op1 = smoothstep(0.075, 0.045, p);
+            const y1 = lerp(0, -25, smoothstep(0.04, 0.075, p));
             suspenseLine1.style.opacity = op1;
             suspenseLine1.style.transform = `translateY(${y1}px)`;
           }
 
           if (suspenseIndicator) {
-            suspenseIndicator.style.opacity = p < 0.04 ? 1.0 : smoothstep(0.06, 0.04, p);
+            suspenseIndicator.style.opacity = p < 0.035 ? 1.0 : smoothstep(0.055, 0.035, p);
           }
         } else {
           slideSuspense.style.opacity = '0';
@@ -642,18 +644,18 @@
         }
       }
 
-      // Slide 1: Word AERO (Appears normally: 0.08 - 0.21)
+      // Slide 1: Word AERO (Active: 0.07 - 0.17, Full Plateau: 0.10 - 0.14)
       if (slideAero) {
         let opAero = 0;
-        if (p >= 0.08 && p <= 0.12) {
-          opAero = smoothstep(0.08, 0.12, p);
-        } else if (p > 0.12 && p <= 0.17) {
+        if (p >= 0.07 && p <= 0.10) {
+          opAero = smoothstep(0.07, 0.10, p);
+        } else if (p > 0.10 && p <= 0.14) {
           opAero = 1.0;
-        } else if (p > 0.17 && p <= 0.21) {
-          opAero = smoothstep(0.21, 0.17, p);
+        } else if (p > 0.14 && p <= 0.17) {
+          opAero = smoothstep(0.17, 0.14, p);
         }
 
-        const scale = lerp(0.96, 1.0, smoothstep(0.08, 0.14, p));
+        const scale = lerp(0.96, 1.0, smoothstep(0.07, 0.12, p));
         if (giantAeroTitle) {
           giantAeroTitle.style.transform = `scale(${scale})`;
         }
@@ -661,51 +663,51 @@
         slideAero.style.pointerEvents = opAero > 0.1 ? 'auto' : 'none';
       }
 
-      // Sticky transform reset (no shaking)
+      // Sticky transform reset
       if (storySticky) {
         storySticky.style.transform = '';
       }
 
-      // Slide 2: Agentic Execution Tagline (Appears normally: 0.19 - 0.32)
+      // Slide 2: Agentic Execution Tagline (Active: 0.16 - 0.27, Full Plateau: 0.20 - 0.24)
       if (slideTagline) {
         let op = 0;
         let yTagline = 20;
-        if (p >= 0.19 && p <= 0.23) {
-          op = smoothstep(0.19, 0.23, p);
-          yTagline = lerp(20, 0, smoothstep(0.19, 0.23, p));
-        } else if (p > 0.23 && p <= 0.28) {
+        if (p >= 0.16 && p <= 0.20) {
+          op = smoothstep(0.16, 0.20, p);
+          yTagline = lerp(20, 0, smoothstep(0.16, 0.20, p));
+        } else if (p > 0.20 && p <= 0.24) {
           op = 1.0;
           yTagline = 0;
-        } else if (p > 0.28 && p <= 0.32) {
-          op = smoothstep(0.32, 0.28, p);
-          yTagline = lerp(0, -20, smoothstep(0.28, 0.32, p));
+        } else if (p > 0.24 && p <= 0.27) {
+          op = smoothstep(0.27, 0.24, p);
+          yTagline = lerp(0, -20, smoothstep(0.24, 0.27, p));
         }
         slideTagline.style.opacity = op;
         slideTagline.style.transform = `translateY(${yTagline}px)`;
         slideTagline.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 2.5: Interactive Natural Language Instruction Typing Box (Active: 0.30 - 0.44)
+      // Slide 2.5: Interactive Natural Language Instruction Typing Box (Active: 0.26 - 0.43)
       if (slidePrompt) {
         let op = 0;
         let yPrompt = 25;
-        if (p >= 0.30 && p <= 0.33) {
-          op = smoothstep(0.30, 0.33, p);
-          yPrompt = lerp(25, 0, smoothstep(0.30, 0.33, p));
-        } else if (p > 0.33 && p <= 0.41) {
+        if (p >= 0.26 && p <= 0.29) {
+          op = smoothstep(0.26, 0.29, p);
+          yPrompt = lerp(25, 0, smoothstep(0.26, 0.29, p));
+        } else if (p > 0.29 && p <= 0.39) {
           op = 1.0;
           yPrompt = 0;
-        } else if (p > 0.41 && p <= 0.44) {
-          op = smoothstep(0.44, 0.41, p);
-          yPrompt = lerp(0, -25, smoothstep(0.41, 0.44, p));
+        } else if (p > 0.39 && p <= 0.43) {
+          op = smoothstep(0.43, 0.39, p);
+          yPrompt = lerp(0, -25, smoothstep(0.39, 0.43, p));
         }
         slidePrompt.style.opacity = op;
         slidePrompt.style.transform = `translateY(${yPrompt}px)`;
         slidePrompt.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
 
-        // Typing Effect: types the command between p = 0.32 and 0.40
+        // Typing Effect: types the command between p = 0.29 and 0.37
         const fullInstruction = "Build a 3 layer tower: stack blue on red, then green on apex.";
-        const typeT = Math.max(0, Math.min(1, (p - 0.32) / 0.08));
+        const typeT = Math.max(0, Math.min(1, (p - 0.29) / 0.08));
         const count = Math.floor(typeT * fullInstruction.length);
 
         if (instructionTypedText && op > 0.02) {
@@ -723,49 +725,83 @@
         }
       }
 
-      // Slide 3: Robot HUD overlay (Active during arm action: 0.43 - 0.76)
+      // Slide 3: Robot HUD overlay (Active during arm action: 0.42 - 0.72)
       if (slideRobotHud) {
         let op = 0;
-        if (p >= 0.43 && p <= 0.47) op = smoothstep(0.43, 0.47, p);
-        else if (p > 0.47 && p <= 0.72) op = 1.0;
-        else if (p > 0.72 && p <= 0.76) op = smoothstep(0.76, 0.72, p);
+        if (p >= 0.42 && p <= 0.45) op = smoothstep(0.42, 0.45, p);
+        else if (p > 0.45 && p <= 0.69) op = 1.0;
+        else if (p > 0.69 && p <= 0.72) op = smoothstep(0.72, 0.69, p);
         slideRobotHud.style.opacity = op;
 
         if (hudFrameCounter && op > 0.05) {
-          const frameProgress = Math.min(100, Math.round(smoothstep(0.44, 0.72, p) * 100));
+          const frameProgress = Math.min(100, Math.round(smoothstep(0.43, 0.70, p) * 100));
           hudFrameCounter.innerText = `FRAME ${frameProgress < 10 ? '0' + frameProgress : frameProgress} / 100`;
         }
       }
 
-      // Slide 4: Description (Active: 0.77 - 0.86), Revealed strictly after arm stops
+      // Slide 4: Description (Active: 0.72 - 0.81, Plateau: 0.75 - 0.78), Revealed strictly after arm stops
       if (slideDesc) {
         let op = 0;
-        if (p >= 0.77 && p <= 0.80) op = smoothstep(0.77, 0.80, p);
-        else if (p > 0.80 && p <= 0.83) op = 1.0;
-        else if (p > 0.83 && p <= 0.86) op = smoothstep(0.86, 0.83, p);
+        if (p >= 0.72 && p <= 0.75) op = smoothstep(0.72, 0.75, p);
+        else if (p > 0.75 && p <= 0.78) op = 1.0;
+        else if (p > 0.78 && p <= 0.81) op = smoothstep(0.81, 0.78, p);
         slideDesc.style.opacity = op;
-        slideDesc.style.transform = `translateY(${lerp(30, -20, smoothstep(0.77, 0.86, p))}px)`;
+        slideDesc.style.transform = `translateY(${lerp(30, -20, smoothstep(0.72, 0.81, p))}px)`;
         slideDesc.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 5: Stats (Active: 0.85 - 0.94)
+      // Slide 5: Stats (Active: 0.80 - 0.89, Plateau: 0.83 - 0.86)
       if (slideStats) {
         let op = 0;
-        if (p >= 0.85 && p <= 0.88) op = smoothstep(0.85, 0.88, p);
-        else if (p > 0.88 && p <= 0.91) op = 1.0;
-        else if (p > 0.91 && p <= 0.94) op = smoothstep(0.94, 0.91, p);
+        if (p >= 0.80 && p <= 0.83) op = smoothstep(0.80, 0.83, p);
+        else if (p > 0.83 && p <= 0.86) op = 1.0;
+        else if (p > 0.86 && p <= 0.89) op = smoothstep(0.89, 0.86, p);
         slideStats.style.opacity = op;
-        slideStats.style.transform = `translateY(${lerp(30, -20, smoothstep(0.85, 0.94, p))}px)`;
+        slideStats.style.transform = `translateY(${lerp(30, -20, smoothstep(0.80, 0.89, p))}px)`;
         slideStats.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 6: Try it yourself CTAs (Active: 0.93 - 1.00)
+      // Slide 6: Try it yourself CTAs & Verified Manipulation Commands (Active: 0.88 - 1.00)
+      // Staggered reveal: Launch button arrives first, suggestion / commands arrive afterwards
       if (slideCtas) {
-        let op = 0;
-        if (p >= 0.93) op = smoothstep(0.93, 0.97, p);
-        slideCtas.style.opacity = op;
-        slideCtas.style.transform = `translateY(${lerp(30, 0, smoothstep(0.93, 0.98, p))}px)`;
-        slideCtas.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
+        let opCtas = 0;
+        if (p >= 0.88) opCtas = smoothstep(0.88, 0.91, p);
+        slideCtas.style.opacity = opCtas;
+        slideCtas.style.pointerEvents = opCtas > 0.1 ? 'auto' : 'none';
+
+        // Stage 1: "Try it yourself" + "Launch Interactive 3D Studio" button arrives first
+        if (storyCtaHeroBlock) {
+          let opBtn = 0;
+          let yBtn = 25;
+          if (p >= 0.88 && p <= 0.92) {
+            const k = smoothstep(0.88, 0.92, p);
+            opBtn = k;
+            yBtn = lerp(25, 0, k);
+          } else if (p > 0.92) {
+            opBtn = 1.0;
+            yBtn = 0;
+          }
+          storyCtaHeroBlock.style.opacity = opBtn;
+          storyCtaHeroBlock.style.transform = `translateY(${yBtn}px)`;
+          storyCtaHeroBlock.style.pointerEvents = opBtn > 0.1 ? 'auto' : 'none';
+        }
+
+        // Stage 2: Commands & Suggestions arrive strictly afterwards
+        if (storyCommandsWrap) {
+          let opCmds = 0;
+          let yCmds = 30;
+          if (p >= 0.925 && p <= 0.965) {
+            const k = smoothstep(0.925, 0.965, p);
+            opCmds = k;
+            yCmds = lerp(30, 0, k);
+          } else if (p > 0.965) {
+            opCmds = 1.0;
+            yCmds = 0;
+          }
+          storyCommandsWrap.style.opacity = opCmds;
+          storyCommandsWrap.style.transform = `translateY(${yCmds}px)`;
+          storyCommandsWrap.style.pointerEvents = opCmds > 0.1 ? 'auto' : 'none';
+        }
       }
     }
 
