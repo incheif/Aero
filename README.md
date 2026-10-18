@@ -102,12 +102,16 @@ AERO extends beyond conventional single-column stacking to support multi-zone to
 - **Twin Landing Zones**: Designated `STACK_ORIGIN_A` $(0.46, 0.72, 0.10)$ and `STACK_ORIGIN_B` $(0.46, 0.72, 0.32)$, spaced 22 cm apart to guarantee arm and finger clearance.
 - **Cognitive Block Partitioning**: Splits available cubes into distinct subsets (e.g., Tower 1: Red & Blue; Tower 2: Yellow & Orange).
 - **Collision-Free Transit Clamping**: Before moving to assemble Tower B, the arm dynamically clamps transit hover altitude ($y \ge \text{Tower A Top} + 0.10\text{ m}$) so it never strikes Tower A.
-- **Physical Feasibility Check**: Prompts requesting $> 5$ cubes across towers are automatically caught and safely rejected.
+- **Physical Feasibility Check**: Prompts requesting $> 7$ cubes across towers are automatically caught and safely rejected.
 
 ### 2. Multi-Contact Pyramid Assembly (`BUILD_PYRAMID`)
 - **3-Block Stepped 2D Pyramid**: Two base cubes are placed side-by-side touching flush along the Z-axis, with an apex block placed directly centered across the seam at Layer 1.
 - **5-Block 3D Square Pyramid**: Four base cubes in a $2 \times 2$ grid with the fifth apex cube seated on top.
+- **6-Block Stepped 3-Tier Pyramid**: Three base cubes touching in a row along Z, two middle cubes bridging the base seams, and one apex cap centered on top in multi-contact equilibrium.
 - **Zero-Impulse Contact Dwell**: Extra holding dwell ($+10$ ticks) during soft gripper release ensures base blocks remain stationary without frictional displacement.
+
+### 3. Linear Block Train Assembly (`BLOCK_TRAIN`)
+- **All Boxes in One Line**: Aligns all requested blocks (up to 7) in a clean, collision-free linear sequence along the tabletop Z-axis with dedicated engine and carriage roles.
 
 ---
 
@@ -193,15 +197,16 @@ The server boots and launches **`http://127.0.0.1:8000`** in your browser automa
 | Category | Example Instruction | Action Performed |
 | :--- | :--- | :--- |
 | **Multi-Zone Stacking** | `"Make 2 distinct towers of 2 blocks each."` | Builds Tower 1 on Pad A and Tower 2 on Pad B with elevated clearance |
-| **Pyramid Geometry** | `"Build a pyramid tower."` | Assembles a 3-block stepped pyramid with apex bridging |
+| **Pyramid Geometry** | `"Build a 6-block pyramid tower."` | Assembles a 3-tier stepped pyramid (3 base + 2 mid + 1 apex) |
+| **Linear Formation** | `"Make a block train with all boxes in one line."` | Arranges all 7 blocks in a straight line along the tabletop Z-axis |
 | **Full 3D Pyramid** | `"Build a 5-block square pyramid."` | Assembles 4 cubes in a $2 \times 2$ base with a centered apex cube |
 | **Multi-Layer Tower** | `"Make a 3-layer tower of red, blue and yellow."` | Stacks 3 layers in exact color order with zero-impulse drop |
-| **Apex Stacking** | `"Build a 5-layer tower with all 5 blocks."` | Full workcell utilization (5 vertical layers) |
+| **Apex Stacking** | `"Build a 7-layer tower with all 7 blocks."` | Full workcell utilization (7 vertical layers) |
 | **Visual Servoing** | `"Run ColorSeek visual servoing."` | 5 Hz RGB pixel tracker closed-loop servoing |
 | **Expressive Gesture**| `"Wave high to greet me."` | 3-cycle expressive waving motion |
 | **Dynamic Pointing** | `"Point at the blue cube."` | Aims TCP end-effector directly at target block coordinates |
 | **Active SLAM** | `"Explore the workspace and scan table quadrants."` | 4-quadrant trajectory survey updating 3D semantic memory |
-| **Feasibility Reject** | `"Build a tower of 6 blocks."` | Automatically rejects impossible request (only 5 cubes available) |
+| **Feasibility Reject** | `"Build a tower of 8 blocks."` | Automatically rejects impossible request (only 7 cubes available) |
 
 ---
 
