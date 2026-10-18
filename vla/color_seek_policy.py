@@ -67,6 +67,12 @@ def classify_pixel(r: int, g: int, b: int) -> Optional[str]:
     # Green / Emerald
     if (g > 130 and g > r + 30 and g > b + 30) or (r < 60 and g > 140 and b < 100):
         return "emerald"
+    # Purple
+    if (r > 90 and r < 185 and b > 180 and g < 100):
+        return "purple"
+    # Pink
+    if (r > 200 and b > 110 and g < 110 and (r - b) < 130):
+        return "pink"
     if r < 65 and 50 < g < 110 and 65 < b < 125:
         return "pad"
     return None
@@ -87,6 +93,8 @@ def find_blobs(img: Image.Image) -> Dict[str, Optional[Tuple[float, float]]]:
         "magenta": [0.0, 0.0, 0.0],
         "yellow": [0.0, 0.0, 0.0],
         "emerald": [0.0, 0.0, 0.0],
+        "purple": [0.0, 0.0, 0.0],
+        "pink": [0.0, 0.0, 0.0],
         "tcp": [0.0, 0.0, 0.0],
         "pad": [0.0, 0.0, 0.0],
     }
@@ -101,7 +109,7 @@ def find_blobs(img: Image.Image) -> Dict[str, Optional[Tuple[float, float]]]:
                 sums[tag][2] += 1
                 
     blobs: Dict[str, Optional[Tuple[float, float]]] = {}
-    min_counts = {"tcp": 3, "pad": 6, "cyan": 5, "orange": 5, "magenta": 5, "yellow": 5, "emerald": 5}
+    min_counts = {"tcp": 3, "pad": 6, "cyan": 5, "orange": 5, "magenta": 5, "yellow": 5, "emerald": 5, "purple": 5, "pink": 5}
     for tag, (su, sv, n) in sums.items():
         min_n = min_counts.get(tag, 4)
         if n >= min_n:
