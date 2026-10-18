@@ -52,9 +52,13 @@ class VLACognitiveNode(Node):
         # Dummy snapshot representation for headless ROS 2 mode
         mock_snapshot = {
             "blocks": [
-                {"id": "block_cyan", "name": "Cyan Cube", "color": "#00AEEF", "position": [0.26, 0.75, -0.16]},
-                {"id": "block_orange", "name": "Orange Cube", "color": "#F7941E", "position": [0.36, 0.75, 0.0]},
-                {"id": "block_magenta", "name": "Magenta Cube", "color": "#E11D8F", "position": [0.28, 0.75, 0.16]},
+                {"id": "block_magenta", "name": "Red Cube", "color": "#FF1E27", "position": [0.26, 0.75, 0.12]},
+                {"id": "block_cyan", "name": "Blue Cube", "color": "#1E60FF", "position": [0.24, 0.75, -0.18]},
+                {"id": "block_yellow", "name": "Yellow Cube", "color": "#FFC300", "position": [0.15, 0.75, -0.06]},
+                {"id": "block_emerald", "name": "Green Cube", "color": "#00B341", "position": [0.18, 0.75, 0.24]},
+                {"id": "block_orange", "name": "Orange Cube", "color": "#FF5500", "position": [0.34, 0.75, -0.06]},
+                {"id": "block_purple", "name": "Purple Cube", "color": "#9333EA", "position": [0.16, 0.75, -0.25]},
+                {"id": "block_pink", "name": "Pink Cube", "color": "#FF2E93", "position": [0.32, 0.75, 0.22]},
             ],
             "tcp": {"position": [0.0, 0.85, 0.0]}
         }
