@@ -105,7 +105,7 @@ class UserSession:
             "system",
             "STARTUP",
             f"Session {session_id} initialized with private workcell.",
-            "Rapier3D physics running at 60 FPS (dt=16.6ms). 5 blocks spawned at canonical table coordinates."
+            "Rapier3D physics running at 60 FPS (dt=16.6ms). 7 blocks spawned at canonical table coordinates."
         )
 
     def log_event(self, category: str, badge: str, what: str, how: str) -> Dict[str, Any]:
@@ -262,6 +262,10 @@ class UserSession:
             "yellow": "block_yellow",
             "emerald": "block_emerald",
             "green": "block_emerald",
+            "purple": "block_purple",
+            "violet": "block_purple",
+            "pink": "block_pink",
+            "rose": "block_pink",
         }
 
         target_block = None
@@ -414,7 +418,11 @@ class UserSession:
                     s_grip = step_data.get("gripper", 0.0)
                     s_dwell = step_data.get("dwell_ticks", 10)
                     # Dynamically update active target block for camera HUD
-                    for c_name, b_id in [("cyan", "block_cyan"), ("orange", "block_orange"), ("magenta", "block_magenta"), ("yellow", "block_yellow"), ("emerald", "block_emerald"), ("green", "block_emerald")]:
+                    for c_name, b_id in [
+                        ("cyan", "block_cyan"), ("orange", "block_orange"), ("magenta", "block_magenta"),
+                        ("yellow", "block_yellow"), ("emerald", "block_emerald"), ("green", "block_emerald"),
+                        ("purple", "block_purple"), ("violet", "block_purple"), ("pink", "block_pink"), ("rose", "block_pink")
+                    ]:
                         if c_name in s_desc.lower() or b_id in s_desc.lower():
                             self.active_target_block_id = b_id
                             break
