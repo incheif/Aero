@@ -37,6 +37,8 @@
     const slideCtas = document.getElementById('slide-ctas');
     const storyCtaHeroBlock = document.getElementById('story-cta-hero-block');
     const storyCommandsWrap = document.getElementById('commands');
+    const storyCommandsHeader = document.getElementById('story-commands-header');
+    const storyCmdCards = Array.from(document.querySelectorAll('.story-cmd-card'));
 
     // 1. Setup Three.js Scene
     const scene = new THREE.Scene();
@@ -269,6 +271,8 @@
     const cubeGreen = createCube(0x10b981); // Apex Green
     const cubeYellow = createCube(0xfacc15); // Tabletop Yellow (4th workcell cube)
     const cubeOrange = createCube(0xf97316); // Tabletop Orange (5th workcell cube)
+    const cubePurple = createCube(0x9333ea); // Tabletop Purple (6th workcell cube)
+    const cubePink = createCube(0xff2e93);   // Tabletop Pink (7th workcell cube)
 
     // Physical World Constants
     const TOWER_X = 0.18;
@@ -289,13 +293,19 @@
     cubeBlue.position.set(...blueStart);
     cubeGreen.position.set(...greenStart);
 
-    // 5-block workcell tabletop positions for Yellow & Orange cubes
+    // 7-block workcell tabletop positions for Yellow, Orange, Purple, and Pink cubes
     const yellowStart = [0.30, TABLE_Y + CUBE_HALF, -0.11];
     const orangeStart = [0.28, TABLE_Y + CUBE_HALF, 0.13];
+    const purpleStart = [0.16, TABLE_Y + CUBE_HALF, -0.25];
+    const pinkStart = [0.32, TABLE_Y + CUBE_HALF, 0.22];
     cubeYellow.position.set(...yellowStart);
     cubeYellow.rotation.y = 0.22;
     cubeOrange.position.set(...orangeStart);
     cubeOrange.rotation.y = -0.28;
+    cubePurple.position.set(...purpleStart);
+    cubePurple.rotation.y = 0.18;
+    cubePink.position.set(...pinkStart);
+    cubePink.rotation.y = -0.15;
 
     // Target Stacked Positions in 3-layer tower: Red -> Blue -> Green
     const blueStacked = [TOWER_X, TABLE_Y + CUBE_HALF + CUBE_SIZE, TOWER_Z];
@@ -739,45 +749,46 @@
         }
       }
 
-      // Slide 4: Description (Active: 0.72 - 0.81, Plateau: 0.75 - 0.78), Revealed strictly after arm stops
+      // Slide 4: Description (Active: 0.715 - 0.795, Plateau: 0.740 - 0.770), Revealed strictly after arm stops
       if (slideDesc) {
         let op = 0;
-        if (p >= 0.72 && p <= 0.75) op = smoothstep(0.72, 0.75, p);
-        else if (p > 0.75 && p <= 0.78) op = 1.0;
-        else if (p > 0.78 && p <= 0.81) op = smoothstep(0.81, 0.78, p);
+        if (p >= 0.715 && p <= 0.740) op = smoothstep(0.715, 0.740, p);
+        else if (p > 0.740 && p <= 0.770) op = 1.0;
+        else if (p > 0.770 && p <= 0.795) op = smoothstep(0.795, 0.770, p);
         slideDesc.style.opacity = op;
-        slideDesc.style.transform = `translateY(${lerp(30, -20, smoothstep(0.72, 0.81, p))}px)`;
+        slideDesc.style.transform = `translateY(${lerp(30, -20, smoothstep(0.715, 0.795, p))}px)`;
         slideDesc.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 5: Stats (Active: 0.80 - 0.89, Plateau: 0.83 - 0.86)
+      // Slide 5: Stats (Active: 0.790 - 0.865, Plateau: 0.815 - 0.840)
       if (slideStats) {
         let op = 0;
-        if (p >= 0.80 && p <= 0.83) op = smoothstep(0.80, 0.83, p);
-        else if (p > 0.83 && p <= 0.86) op = 1.0;
-        else if (p > 0.86 && p <= 0.89) op = smoothstep(0.89, 0.86, p);
+        if (p >= 0.790 && p <= 0.815) op = smoothstep(0.790, 0.815, p);
+        else if (p > 0.815 && p <= 0.840) op = 1.0;
+        else if (p > 0.840 && p <= 0.865) op = smoothstep(0.865, 0.840, p);
         slideStats.style.opacity = op;
-        slideStats.style.transform = `translateY(${lerp(30, -20, smoothstep(0.80, 0.89, p))}px)`;
+        slideStats.style.transform = `translateY(${lerp(30, -20, smoothstep(0.790, 0.865, p))}px)`;
         slideStats.style.pointerEvents = op > 0.1 ? 'auto' : 'none';
       }
 
-      // Slide 6: Try it yourself CTAs & Verified Manipulation Commands (Active: 0.88 - 1.00)
-      // Staggered reveal: Launch button arrives first, suggestion / commands arrive afterwards
+      // Slide 6: Try it yourself CTAs & Verified Manipulation Commands (Active: 0.860 - 1.00)
+      // Extended standalone dwell for the Launch button, followed by fast/snappy sequential entrance of each command card
       if (slideCtas) {
         let opCtas = 0;
-        if (p >= 0.88) opCtas = smoothstep(0.88, 0.91, p);
+        if (p >= 0.860 && p <= 0.885) opCtas = smoothstep(0.860, 0.885, p);
+        else if (p > 0.885) opCtas = 1.0;
         slideCtas.style.opacity = opCtas;
         slideCtas.style.pointerEvents = opCtas > 0.1 ? 'auto' : 'none';
 
-        // Stage 1: "Try it yourself" + "Launch Interactive 3D Studio" button arrives first
+        // Stage 1: "Try it yourself" + "Launch Interactive 3D Studio" button arrives first & dwells alone
         if (storyCtaHeroBlock) {
           let opBtn = 0;
           let yBtn = 25;
-          if (p >= 0.88 && p <= 0.92) {
-            const k = smoothstep(0.88, 0.92, p);
+          if (p >= 0.860 && p <= 0.885) {
+            const k = smoothstep(0.860, 0.885, p);
             opBtn = k;
             yBtn = lerp(25, 0, k);
-          } else if (p > 0.92) {
+          } else if (p > 0.885) {
             opBtn = 1.0;
             yBtn = 0;
           }
@@ -786,21 +797,59 @@
           storyCtaHeroBlock.style.pointerEvents = opBtn > 0.1 ? 'auto' : 'none';
         }
 
-        // Stage 2: Commands & Suggestions arrive strictly afterwards
+        // Stage 2: Commands Wrapper & Section Title
         if (storyCommandsWrap) {
           let opCmds = 0;
-          let yCmds = 30;
-          if (p >= 0.925 && p <= 0.965) {
-            const k = smoothstep(0.925, 0.965, p);
-            opCmds = k;
-            yCmds = lerp(30, 0, k);
-          } else if (p > 0.965) {
+          if (p >= 0.925 && p <= 0.935) {
+            opCmds = smoothstep(0.925, 0.935, p);
+          } else if (p > 0.935) {
             opCmds = 1.0;
-            yCmds = 0;
           }
           storyCommandsWrap.style.opacity = opCmds;
-          storyCommandsWrap.style.transform = `translateY(${yCmds}px)`;
           storyCommandsWrap.style.pointerEvents = opCmds > 0.1 ? 'auto' : 'none';
+        }
+
+        if (storyCommandsHeader) {
+          let opHdr = 0;
+          let yHdr = 18;
+          if (p >= 0.925 && p <= 0.935) {
+            const k = smoothstep(0.925, 0.935, p);
+            opHdr = k;
+            yHdr = lerp(18, 0, k);
+          } else if (p > 0.935) {
+            opHdr = 1.0;
+            yHdr = 0;
+          }
+          storyCommandsHeader.style.opacity = opHdr;
+          storyCommandsHeader.style.transform = `translateY(${yHdr}px)`;
+        }
+
+        // Stage 3: Each command card appears separately in snappy sequence across 0.934 - 0.975
+        const cardCount = storyCmdCards.length;
+        if (cardCount > 0) {
+          const seqStart = 0.934;
+          const cardSpan = 0.0075;
+          const cardStep = 0.0055;
+
+          for (let i = 0; i < cardCount; i++) {
+            const card = storyCmdCards[i];
+            const cStart = seqStart + i * cardStep;
+            const cEnd = cStart + cardSpan;
+
+            let kCard = 0;
+            if (p <= cStart) {
+              kCard = 0.0;
+            } else if (p >= cEnd) {
+              kCard = 1.0;
+            } else {
+              kCard = smoothstep(cStart, cEnd, p);
+            }
+
+            const yCard = lerp(22, 0, kCard);
+            card.style.opacity = kCard;
+            card.style.setProperty('--card-reveal-y', `${yCard}px`);
+            card.style.pointerEvents = kCard > 0.2 ? 'auto' : 'none';
+          }
         }
       }
     }
