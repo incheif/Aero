@@ -72,7 +72,7 @@ DEFAULT_JOINTS: Dict[str, float] = {
     "gripper": 0.0,
 }
 
-# Initial Spawns for 5 Tabletop Cubes (Ultra-vivid, high-contrast, distinct primary & secondary colors)
+# Initial Spawns for 7 Tabletop Cubes (Ultra-vivid, high-contrast, distinct primary & secondary colors)
 BLOCK_SPAWNS = [
     {
         "id": "block_magenta",
@@ -109,6 +109,20 @@ BLOCK_SPAWNS = [
         "color_rgb": (255, 85, 0),
         "position": [0.34, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.06],
     },
+    {
+        "id": "block_purple",
+        "name": "Purple Cube",
+        "color": "#9333EA",
+        "color_rgb": (147, 51, 234),
+        "position": [0.16, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.25],
+    },
+    {
+        "id": "block_pink",
+        "name": "Pink Cube",
+        "color": "#FF2E93",
+        "color_rgb": (255, 46, 147),
+        "position": [0.32, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.22],
+    },
 ]
 
 # Target Landing Zones
@@ -122,7 +136,7 @@ STACK_TOLERANCE: float = 0.038  # Tolerance in meters to verify stacked placemen
 
 def get_distinct_tower_origins(num_towers: int) -> List[Tuple[float, float, float]]:
     """
-    Computes distinct, reachable tabletop origin coordinates for N towers (1 to 5).
+    Computes distinct, reachable tabletop origin coordinates for N towers (1 to 7).
     Maintains clean spatial clearance between towers along the Z axis.
     """
     if num_towers <= 1:
@@ -142,13 +156,32 @@ def get_distinct_tower_origins(num_towers: int) -> List[Tuple[float, float, floa
             (0.47, TABLE_TOP_Y, 0.26),
             (0.45, TABLE_TOP_Y, 0.36),
         ]
-    else:  # 5 towers
+    elif num_towers == 5:
         return [
             (0.45, TABLE_TOP_Y, 0.05),
             (0.46, TABLE_TOP_Y, 0.13),
             (0.48, TABLE_TOP_Y, 0.21),
             (0.46, TABLE_TOP_Y, 0.29),
             (0.45, TABLE_TOP_Y, 0.37),
+        ]
+    elif num_towers == 6:
+        return [
+            (0.44, TABLE_TOP_Y, 0.04),
+            (0.46, TABLE_TOP_Y, 0.11),
+            (0.48, TABLE_TOP_Y, 0.18),
+            (0.48, TABLE_TOP_Y, 0.25),
+            (0.46, TABLE_TOP_Y, 0.32),
+            (0.44, TABLE_TOP_Y, 0.38),
+        ]
+    else:  # 7 towers
+        return [
+            (0.43, TABLE_TOP_Y, 0.03),
+            (0.45, TABLE_TOP_Y, 0.09),
+            (0.47, TABLE_TOP_Y, 0.15),
+            (0.48, TABLE_TOP_Y, 0.21),
+            (0.47, TABLE_TOP_Y, 0.27),
+            (0.45, TABLE_TOP_Y, 0.33),
+            (0.43, TABLE_TOP_Y, 0.39),
         ]
 
 def stack_slot_y(layer: int) -> float:
@@ -160,10 +193,27 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
     Computes metric target coordinates for pyramid assembly.
     - 3_block_stepped: 2 base cubes touching along Z + 1 apex cube centered on top.
     - 5_block_square: 4 base cubes touching in a 2x2 square + 1 apex cube centered on top.
+    - 6_block_stepped: 3 base cubes touching in a row along Z + 2 mid cubes bridging base + 1 apex cube centered on top.
     """
     ox, oy, oz = origin
-    if style == "5_block_square":
-        half = CUBE_HALF
+    half = CUBE_HALF
+    size = CUBE_SIZE
+    if style in ("6_block_stepped", "6_block_pyramid", "6_block"):
+        base_y = stack_slot_y(0)
+        mid_y = stack_slot_y(1)
+        apex_y = stack_slot_y(2)
+        return [
+            # Layer 0: 3 base cubes in a row along Z
+            (ox, base_y, oz - size),
+            (ox, base_y, oz),
+            (ox, base_y, oz + size),
+            # Layer 1: 2 mid cubes bridging base seams
+            (ox, mid_y, oz - half),
+            (ox, mid_y, oz + half),
+            # Layer 2: 1 apex cube centered on top
+            (ox, apex_y, oz),
+        ]
+    elif style == "5_block_square":
         base_y = stack_slot_y(0)
         apex_y = stack_slot_y(1)
         return [
@@ -175,7 +225,6 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
         ]
     else:
         # Default: 3-block 2D stepped pyramid
-        half = CUBE_HALF
         base_y = stack_slot_y(0)
         apex_y = stack_slot_y(1)
         return [
@@ -184,13 +233,33 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
             (ox, apex_y, oz),
         ]
 
-# Target coordinates for multi-layer tower (up to 5 layers)
+def get_train_slots(
+    num_blocks: int = 7,
+    origin: Tuple[float, float, float] = (0.38, TABLE_TOP_Y, 0.0),
+    spacing: float = CUBE_SIZE + 0.005
+) -> List[Tuple[float, float, float]]:
+    """
+    Computes metric target coordinates for block train assembly (all boxes in one line).
+    Aligns cubes along the tabletop Z axis with stable clearance.
+    """
+    ox, oy, oz = origin
+    base_y = stack_slot_y(0)
+    slots = []
+    start_offset = -((num_blocks - 1) / 2.0) * spacing
+    for i in range(num_blocks):
+        z_pos = oz + start_offset + i * spacing
+        slots.append((ox, base_y, z_pos))
+    return slots
+
+# Target coordinates for multi-layer tower (up to 7 layers)
 BLOCK_TARGETS = {
     "block_cyan": (STACK_ORIGIN[0], stack_slot_y(0), STACK_ORIGIN[2]),
     "block_orange": (STACK_ORIGIN[0], stack_slot_y(1), STACK_ORIGIN[2]),
     "block_magenta": (STACK_ORIGIN[0], stack_slot_y(2), STACK_ORIGIN[2]),
     "block_yellow": (STACK_ORIGIN[0], stack_slot_y(3), STACK_ORIGIN[2]),
     "block_emerald": (STACK_ORIGIN[0], stack_slot_y(4), STACK_ORIGIN[2]),
+    "block_purple": (STACK_ORIGIN[0], stack_slot_y(5), STACK_ORIGIN[2]),
+    "block_pink": (STACK_ORIGIN[0], stack_slot_y(6), STACK_ORIGIN[2]),
 }
 
 # 128x128 Orthographic Work-Cell Camera Coordinates
