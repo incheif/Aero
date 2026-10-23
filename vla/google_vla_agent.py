@@ -28,6 +28,7 @@ from simulation.constants import (
 from simulation.camera import render_camera_frame, encode_image_base64, world_to_pixel
 from .cost_tracker import VLACostTracker
 from .instruction_interpreter import InstructionInterpreter
+from .h_jepa import HierarchicalVLJEPAOrchestrator
 
 # Support both modern Google GenAI SDK (google-genai v1.x) and legacy (google-generativeai)
 import warnings
@@ -73,6 +74,7 @@ class GoogleVLAAgent:
         self.active_mode: str = "embedded"  # 'live_cloud' or 'embedded'
         self.last_api_error: Optional[str] = None
         self.cost_tracker = VLACostTracker()
+        self.h_jepa = HierarchicalVLJEPAOrchestrator()
 
     def set_api_key(self, api_key: str):
         self.api_key = (api_key or "").strip()
@@ -874,3 +876,39 @@ Output a JSON object ONLY with the following schema:
                 "dwell_ticks": 12,
             },
         ]
+
+    def plan_with_h_jepa(
+        self,
+        instruction: str,
+        snapshot: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Plans and coordinates multi-box manipulation via the 2-Level H-JEPA World Model.
+        Grounds natural language into Level 2 latent space and activates micro-CEM control.
+        """
+        blocks = snapshot.get("blocks", [])
+        plan_res = self.h_jepa.plan_task(
+            instruction=instruction,
+            initial_blocks=blocks
+        )
+        self.active_mode = "h_jepa"
+        self.execution_status = "EXECUTING"
+        self.latest_thought = (
+            f"[H-JEPA Active] Level 2 Task Planner initialized {plan_res['num_subgoals']} sub-goals "
+            f"for '{instruction}'. Micro-CEM optimizer active at Level 1."
+        )
+        return plan_res
+
+    def step_h_jepa(
+        self,
+        current_tcp: Tuple[float, float, float],
+        current_joints: Dict[str, float],
+        blocks: List[Dict[str, Any]],
+        current_gripper: float = 0.0
+    ) -> Optional[Dict[str, Any]]:
+        """Executes a single simulation tick using Level 1 Micro-CEM control."""
+        res = self.h_jepa.step(current_tcp, current_joints, blocks, current_gripper)
+        if res and res.get("is_done"):
+            self.execution_status = "COMPLETED"
+            self.latest_thought = "[H-JEPA Complete] All pyramid/macro sub-goals successfully verified."
+        return res
