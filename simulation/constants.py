@@ -251,6 +251,66 @@ def get_train_slots(
         slots.append((ox, base_y, z_pos))
     return slots
 
+
+def get_letter_slots(
+    letter: str = "D",
+    origin: Tuple[float, float, float] = (0.35, TABLE_TOP_Y, 0.0),
+    spacing: float = CUBE_SIZE + 0.006
+) -> List[Tuple[float, float, float]]:
+    """
+    Computes metric target coordinates on the tabletop to form letters / alphabet shapes.
+    Supports letters: 'D', 'L', 'T', 'O', 'C', 'U', 'H'.
+    """
+    ox, oy, oz = origin
+    base_y = stack_slot_y(0)
+    ltr = letter.upper().strip()
+    s = spacing
+
+    if ltr == "D":
+        # Form letter D with 6 blocks:
+        # Stem (3 blocks along Z) + Curved loop (3 blocks extending forward along X)
+        return [
+            (ox, base_y, oz - s),                 # 1. Bottom stem
+            (ox, base_y, oz),                     # 2. Mid stem
+            (ox, base_y, oz + s),                 # 3. Top stem
+            (ox + s * 1.05, base_y, oz + s * 0.75), # 4. Top-right curve
+            (ox + s * 1.30, base_y, oz),            # 5. Outer apex of D
+            (ox + s * 1.05, base_y, oz - s * 0.75), # 6. Bottom-right curve
+        ]
+    elif ltr == "L":
+        return [
+            (ox, base_y, oz + s * 1.2),
+            (ox, base_y, oz + s * 0.2),
+            (ox, base_y, oz - s * 0.8),
+            (ox + s * 0.9, base_y, oz - s * 0.8),
+            (ox + s * 1.8, base_y, oz - s * 0.8),
+        ]
+    elif ltr == "T":
+        return [
+            (ox, base_y, oz - s),
+            (ox, base_y, oz),
+            (ox, base_y, oz + s),
+            (ox + s, base_y, oz),
+            (ox + s * 2, base_y, oz),
+        ]
+    elif ltr == "O":
+        return [
+            (ox - s * 0.6, base_y, oz - s * 0.6),
+            (ox - s * 0.6, base_y, oz + s * 0.6),
+            (ox + s * 0.6, base_y, oz + s * 0.6),
+            (ox + s * 0.6, base_y, oz - s * 0.6),
+        ]
+    elif ltr == "C":
+        return [
+            (ox + s, base_y, oz + s),
+            (ox, base_y, oz + s),
+            (ox, base_y, oz),
+            (ox, base_y, oz - s),
+            (ox + s, base_y, oz - s),
+        ]
+    else:
+        return get_train_slots(5, origin, spacing)
+
 # Target coordinates for multi-layer tower (up to 7 layers)
 BLOCK_TARGETS = {
     "block_cyan": (STACK_ORIGIN[0], stack_slot_y(0), STACK_ORIGIN[2]),

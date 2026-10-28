@@ -39,6 +39,12 @@
           <span id="header-session-id">Session</span>
         </div>
 
+        <!-- Policy Engine Mode Header Indicator -->
+        <div class="session-pill" id="header-policy-mode" title="Execution Model: Click to toggle (Auto / H-JEPA / Deterministic)" style="cursor: pointer; user-select: none;">
+          <span class="session-dot" id="header-policy-dot" style="background: #c084fc;"></span>
+          <span id="header-policy-text">✦ AUTO</span>
+        </div>
+
         <!-- Sidebar / Telemetry Toggle Button (Adapts on Laptop/Mobile) -->
         <button class="btn-header btn-toggle-panel" id="btn-toggle-sidebar" title="Toggle Telemetry & Logs Panel" aria-label="Toggle Telemetry Panel">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -169,6 +175,26 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
           <span>🚫 Break a Block (Impossible)</span>
         </button>
+      </div>
+
+      <!-- Policy Engine Mode Switcher: Parallel Choice between Deterministic, H-JEPA, and Auto -->
+      <div class="model-mode-selector-bar">
+        <span class="mode-selector-label">POLICY ENGINE:</span>
+        <div class="mode-toggle-group">
+          <button type="button" class="mode-toggle-btn active" data-mode="auto" id="btn-mode-auto" title="Auto: Directs simple tasks to fast deterministic, complex tasks to H-JEPA">
+            <span class="mode-dot dot-auto"></span>
+            <span>✦ Auto</span>
+          </button>
+          <button type="button" class="mode-toggle-btn" data-mode="hjepa" id="btn-mode-hjepa" title="Two-Level Hierarchical VL-JEPA World Model + Level 1 Micro-CEM optimizer">
+            <span class="mode-dot dot-hjepa"></span>
+            <span>🧠 H-JEPA World Model</span>
+          </button>
+          <button type="button" class="mode-toggle-btn" data-mode="deterministic" id="btn-mode-deterministic" title="Deterministic 5-DOF IK with analytical trajectory waypoints">
+            <span class="mode-dot dot-det"></span>
+            <span>⚡ Deterministic</span>
+          </button>
+        </div>
+        <span class="active-mode-caption" id="active-mode-caption">Dynamic routing active</span>
       </div>
 
       <!-- Command Input with Rest & Execute Buttons -->

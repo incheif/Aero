@@ -341,7 +341,7 @@
   <script>
     (function() {
       const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session_id') || localStorage.getItem('AERO_SESSION_ID') || 'sess_default';
+      const sessionId = urlParams.get('session_id') || localStorage.getItem('AERO_SESSION_ID') || sessionStorage.getItem('AERO_SESSION_ID') || 'default';
       
       document.getElementById('session-display').innerText = sessionId;
 

@@ -56,6 +56,7 @@ class CommandRequest(BaseModel):
     api_key: Optional[str] = None
     model: Optional[str] = "gemini-2.5-flash"
     session_id: Optional[str] = None
+    execution_mode: Optional[str] = "auto"
 
 class TestKeyRequest(BaseModel):
     api_key: str
@@ -184,12 +185,16 @@ class UserSession:
             or self.controller.is_active
             or self.color_seek_active
             or self.explorer.is_exploring
+            or (hasattr(self.vla_agent, "h_jepa") and getattr(self.vla_agent.h_jepa, "is_active", False))
         )
 
     def handle_reset(self):
         self.color_seek_active = False
         self.color_seek.reset()
         self.controller.stop()
+        if hasattr(self.vla_agent, "h_jepa"):
+            self.vla_agent.h_jepa.is_active = False
+            self.vla_agent.h_jepa.micro_phase = "IDLE"
         self.active_target_block_id = None
         self.detected_blobs = {}
         self.explorer.is_exploring = False
@@ -210,12 +215,13 @@ class UserSession:
     async def handle_vla_command(self, cmd: str) -> Dict[str, Any]:
         self.manual_mode = False
         self.last_active = time.time()
+        mode_label = getattr(self.vla_agent, "execution_mode", "auto").upper()
 
         self.log_event(
             "vla",
             "INSTRUCTION",
             f"VLA instruction received: \"{cmd}\"",
-            f"Dispatched to Google VLA reasoning pipeline (Model: {self.vla_agent.model_name}). Synthesizing spatial chain-of-thought."
+            f"Execution Mode: {mode_label} · Policy model: {self.vla_agent.model_name}. Synthesizing spatial action sequence."
         )
 
         # Automatically reset the system before every new action
@@ -366,6 +372,21 @@ class UserSession:
             )
             return result
 
+        # If 2-Level Hierarchical VL-JEPA world model was activated:
+        if result.get("action_type") == "H_JEPA":
+            self.controller.stop()
+            self.explorer.is_exploring = False
+            self.color_seek_active = False
+            self.vla_agent.execution_status = "EXECUTING"
+            h_plan = result.get("h_jepa_plan", {})
+            self.log_event(
+                "vla",
+                "H-JEPA",
+                f"2-Level H-VL-JEPA World Model activated ({h_plan.get('num_subgoals', 0)} sub-goals)",
+                f"Task: \"{cmd}\" · Structure: {h_plan.get('structure_type')} · Level 1 Micro-CEM Optimizer active at 60 Hz."
+            )
+            return result
+
         # If active frontier exploration was requested:
         if result.get("action_type") == "EXPLORE" or (
             any(w in cmd.lower() for w in ("explore", "scan table", "survey", "frontier"))
@@ -462,6 +483,36 @@ class UserSession:
                     self.vla_agent.execution_status = "COMPLETED"
                     self.vla_agent.latest_thought = "ColorSeek: Closed-loop visual stacking sequence completed!"
 
+        # 1c. Two-Level Hierarchical VL-JEPA World Model step (60 Hz Micro-CEM)
+        elif getattr(self.vla_agent, "active_mode", None) == "h_jepa" and getattr(self.vla_agent.h_jepa, "is_active", False) and not self.manual_mode:
+            blocks_raw = self.sim.get_snapshot()["blocks"]
+            step_cmd = self.vla_agent.step_h_jepa(
+                current_tcp=tcp_pos,
+                current_joints=self.sim.joints,
+                blocks=blocks_raw,
+                current_gripper=self.sim.joints.get("gripper", 0.0)
+            )
+            if step_cmd:
+                self.sim.set_joint_targets(step_cmd["joints"], step_cmd["gripper"])
+                prev_phase = getattr(self, "prev_hjepa_phase", None)
+                cur_phase = step_cmd.get("phase", "")
+                if prev_phase != cur_phase:
+                    self.prev_hjepa_phase = cur_phase
+                    self.log_event(
+                        "vla",
+                        "H-JEPA",
+                        f"Subgoal {step_cmd['subgoal_index']+1}/{step_cmd['total_subgoals']}: {cur_phase}",
+                        f"{step_cmd.get('subgoal_desc', '')} · CEM Latency: {step_cmd.get('cem_latency_ms', 0):.1f}ms · Latent Dist: {step_cmd.get('latent_distance', 0):.3f}"
+                    )
+            elif not getattr(self.vla_agent.h_jepa, "is_active", False):
+                self.vla_agent.execution_status = "COMPLETED"
+                self.log_event(
+                    "vla",
+                    "COMPLETED",
+                    "Hierarchical VL-JEPA multi-step assembly completed!",
+                    "All macro subgoals verified against physical stability hold standards."
+                )
+
         # 2. Frontier exploration step if active
         elif self.explorer.is_exploring and not self.manual_mode:
             wp = self.explorer.get_current_waypoint()
@@ -537,6 +588,13 @@ class UserSession:
                 "has_api_key": bool(self.vla_agent.api_key),
                 "mode": "colorseek" if self.color_seek_active else getattr(self.vla_agent, "active_mode", "embedded"),
                 "last_api_error": getattr(self.vla_agent, "last_api_error", None),
+                "h_jepa": {
+                    "is_active": getattr(self.vla_agent, "active_mode", None) == "h_jepa" and getattr(self.vla_agent.h_jepa, "is_active", False),
+                    "phase": getattr(self.vla_agent.h_jepa, "micro_phase", "IDLE"),
+                    "subgoal_index": getattr(self.vla_agent.h_jepa, "current_subgoal_idx", 0),
+                    "total_subgoals": len(getattr(self.vla_agent.h_jepa, "subgoals", [])),
+                    "latest_cem": getattr(self.vla_agent.h_jepa, "latest_cem_telemetry", {}),
+                },
             },
             "cost": self.vla_agent.get_cost_summary(),
             "perception": {
@@ -548,10 +606,12 @@ class UserSession:
             "manual_mode": self.manual_mode,
         }
 
-        # Send logs ONLY when new log events occur, rather than bundling recent_logs on every tick
+        # Ensure client log streams are synchronized without dropping entries
         if self.pending_logs:
-            payload["logs"] = list(self.pending_logs)
+            payload["logs"] = list(self.recent_logs[-40:])
             self.pending_logs.clear()
+        elif self.frame_count % 30 == 0 and self.recent_logs:
+            payload["logs"] = list(self.recent_logs[-40:])
 
         return payload
 
@@ -769,6 +829,8 @@ async def api_command(req: CommandRequest, request: Request):
         sess.vla_agent.set_api_key(req.api_key)
     if req.model:
         sess.vla_agent.model_name = req.model
+    if req.execution_mode:
+        sess.vla_agent.execution_mode = req.execution_mode
 
     res = await sess.handle_vla_command(req.command)
     return res
@@ -821,7 +883,10 @@ async def api_rest(request: Request):
 @app.get("/api/logs")
 async def api_get_logs(request: Request):
     sid = extract_session_id(request)
-    sess = session_manager.get_or_create(sid)
+    if (sid == "default" or sid == "sess_default") and len(session_manager.sessions) == 1:
+        sess = next(iter(session_manager.sessions.values()))
+    else:
+        sess = session_manager.get_or_create(sid)
     return {"logs": sess.recent_logs}
 
 

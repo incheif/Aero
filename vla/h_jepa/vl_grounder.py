@@ -17,6 +17,7 @@ from simulation.constants import (
     STACK_ORIGIN,
     get_pyramid_slots,
     get_train_slots,
+    get_letter_slots,
     TABLE_TOP_Y,
     CUBE_SIZE,
 )
@@ -91,15 +92,59 @@ class VLJEPAGrounder:
         z_text = z_text / max(1e-6, np.linalg.norm(z_text))
 
         # Determine target structure configuration
+        inst_lower = instruction.lower()
+        is_letter = None
+        for ltr in ["d", "l", "t", "o", "c", "u", "h"]:
+            matches = [
+                f"letter {ltr}", f"make {ltr}", f"form {ltr}", f"shape {ltr}",
+                f"pattern {ltr}", f"{ltr} shape", f"{ltr} pattern", f"{ltr} with blocks",
+                f"'{ltr}'", f'"{ltr}"'
+            ]
+            if any(p in inst_lower for p in matches) or (
+                f" {ltr} " in f" {inst_lower} " and any(w in inst_lower for w in ["make", "build", "place", "form", "pattern", "letter", "shape", "blocks"])
+            ):
+                is_letter = ltr.upper()
+                break
+
+        is_tower = any(w in inst_lower for w in ["tower", "stack", "vertical"]) and not any(w in inst_lower for w in ["pyramid", "stepped", "triangle"])
+        is_train = "train" in inst_lower or "line" in inst_lower or "row" in inst_lower
+        
         pyr_type = "3_block_stepped"
-        if any(w in instruction.lower() for w in ["6", "six"]):
+        if any(w in inst_lower for w in ["6", "six"]):
             pyr_type = "6_block_stepped"
-        elif any(w in instruction.lower() for w in ["5", "five", "square"]):
+        elif any(w in inst_lower for w in ["5", "five", "square"]):
             pyr_type = "5_block_square"
         
         if target_slots is None:
-            if "train" in instruction.lower():
-                target_slots = get_train_slots(4, STACK_ORIGIN)
+            if is_letter:
+                target_slots = get_letter_slots(is_letter, (0.35, TABLE_TOP_Y, 0.0))
+            elif is_train:
+                if any(w in inst_lower for w in ["all", "every", "7", "seven"]):
+                    num_t = 7
+                else:
+                    num_t = 4
+                    for token, cnt in [("2", 2), ("3", 3), ("4", 4), ("5", 5), ("6", 6), ("7", 7)]:
+                        if token in inst_lower:
+                            num_t = cnt
+                            break
+                target_slots = get_train_slots(num_t, (0.38, TABLE_TOP_Y, 0.0))
+            elif is_tower:
+                num_layers = 1
+                for token, cnt in [
+                    ("1", 1), ("one", 1), ("single", 1),
+                    ("2", 2), ("two", 2), ("double", 2),
+                    ("3", 3), ("three", 3), ("triple", 3),
+                    ("4", 4), ("four", 4), ("quad", 4),
+                    ("5", 5), ("five", 5),
+                    ("6", 6), ("six", 6),
+                    ("7", 7), ("seven", 7), ("all", 7),
+                ]:
+                    if token in inst_lower:
+                        num_layers = max(num_layers, cnt)
+                target_slots = [
+                    [STACK_ORIGIN[0], TABLE_TOP_Y + CUBE_SIZE * (layer + 0.5), STACK_ORIGIN[2]]
+                    for layer in range(num_layers)
+                ]
             else:
                 target_slots = get_pyramid_slots(pyr_type, STACK_ORIGIN)
 
@@ -135,8 +180,9 @@ class VLJEPAGrounder:
         z_goal = 0.5 * z_text + 0.5 * z_geom
         z_goal = z_goal / max(1e-6, np.linalg.norm(z_goal))
 
+        st_type = f"{len(target_slots)}_block_tower" if is_tower else ("linear_train" if is_train else pyr_type)
         metadata = {
-            "structure_type": pyr_type if "train" not in instruction.lower() else "linear_train",
+            "structure_type": st_type,
             "num_blocks": len(target_slots),
             "target_slots": target_slots,
             "target_blocks": b_ids,

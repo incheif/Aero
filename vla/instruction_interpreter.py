@@ -847,6 +847,39 @@ class InstructionInterpreter:
             }
 
         # -------------------------------------------------------------
+        # 8E. LETTER & SHAPE PLACEMENT (e.g. Letter D, L, T, O, C, etc.)
+        # -------------------------------------------------------------
+        is_letter_placement = None
+        for ltr in ["d", "l", "t", "o", "c", "u", "h"]:
+            matches = [
+                f"letter {ltr}", f"make {ltr}", f"form {ltr}", f"shape {ltr}",
+                f"pattern {ltr}", f"{ltr} shape", f"{ltr} pattern", f"{ltr} with blocks",
+                f"'{ltr}'", f'"{ltr}"'
+            ]
+            if any(p in cmd for p in matches) or (
+                f" {ltr} " in f" {cmd} " and any(w in cmd for w in ["make", "build", "place", "form", "pattern", "letter", "shape", "blocks", "placement"])
+            ):
+                is_letter_placement = ltr.upper()
+                break
+
+        if is_letter_placement:
+            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            block_names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in all_blocks[:6]]
+            thought = (
+                f"Interpreted request for letter '{is_letter_placement}' placement with blocks. "
+                f"Synthesizing 2D geometric slot coordinates for letter '{is_letter_placement}' on the tabletop. "
+                f"Assigning blocks [{', '.join(block_names)}] using Level 2 Task Planner and Level 1 Micro-CEM control."
+            )
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "LETTER_PLACEMENT",
+                "letter": is_letter_placement,
+                "target_blocks": all_blocks[:6],
+                "thought": thought,
+            }
+
+        # -------------------------------------------------------------
         # 9. TOWER STACKING (Normalized Layer Count & Color Mapping)
         # -------------------------------------------------------------
         # Typo tolerance: "twer", "towr", "stack", "build", "layer"
@@ -1065,3 +1098,69 @@ Respond with ONLY a JSON object with this format:
             except Exception:
                 pass
         return None
+
+    def route_task(self, prompt: str, mode: str = "auto") -> str:
+        """
+        Dual-track router:
+        - 'SYSTEM_1_FAST_PATH': Fast char-3-gram / catalogue lookup (<1 ms, 0 GPU) for atomic primitives.
+        - 'SYSTEM_2_H_JEPA': 2-Level H-VL-JEPA World Model + CEM planning for multi-step compositional tasks.
+        - 'LIVE_CLOUD': Cloud VLA (when API key is configured and explicit).
+        """
+        if mode in ("deterministic", "fast"):
+            return "SYSTEM_1_FAST_PATH"
+        if mode == "hjepa":
+            return "SYSTEM_2_H_JEPA"
+        if mode == "live_cloud" and self.api_key:
+            return "LIVE_CLOUD"
+
+        # Auto mode: check instruction complexity
+        prompt_lower = prompt.lower().strip()
+        compositional_keywords = [
+            "tower", "stack", "pyramid", "stepped", "train", "line", "row",
+            "letter", "shape", "pattern", "alphabet", "with blocks",
+            "then", "and then", "after that", "first", "second",
+        ]
+        if any(k in prompt_lower for k in compositional_keywords):
+            return "SYSTEM_2_H_JEPA"
+
+        for ltr in ["d", "l", "t", "o", "c", "u", "h"]:
+            if (
+                f"letter {ltr}" in prompt_lower
+                or f"make {ltr}" in prompt_lower
+                or f"form {ltr}" in prompt_lower
+                or f"shape {ltr}" in prompt_lower
+                or f"{ltr} with blocks" in prompt_lower
+                or (f" {ltr} " in f" {prompt_lower} " and any(w in prompt_lower for w in ["make", "build", "place", "form", "pattern", "letter", "shape", "blocks"]))
+            ):
+                return "SYSTEM_2_H_JEPA"
+
+        return "SYSTEM_1_FAST_PATH"
+
+    def parse_sequence(
+        self,
+        prompt: str,
+        current_blocks: Optional[List[Dict[str, Any]]] = None
+    ) -> List[Any]:
+        """
+        Decomposes compositional or multi-clause instructions into an ordered sequence
+        of SubgoalSpecification items with physical spatial slots.
+        """
+        from vla.jepa.level2_world_model import Level2TaskPlanner
+        from vla.jepa.schemas import SubgoalSpecification
+
+        planner = Level2TaskPlanner()
+        blocks = current_blocks or []
+        if not blocks:
+            # Fallback default inventory
+            blocks = [
+                {"id": b_id, "name": info["name"], "color": info["color"], "position": [0.2, 0.75, 0.0]}
+                for b_id, info in AVAILABLE_BLOCKS.items()
+            ]
+
+        # Use Level 2 Task Planner to generate full subgoal specifications
+        subgoals = planner.decompose_task(
+            instruction=prompt,
+            current_blocks=blocks
+        )
+        return subgoals
+

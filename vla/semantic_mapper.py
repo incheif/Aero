@@ -38,9 +38,10 @@ class SemanticEntity:
         self.supporting = []
         self.in_target_zone = False
         self.confidence = 0.98
+        self.latent_embedding: Optional[List[float]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d = {
             "id": self.id,
             "name": self.name,
             "category": self.category,
@@ -55,6 +56,13 @@ class SemanticEntity:
             "in_target_zone": self.in_target_zone,
             "confidence": self.confidence,
         }
+        if self.latent_embedding is not None:
+            d["latent_embedding_dim"] = len(self.latent_embedding)
+        return d
+
+# Canonical alias as referenced in H-JEPA engineering blueprint
+WorldObject = SemanticEntity
+
 
 class SemanticSpatialMapper:
     """

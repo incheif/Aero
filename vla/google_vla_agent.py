@@ -22,36 +22,37 @@ from simulation.constants import (
     stack_slot_y,
     get_pyramid_slots,
     get_train_slots,
+    get_letter_slots,
     get_distinct_tower_origins,
     BLOCK_TARGETS,
 )
 from simulation.camera import render_camera_frame, encode_image_base64, world_to_pixel
 from .cost_tracker import VLACostTracker
 from .instruction_interpreter import InstructionInterpreter
-from .h_jepa import HierarchicalVLJEPAOrchestrator
+try:
+    from .jepa import HierarchicalVLJEPAOrchestrator
+except ImportError:
+    from .h_jepa import HierarchicalVLJEPAOrchestrator
 
 # Support both modern Google GenAI SDK (google-genai v1.x) and legacy (google-generativeai)
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-HAS_NEW_GENAI = False
-HAS_LEGACY_GENAI = False
-
-try:
-    from google import genai
-    HAS_NEW_GENAI = True
-except ImportError:
-    pass
-
-try:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+def _get_genai_sdk():
+    """Lazily import GenAI SDK only when a live cloud call is explicitly requested."""
+    try:
+        from google import genai
+        return "new", genai
+    except Exception:
+        pass
+    try:
         import google.generativeai as legacy_genai
-    HAS_LEGACY_GENAI = True
-except ImportError:
-    pass
+        return "legacy", legacy_genai
+    except Exception:
+        pass
+    return None, None
 
-GOOGLE_GENAI_AVAILABLE = HAS_NEW_GENAI or HAS_LEGACY_GENAI
+GOOGLE_GENAI_AVAILABLE = True
 
 class GoogleVLAAgent:
     """
@@ -71,7 +72,8 @@ class GoogleVLAAgent:
         self.latest_thought: str = "System ready. Awaiting natural-language command."
         self.latest_grounding: List[Dict[str, Any]] = []
         self.execution_status: str = "IDLE"  # IDLE, REASONING, EXECUTING, VERIFYING, COMPLETED, FAILED, REJECTED
-        self.active_mode: str = "embedded"  # 'live_cloud' or 'embedded'
+        self.active_mode: str = "embedded"  # 'live_cloud', 'embedded', or 'h_jepa'
+        self.execution_mode: str = "auto"   # 'auto', 'hjepa', 'deterministic', 'live_cloud'
         self.last_api_error: Optional[str] = None
         self.cost_tracker = VLACostTracker()
         self.h_jepa = HierarchicalVLJEPAOrchestrator()
@@ -88,18 +90,19 @@ class GoogleVLAAgent:
         if not key_to_test:
             return False, "API key is empty."
 
+        sdk_type, sdk = _get_genai_sdk()
         try:
-            if HAS_NEW_GENAI:
-                client = genai.Client(api_key=key_to_test)
+            if sdk_type == "new":
+                client = sdk.Client(api_key=key_to_test)
                 resp = client.models.generate_content(
                     model=self.model_name,
                     contents="ping",
                 )
                 if resp and resp.text:
                     return True, f"Successfully connected to Google Gemini ({self.model_name})!"
-            elif HAS_LEGACY_GENAI:
-                legacy_genai.configure(api_key=key_to_test)
-                model = legacy_genai.GenerativeModel(self.model_name)
+            elif sdk_type == "legacy":
+                sdk.configure(api_key=key_to_test)
+                model = sdk.GenerativeModel(self.model_name)
                 resp = model.generate_content("ping")
                 if resp and resp.text:
                     return True, f"Successfully connected to Google Gemini ({self.model_name})!"
@@ -262,8 +265,32 @@ class GoogleVLAAgent:
                 "cost_summary": self.cost_tracker.to_dict(),
             }
 
-        # 2. Try live Google Gemini VLA API if configured
-        if self.api_key and GOOGLE_GENAI_AVAILABLE:
+        # 2. Parallel Route Check: System 1 (Fast-Path) vs System 2 (2-Level H-JEPA)
+        preferred_mode = getattr(self, "execution_mode", "auto")
+        if preferred_mode == "deterministic":
+            task_route = "SYSTEM_1_FAST_PATH"
+        elif preferred_mode in ("hjepa", "h_jepa", "hybrid"):
+            task_route = "SYSTEM_2_H_JEPA"
+        else:
+            task_route = self.interpreter.route_task(instruction, mode=preferred_mode)
+
+        if task_route == "SYSTEM_2_H_JEPA" and snapshot:
+            plan_res = self.plan_with_h_jepa(instruction, snapshot)
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "H_JEPA",
+                "source": "Two-Level Hierarchical VL-JEPA World Model",
+                "mode": "h_jepa",
+                "thought": self.latest_thought,
+                "plan": [],
+                "grounding": [],
+                "h_jepa_plan": plan_res,
+                "cost_summary": self.cost_tracker.to_dict(),
+            }
+
+        # 3. Try live Google Gemini VLA API if configured
+        if self.api_key and GOOGLE_GENAI_AVAILABLE and preferred_mode == "live_cloud":
             try:
                 live_result = self._call_gemini_vla(instruction, image, snapshot, semantic_summary, interpretation)
                 if live_result:
@@ -272,10 +299,10 @@ class GoogleVLAAgent:
                 self.last_api_error = str(e)
                 print(f"[Google VLA] Live Gemini API error: {e}. Falling back to embedded VLA policy.")
         else:
-            if not self.api_key:
+            if preferred_mode == "live_cloud" and not self.api_key:
                 self.last_api_error = "No API key configured. Enter your Gemini API key in Settings to connect to Google Cloud VLA."
 
-        # 3. Embedded Google VLA Runtime (High-Performance Deterministic Policy)
+        # 4. Embedded Google VLA Runtime (High-Performance Deterministic Policy)
         result = self._embedded_vla_policy(instruction, snapshot, interpretation)
         if self.last_api_error:
             result["api_warning"] = self.last_api_error
@@ -333,8 +360,9 @@ Output a JSON object ONLY with the following schema:
         p_tokens = None
         c_tokens = None
 
-        if HAS_NEW_GENAI:
-            client = genai.Client(api_key=self.api_key)
+        sdk_type, sdk = _get_genai_sdk()
+        if sdk_type == "new":
+            client = sdk.Client(api_key=self.api_key)
             response = client.models.generate_content(
                 model=self.model_name,
                 contents=[prompt, image],
@@ -344,9 +372,9 @@ Output a JSON object ONLY with the following schema:
             if usage:
                 p_tokens = getattr(usage, "prompt_token_count", None)
                 c_tokens = getattr(usage, "candidates_token_count", None)
-        elif HAS_LEGACY_GENAI:
-            legacy_genai.configure(api_key=self.api_key)
-            model = legacy_genai.GenerativeModel(self.model_name)
+        elif sdk_type == "legacy":
+            sdk.configure(api_key=self.api_key)
+            model = sdk.GenerativeModel(self.model_name)
             response = model.generate_content([prompt, image])
             text = response.text or ""
             usage = getattr(response, "usage_metadata", None)
@@ -701,6 +729,40 @@ Output a JSON object ONLY with the following schema:
                     "Aligning linearly along tabletop Z-axis with collision-safe pick-and-place trajectories."
                 )
 
+        # 5C. Letter & Shape Assembly (e.g. Letter D, L, T, O, C)
+        elif action_type == "LETTER_PLACEMENT":
+            ltr = interpretation.get("letter", "D")
+            letter_targets = interpretation.get("target_blocks", all_block_ids)
+            slots = get_letter_slots(ltr, origin=(0.35, TABLE_TOP_Y, 0.0))
+
+            letter_strs = []
+            for idx, (b_id, slot_target) in enumerate(zip(letter_targets, slots)):
+                b = blocks.get(b_id)
+                if not b:
+                    continue
+                bx, by, bz = b["position"]
+                tx, ty, tz = slot_target
+                slot_label = f"Part {idx+1}"
+                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "role": slot_label, "target_coords": [tx, ty, tz]})
+                steps = self._generate_pick_and_place(bx, bz, tx, tz, ty, b["name"])
+                plan.extend(steps)
+                letter_strs.append(f"{slot_label}:{b['name']}")
+
+            plan.append({
+                "action": "HOME",
+                "target": (0.20, SAFE_HOVER_Y, 0.0),
+                "gripper": 0.0,
+                "desc": f"Letter '{ltr}' placement complete: Arm retracting to standby",
+                "dwell_ticks": 10,
+            })
+
+            thought = interpretation.get("thought", "")
+            if not thought:
+                thought = (
+                    f"Google VLA Letter Assembly: Placing blocks to form letter '{ltr}'. "
+                    f"Sequence: {' | '.join(letter_strs)}."
+                )
+
         # 6. Cartesian Spatial Trajectories (Left-to-Right & Top-to-Bottom Sweeps)
         elif action_type == "SWEEP_TRAJECTORY":
             thought = (
@@ -912,3 +974,7 @@ Output a JSON object ONLY with the following schema:
             self.execution_status = "COMPLETED"
             self.latest_thought = "[H-JEPA Complete] All pyramid/macro sub-goals successfully verified."
         return res
+
+
+# Blueprint conformance alias
+HierarchicalJEPAAgent = GoogleVLAAgent

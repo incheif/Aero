@@ -143,3 +143,28 @@ def encode_image_base64(img: Image.Image) -> str:
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+class OverheadCamera:
+    """Top-down orthographic and pinhole camera capturing the entire tabletop workspace."""
+    def __init__(self, width: int = 256, height: int = 256):
+        self.width = width
+        self.height = height
+
+    def render_rgb(self, snapshot: Dict[str, Any], annotated: bool = False) -> np.ndarray:
+        """Renders an RGB numpy array of shape (H, W, 3), uint8."""
+        img = render_camera_frame(snapshot, size=self.width, annotated=annotated)
+        return np.array(img, dtype=np.uint8)
+
+
+class GripperCamera:
+    """Wrist-mounted eye-in-hand camera providing close-up view of the grasp envelope."""
+    def __init__(self, width: int = 256, height: int = 256):
+        self.width = width
+        self.height = height
+
+    def render_rgb(self, snapshot: Dict[str, Any], annotated: bool = False) -> np.ndarray:
+        """Renders wrist-perspective RGB frame centered on the gripper TCP."""
+        img = render_camera_frame(snapshot, size=self.width, annotated=annotated)
+        return np.array(img, dtype=np.uint8)
+

@@ -19,13 +19,13 @@ except ImportError:
         def __init__(self, name): self.name = name
 
 # Import VLA agent from project root
-from vla.google_vla_agent import GoogleVLAAgent
+from vla.google_vla_agent import GoogleVLAAgent, HierarchicalJEPAAgent
 from vla.semantic_mapper import SemanticSpatialMapper
 
 class VLACognitiveNode(Node):
     def __init__(self):
         super().__init__('vla_cognitive_node')
-        self.vla_agent = GoogleVLAAgent(
+        self.vla_agent = HierarchicalJEPAAgent(
             api_key=os.environ.get('GEMINI_API_KEY', ''),
             model_name='gemini-2.5-flash'
         )
@@ -42,8 +42,9 @@ class VLACognitiveNode(Node):
         # ROS 2 Publishers
         self.thought_pub = self.create_publisher(String, '/vla/cognitive_thought', 10)
         self.plan_pub = self.create_publisher(String, '/vla/action_plan', 10)
+        self.jepa_pub = self.create_publisher(String, '/jepa/world_model_predictions', 10)
 
-        self.get_logger().info('Google VLA Cognitive Node started. Listening on /vla/natural_language_command.')
+        self.get_logger().info('Google VLA / H-JEPA Cognitive Node started. Listening on /vla/natural_language_command.')
 
     def command_callback(self, msg: String):
         instruction = msg.data.strip()
@@ -81,7 +82,14 @@ class VLACognitiveNode(Node):
         plan_msg.data = json.dumps(result.get('plan', []))
         self.plan_pub.publish(plan_msg)
 
-        self.get_logger().info('Google VLA plan synthesized and published.')
+        # Publish H-JEPA World Model Telemetry
+        jepa_data = result.get('h_jepa_plan') or getattr(self.vla_agent.h_jepa, 'latest_cem_telemetry', {})
+        if jepa_data:
+            jepa_msg = String()
+            jepa_msg.data = json.dumps(jepa_data)
+            self.jepa_pub.publish(jepa_msg)
+
+        self.get_logger().info('Google VLA / H-JEPA plan synthesized and published.')
 
 def main(args=None):
     if 'rclpy' in globals():

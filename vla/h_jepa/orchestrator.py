@@ -175,7 +175,7 @@ class HierarchicalVLJEPAOrchestrator:
             micro_target = [block_pos[0], SAFE_HOVER_Y, block_pos[2]]
             desired_gripper = 0.0  # Open
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            if d < 0.015:
+            if d < 0.025:
                 self.micro_phase = "DESCEND_PICK"
 
         elif self.micro_phase == "DESCEND_PICK":
@@ -184,7 +184,7 @@ class HierarchicalVLJEPAOrchestrator:
             micro_target = [block_pos[0], pick_y, block_pos[2]]
             desired_gripper = 0.0  # Still open
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            if d < 0.010:
+            if d < 0.018:
                 self.micro_phase = "GRASP"
                 self.dwell_counter = 12  # 0.2s grasp hold
 
@@ -201,7 +201,7 @@ class HierarchicalVLJEPAOrchestrator:
             micro_target = [current_tcp[0], SAFE_HOVER_Y, current_tcp[2]]
             desired_gripper = 1.0  # Hold closed
             d = abs(current_tcp[1] - SAFE_HOVER_Y)
-            if d < 0.015:
+            if d < 0.025:
                 self.micro_phase = "HOVER_PLACE"
 
         elif self.micro_phase == "HOVER_PLACE":
@@ -209,7 +209,7 @@ class HierarchicalVLJEPAOrchestrator:
             micro_target = [target_slot[0], SAFE_HOVER_Y, target_slot[2]]
             desired_gripper = 1.0  # Hold closed
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[2] - micro_target[2])
-            if d < 0.015:
+            if d < 0.025:
                 self.micro_phase = "DESCEND_PLACE"
 
         elif self.micro_phase == "DESCEND_PLACE":
@@ -218,7 +218,7 @@ class HierarchicalVLJEPAOrchestrator:
             micro_target = [target_slot[0], place_y, target_slot[2]]
             desired_gripper = 1.0  # Hold closed
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            if d < 0.012:
+            if d < 0.020:
                 self.micro_phase = "RELEASE"
                 self.dwell_counter = 10
 
@@ -281,11 +281,13 @@ class HierarchicalVLJEPAOrchestrator:
 
         # Analytical IK via simulation/kinematics.py
         ik_sol = inverse_kinematics(next_tcp, next_gripper)
-        if not ik_sol.get("reachable", True):
-            # Fallback to direct analytical safe setpoint
-            target_joints = current_joints
+        if isinstance(ik_sol, dict):
+            if "joints" in ik_sol:
+                target_joints = ik_sol["joints"]
+            else:
+                target_joints = ik_sol
         else:
-            target_joints = ik_sol.get("joints", current_joints)
+            target_joints = current_joints
 
         return {
             "joints": target_joints,

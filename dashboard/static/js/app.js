@@ -7,11 +7,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // 0. Session Isolation Management (Private Robot Workcell per Visitor)
   function getSessionId() {
     const urlParams = new URLSearchParams(window.location.search);
-    let sid = urlParams.get('session_id') || sessionStorage.getItem('AERO_SESSION_ID');
+    let sid = urlParams.get('session_id') || localStorage.getItem('AERO_SESSION_ID') || sessionStorage.getItem('AERO_SESSION_ID');
     if (!sid) {
       sid = 'sess_' + Math.random().toString(36).substring(2, 8) + Date.now().toString(36).substring(4);
-      sessionStorage.setItem('AERO_SESSION_ID', sid);
     }
+    localStorage.setItem('AERO_SESSION_ID', sid);
+    sessionStorage.setItem('AERO_SESSION_ID', sid);
     return sid;
   }
   const sessionId = getSessionId();
@@ -31,6 +32,81 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     return fetch(url, options);
   }
+
+  // 0b. Model Selection State Management (Auto / H-JEPA / Deterministic)
+  let selectedExecutionMode = localStorage.getItem('AERO_EXECUTION_MODE') || 'auto';
+
+  const modeCaptions = {
+    'auto': 'Dynamic routing: simple tasks to fast kinematics, complex to H-JEPA',
+    'hjepa': 'Hierarchical VL-JEPA World Model: Level 2 task decomposition + 60Hz Micro-CEM',
+    'deterministic': 'Deterministic System 1: Direct 5-DOF IK with analytical trajectory waypoints'
+  };
+
+  const modePlaceholders = {
+    'auto': "Type instruction (e.g. 'Make a block train with all boxes in one line')...",
+    'hjepa': "[H-JEPA Active] Type instruction (e.g. 'Make a block train with all boxes in one line')...",
+    'deterministic': "[Deterministic Active] Type instruction (e.g. 'Make a 3-layer tower of red, blue and yellow')..."
+  };
+
+  function updateModeUI(mode) {
+    selectedExecutionMode = mode || 'auto';
+    localStorage.setItem('AERO_EXECUTION_MODE', selectedExecutionMode);
+
+    document.querySelectorAll('.mode-toggle-btn').forEach((btn) => {
+      const btnMode = btn.getAttribute('data-mode');
+      if (btnMode === selectedExecutionMode) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    const captionEl = document.getElementById('active-mode-caption');
+    if (captionEl && modeCaptions[selectedExecutionMode]) {
+      captionEl.innerText = modeCaptions[selectedExecutionMode];
+    }
+
+    const inputEl = document.getElementById('command-input');
+    if (inputEl && (!inputEl.value || inputEl.value.trim() === '')) {
+      inputEl.placeholder = modePlaceholders[selectedExecutionMode] || modePlaceholders['auto'];
+    }
+
+    const headerText = document.getElementById('header-policy-text');
+    const headerDot = document.getElementById('header-policy-dot');
+    if (headerText && headerDot) {
+      if (selectedExecutionMode === 'hjepa') {
+        headerText.innerText = '🧠 H-JEPA';
+        headerDot.style.background = '#38bdf8';
+        headerDot.style.boxShadow = '0 0 8px rgba(56, 189, 248, 0.8)';
+      } else if (selectedExecutionMode === 'deterministic') {
+        headerText.innerText = '⚡ DETERMINISTIC';
+        headerDot.style.background = '#fbbf24';
+        headerDot.style.boxShadow = '0 0 8px rgba(251, 191, 36, 0.8)';
+      } else {
+        headerText.innerText = '✦ AUTO';
+        headerDot.style.background = '#c084fc';
+        headerDot.style.boxShadow = '0 0 8px rgba(192, 132, 252, 0.8)';
+      }
+    }
+  }
+
+  // Attach click events to policy engine toggle buttons
+  document.querySelectorAll('.mode-toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const mode = btn.getAttribute('data-mode') || 'auto';
+      updateModeUI(mode);
+    });
+  });
+
+  // Header pill cycles mode when clicked
+  document.getElementById('header-policy-mode')?.addEventListener('click', () => {
+    const cycle = { 'auto': 'hjepa', 'hjepa': 'deterministic', 'deterministic': 'auto' };
+    updateModeUI(cycle[selectedExecutionMode] || 'auto');
+  });
+
+  // Apply initial selection
+  updateModeUI(selectedExecutionMode);
 
   // 1. Initialize 3D Viewport
   const canvasEl = document.getElementById('canvas-3d');
@@ -61,10 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
           handleSessionSuspended(data);
           return;
         }
+        if (data.logs && Array.isArray(data.logs)) {
+          updateLogsFromTelemetry(data.logs);
+        }
         if (data.type === 'telemetry') {
           handleTelemetry(data);
-        } else if (data.logs && Array.isArray(data.logs)) {
-          updateLogsFromTelemetry(data.logs);
         }
       } catch (err) {
         console.error('Error parsing telemetry JSON:', err);
@@ -254,6 +331,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const progText = document.getElementById('vla-progress-text');
         if (barFill) barFill.style.width = `${prog.pct || 0}%`;
         if (progText) progText.innerText = prog.is_active ? `Step ${prog.step}/${prog.total_steps} (${prog.action})` : 'Idle';
+      }
+
+      // Check if Hierarchical VL-JEPA is actively stepping
+      if (data.h_jepa && data.h_jepa.is_active && modeBadge) {
+        modeBadge.innerText = 'H-JEPA WORLD MODEL';
+        modeBadge.style.color = '#38bdf8';
+        modeBadge.style.backgroundColor = 'rgba(56, 189, 248, 0.15)';
+        modeBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+        modeBadge.title = 'Two-Level Hierarchical VL-JEPA + Level 1 Micro-CEM Active';
+        if (modeTagStatus) {
+          modeTagStatus.innerText = '✦ H-JEPA SYSTEM 2 ACTIVE';
+          modeTagStatus.className = 'mode-tag-pill';
+        }
+        if (modeInfoText) {
+          const cemDist = data.h_jepa.latest_cem && data.h_jepa.latest_cem.latent_distance !== undefined
+            ? ` | Latent Energy: ${Number(data.h_jepa.latest_cem.latent_distance).toFixed(3)}`
+            : '';
+          modeInfoText.innerText = `Subgoal ${data.h_jepa.subgoal_index + 1}/${data.h_jepa.total_subgoals} [${data.h_jepa.phase}]: Micro-CEM Consequence Optimization${cemDist}`;
+        }
+        const barFill = document.getElementById('vla-progress-fill');
+        const progText = document.getElementById('vla-progress-text');
+        const pct = Math.round(((data.h_jepa.subgoal_index) / Math.max(1, data.h_jepa.total_subgoals)) * 100);
+        if (barFill) barFill.style.width = `${pct}%`;
+        if (progText) progText.innerText = `Macro Subgoal ${data.h_jepa.subgoal_index + 1}/${data.h_jepa.total_subgoals} (${data.h_jepa.phase})`;
       }
     }
 
@@ -625,7 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initial fetch of logs from REST endpoint on load
-  fetch('/api/logs')
+  sessionFetch('/api/logs')
     .then(r => r.json())
     .then(data => {
       if (data && data.logs) {
@@ -658,7 +759,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 4. Command Input Handling
+
+
+  // Command Input Handling
   const cmdInput = document.getElementById('command-input');
   const sendBtn = document.getElementById('send-command-btn');
 
@@ -672,14 +775,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Retain and display command in text box so user can reference what was queried
     cmdInput.value = text;
-
-    // Immediately clear execution logs on client and server before starting new instruction
-    localLogs = [];
-    lastLogsSignature = '';
-    renderLogs();
-    try {
-      await sessionFetch('/api/logs/clear', { method: 'POST' });
-    } catch (_) {}
 
     const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
     const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
@@ -696,6 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
           api_key: apiKey,
           model: model,
           session_id: sessionId,
+          execution_mode: selectedExecutionMode,
         }),
       });
       const res = await resp.json();
@@ -721,7 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Command submission error:', err);
     } finally {
       sendBtn.disabled = false;
-      sendBtn.innerHTML = '<span>Execute</span>';
+      sendBtn.innerHTML = '<span>Execute</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
     }
   }
 
