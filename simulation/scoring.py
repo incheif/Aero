@@ -248,7 +248,12 @@ class StabilityValidator:
         self.is_verified = False
         self.status = "IDLE"
 
-    def step(self, blocks: List[Dict[str, Any]], grasped_block_id: Optional[str] = None) -> Tuple[bool, int, str]:
+    def step(
+        self,
+        blocks: List[Dict[str, Any]],
+        grasped_block_id: Optional[str] = None,
+        target_block_id: Optional[str] = None,
+    ) -> Tuple[bool, int, str]:
         """
         Updates stability hold counter.
         Returns: (is_verified, hold_ticks, status_string)
@@ -259,19 +264,29 @@ class StabilityValidator:
             self.status = "GRASPING"
             return False, 0, self.status
 
-        # Check if stacked blocks are in target pad
-        stacked_in_pad = [b for b in blocks if b.get("in_pad")]
-        
-        # Velocity check: blocks must be near rest (< 0.03 m/s)
-        settled = True
-        for b in stacked_in_pad:
-            vel = b.get("velocity", [0.0, 0.0, 0.0])
+        # If a specific target_block_id is provided, verify that block directly
+        if target_block_id is not None:
+            target_b = next((b for b in blocks if b.get("id") == target_block_id), None)
+            if not target_b or target_b.get("is_grasped"):
+                self.hold_ticks = 0
+                self.status = "WAITING"
+                return False, 0, self.status
+            vel = target_b.get("velocity", [0.0, 0.0, 0.0])
             speed = math.hypot(vel[0], vel[1], vel[2])
-            if speed > 0.04:
-                settled = False
-                break
+            settled = speed <= 0.04
+            valid_blocks = [target_b]
+        else:
+            # Check if stacked blocks are in target pad
+            valid_blocks = [b for b in blocks if b.get("in_pad")]
+            settled = True
+            for b in valid_blocks:
+                vel = b.get("velocity", [0.0, 0.0, 0.0])
+                speed = math.hypot(vel[0], vel[1], vel[2])
+                if speed > 0.04:
+                    settled = False
+                    break
 
-        if len(stacked_in_pad) >= 1 and settled:
+        if len(valid_blocks) >= 1 and settled:
             self.hold_ticks = min(self.hold_ticks + 1, self.required_ticks)
             if self.hold_ticks >= self.required_ticks:
                 self.is_verified = True
@@ -282,7 +297,7 @@ class StabilityValidator:
             if self.hold_ticks > 0 and not self.is_verified:
                 self.status = "UNSTABLE"
             elif not self.is_verified:
-                self.status = "IDLE" if len(stacked_in_pad) == 0 else "WAITING"
+                self.status = "IDLE" if len(valid_blocks) == 0 else "WAITING"
             self.hold_ticks = 0
 
         return self.is_verified, self.hold_ticks, self.status

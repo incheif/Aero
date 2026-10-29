@@ -1115,6 +1115,26 @@ Respond with ONLY a JSON object with this format:
 
         # Auto mode: check instruction complexity
         prompt_lower = prompt.lower().strip()
+
+        # Multi-distinct towers have dedicated multi-zone trajectory generation in System 1
+        is_multi_towers = (
+            any(p in prompt_lower for p in (
+                "2 towers", "two towers", "dual towers", "dual tower",
+                "two distinct towers", "2 distinct towers",
+                "two separate towers", "2 separate towers",
+                "two different towers", "2 different towers",
+                "pair of towers",
+                "3 towers", "three towers", "triple towers",
+                "three distinct towers", "3 distinct towers",
+                "three separate towers", "3 separate towers",
+                "4 towers", "four towers", "4 distinct towers",
+                "5 towers", "five towers", "5 distinct towers",
+            ))
+            or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", prompt_lower))
+        )
+        if is_multi_towers:
+            return "SYSTEM_1_FAST_PATH"
+
         compositional_keywords = [
             "tower", "stack", "pyramid", "stepped", "train", "line", "row",
             "letter", "shape", "pattern", "alphabet", "with blocks",

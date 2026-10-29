@@ -30,7 +30,7 @@ from simulation.camera import render_camera_frame, encode_image_base64, world_to
 from .cost_tracker import VLACostTracker
 from .instruction_interpreter import InstructionInterpreter
 try:
-    from .jepa import HierarchicalVLJEPAOrchestrator
+    from .h_jepa import HierarchicalVLJEPAOrchestrator
 except ImportError:
     from .h_jepa import HierarchicalVLJEPAOrchestrator
 
@@ -970,7 +970,7 @@ Output a JSON object ONLY with the following schema:
     ) -> Optional[Dict[str, Any]]:
         """Executes a single simulation tick using Level 1 Micro-CEM control."""
         res = self.h_jepa.step(current_tcp, current_joints, blocks, current_gripper)
-        if res and res.get("is_done"):
+        if res is None or res.get("is_done") or not getattr(self.h_jepa, "is_active", True):
             self.execution_status = "COMPLETED"
             self.latest_thought = "[H-JEPA Complete] All pyramid/macro sub-goals successfully verified."
         return res

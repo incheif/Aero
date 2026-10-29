@@ -31,6 +31,7 @@ class TrajectoryController:
         self.tcp_trail: List[Tuple[float, float, float]] = []
         self.max_trail_points: int = 120
         self.current_setpoint: Optional[List[float]] = None
+        self.ticks_on_current_step: int = 0
 
     def load_plan(self, plan: List[Dict[str, Any]]):
         self.current_plan = list(plan)
@@ -39,6 +40,7 @@ class TrajectoryController:
         self.is_active = len(plan) > 0
         self.current_action_desc = self.current_plan[0]["desc"] if self.is_active else "Idle"
         self.current_setpoint = None
+        self.ticks_on_current_step = 0
 
     def stop(self):
         self.is_active = False
@@ -47,6 +49,7 @@ class TrajectoryController:
         self.current_action_desc = "Stopped"
         self.tcp_trail.clear()
         self.current_setpoint = None
+        self.ticks_on_current_step = 0
 
     def step(self, current_tcp_pos: Tuple[float, float, float], current_joints: Dict[str, float]) -> Optional[Dict[str, Any]]:
         """
@@ -66,6 +69,7 @@ class TrajectoryController:
             self.current_setpoint = None
             return None
 
+        self.ticks_on_current_step += 1
         current_step = self.current_plan[self.step_idx]
         target_pos = current_step["target"]
         desired_gripper = current_step.get("gripper", 0.0)
@@ -149,16 +153,28 @@ class TrajectoryController:
             else:
                 min_dwell = 10
             required_dwell = max(min_dwell, current_step.get("dwell_ticks", min_dwell))
-            if self.dwell_counter >= required_dwell:
+            if self.dwell_counter >= required_dwell or (self.ticks_on_current_step > max(100, required_dwell * 4) and actual_dist < 0.035 and gripper_settled):
                 # Advance to next waypoint
                 self.dwell_counter = 0
+                self.ticks_on_current_step = 0
                 self.step_idx += 1
                 if self.step_idx >= len(self.current_plan):
                     self.is_active = False
                     self.current_action_desc = "Task Completed Successfully"
                     self.current_setpoint = None
         else:
-            self.dwell_counter = 0
+            required_dwell = max(10, current_step.get("dwell_ticks", 10))
+            if self.ticks_on_current_step > max(120, required_dwell * 5) and actual_dist < 0.040 and gripper_settled:
+                # Force watchdog advance to prevent hangs
+                self.dwell_counter = 0
+                self.ticks_on_current_step = 0
+                self.step_idx += 1
+                if self.step_idx >= len(self.current_plan):
+                    self.is_active = False
+                    self.current_action_desc = "Task Completed Successfully"
+                    self.current_setpoint = None
+            else:
+                self.dwell_counter = 0
 
         return {
             "joints": joint_targets,

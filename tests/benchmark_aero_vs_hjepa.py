@@ -21,6 +21,9 @@ from simulation.constants import (
     SAFE_HOVER_Y,
     TABLE_TOP_Y,
     DEFAULT_JOINTS,
+    GRASP_BOX,
+    GRASP_CLOSE_THRESHOLD,
+    GRASP_OPEN_THRESHOLD,
     stack_slot_y,
 )
 from simulation.physics_engine import RobotArmSimulation
@@ -88,12 +91,22 @@ class BenchmarkAEROvsHJEPA(unittest.TestCase):
             current_gripper = step_res["gripper"]
             current_joints = step_res["joints"]
 
-            # Gripper carries cube
-            if self.agent.h_jepa.grasped_block_id == target_b_id:
-                for b in blocks:
-                    if b["id"] == target_b_id:
-                        b["position"] = [current_tcp[0], current_tcp[1] - 0.02, current_tcp[2]]
-                        b["is_grasped"] = True
+            # Emulate physics engine grasping dynamics
+            for b in blocks:
+                if b["id"] == target_b_id:
+                    if b.get("is_grasped", False):
+                        if current_gripper < GRASP_OPEN_THRESHOLD:
+                            b["is_grasped"] = False
+                            b["velocity"] = [0.0, -0.05, 0.0]
+                        else:
+                            b["position"] = [current_tcp[0], current_tcp[1] - 0.02, current_tcp[2]]
+                    elif current_gripper >= GRASP_CLOSE_THRESHOLD:
+                        dx = abs(b["position"][0] - current_tcp[0])
+                        dy = abs(b["position"][1] - current_tcp[1])
+                        dz = abs(b["position"][2] - current_tcp[2])
+                        if dx <= GRASP_BOX["x"] and dy <= GRASP_BOX["y"] and dz <= GRASP_BOX["z"]:
+                            b["is_grasped"] = True
+                            b["position"] = [current_tcp[0], current_tcp[1] - 0.02, current_tcp[2]]
 
             # Target slot resting contact during VERIFY_HOLD
             if step_res["phase"] == "VERIFY_HOLD" and self.agent.h_jepa.grasped_block_id is None:

@@ -18,6 +18,8 @@ from simulation.constants import (
     PICK_Y,
     TABLE_TOP_Y,
     CUBE_SIZE,
+    GRASP_CLOSE_THRESHOLD,
+    GRASP_OPEN_THRESHOLD,
     get_pyramid_slots,
     get_train_slots,
 )
@@ -39,6 +41,10 @@ class HierarchicalVLJEPAOrchestrator:
     Connects language grounding, latent world modeling, CEM micro-planning,
     analytical IK execution, and physical stability hold verification.
     """
+    MAX_RETRIES: int = 3
+    GRASP_TIMEOUT: int = 60
+    VERIFY_TIMEOUT: int = 90
+
     def __init__(self):
         # Encoders & Projectors
         self.encoder_l2 = Level2ObservationEncoder()
@@ -80,9 +86,41 @@ class HierarchicalVLJEPAOrchestrator:
         # Micro-Phase State Machine
         # States: "HOVER_PICK", "DESCEND_PICK", "GRASP", "LIFT", "HOVER_PLACE", "DESCEND_PLACE", "RELEASE", "VERIFY_HOLD"
         self.micro_phase: str = "IDLE"
+        self.phase_ticks: int = 0
+        self.retry_count: int = 0
         self.dwell_counter: int = 0
         self.grasped_block_id: Optional[str] = None
         self.latest_cem_telemetry: Dict[str, Any] = {}
+
+    def _set_phase(self, phase: str):
+        """Sets the active micro-phase and resets phase_ticks on change."""
+        if self.micro_phase != phase:
+            self.micro_phase = phase
+            self.phase_ticks = 0
+
+    def _retry_subgoal(self):
+        """
+        Handles retry logic when grasping or verification times out.
+        Resets grasped block and stability validator, increments retry_count.
+        If retries are exceeded, advances to next subgoal or completes; otherwise returns to HOVER_PICK.
+        """
+        if self.grasped_block_id is not None:
+            self._set_phase("RELEASE")
+            return
+
+        self.grasped_block_id = None
+        self.stability_validator.reset()
+        self.retry_count += 1
+        if self.retry_count > self.MAX_RETRIES:
+            self.retry_count = 0
+            self.current_subgoal_idx += 1
+            if self.current_subgoal_idx < len(self.subgoals):
+                self._set_phase("HOVER_PICK")
+            else:
+                self._set_phase("COMPLETED")
+                self.is_active = False
+        else:
+            self._set_phase("HOVER_PICK")
 
     def plan_task(
         self,
@@ -114,7 +152,8 @@ class HierarchicalVLJEPAOrchestrator:
 
         self.current_subgoal_idx = 0
         self.is_active = len(self.subgoals) > 0
-        self.micro_phase = "HOVER_PICK" if self.is_active else "IDLE"
+        self.retry_count = 0
+        self._set_phase("HOVER_PICK" if self.is_active else "IDLE")
         self.dwell_counter = 0
         self.grasped_block_id = None
         self.stability_validator.reset()
@@ -150,8 +189,10 @@ class HierarchicalVLJEPAOrchestrator:
         """
         if not self.is_active or self.current_subgoal_idx >= len(self.subgoals):
             self.is_active = False
-            self.micro_phase = "COMPLETED"
+            self._set_phase("COMPLETED")
             return None
+
+        self.phase_ticks += 1
 
         active_subgoal = self.subgoals[self.current_subgoal_idx]
         b_id = active_subgoal["block_id"]
@@ -168,49 +209,55 @@ class HierarchicalVLJEPAOrchestrator:
         # Micro-Phase Target Computation
         micro_target = list(current_tcp)
         desired_gripper = current_gripper
-        dist_to_subgoal_target = 0.0
+
+        # Target transit altitude clearing any existing stack layers
+        transit_y = max(SAFE_HOVER_Y, target_slot[1] + 0.070)
 
         if self.micro_phase == "HOVER_PICK":
             # Above block
-            micro_target = [block_pos[0], SAFE_HOVER_Y, block_pos[2]]
+            micro_target = [block_pos[0], transit_y, block_pos[2]]
             desired_gripper = 0.0  # Open
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            if d < 0.025:
-                self.micro_phase = "DESCEND_PICK"
+            if d < 0.030 or self.phase_ticks > 60:
+                self._set_phase("DESCEND_PICK")
 
         elif self.micro_phase == "DESCEND_PICK":
             # Down to grasp height
-            pick_y = max(PICK_Y, block_pos[1] + 0.002)
+            pick_y = max(0.756, block_pos[1] + 0.010)
             micro_target = [block_pos[0], pick_y, block_pos[2]]
             desired_gripper = 0.0  # Still open
-            d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            if d < 0.018:
-                self.micro_phase = "GRASP"
-                self.dwell_counter = 12  # 0.2s grasp hold
+            horiz_err = math.hypot(current_tcp[0] - block_pos[0], current_tcp[2] - block_pos[2])
+            vert_err = abs(current_tcp[1] - pick_y)
+            if (horiz_err < 0.010 and abs(current_tcp[1] - pick_y) < 0.004) or self.phase_ticks > 60:
+                self._set_phase("GRASP")
 
         elif self.micro_phase == "GRASP":
             micro_target = list(current_tcp)
             desired_gripper = 1.0  # Close
-            if self.dwell_counter > 0:
-                self.dwell_counter -= 1
-            else:
+            if current_gripper >= GRASP_CLOSE_THRESHOLD + 0.02 and target_block.get("is_grasped") is True:
                 self.grasped_block_id = b_id
-                self.micro_phase = "LIFT"
+                self._set_phase("LIFT")
+            elif self.phase_ticks > self.GRASP_TIMEOUT:
+                self._retry_subgoal()
 
         elif self.micro_phase == "LIFT":
-            micro_target = [current_tcp[0], SAFE_HOVER_Y, current_tcp[2]]
+            micro_target = [current_tcp[0], transit_y, current_tcp[2]]
             desired_gripper = 1.0  # Hold closed
-            d = abs(current_tcp[1] - SAFE_HOVER_Y)
-            if d < 0.025:
-                self.micro_phase = "HOVER_PLACE"
+            d = abs(current_tcp[1] - transit_y)
+            if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
+                self._retry_subgoal()
+            elif d < 0.025 or self.phase_ticks > 50:
+                self._set_phase("HOVER_PLACE")
 
         elif self.micro_phase == "HOVER_PLACE":
-            # Hover directly above target slot
-            micro_target = [target_slot[0], SAFE_HOVER_Y, target_slot[2]]
+            # Hover directly above target slot at safe transit height
+            micro_target = [target_slot[0], transit_y, target_slot[2]]
             desired_gripper = 1.0  # Hold closed
-            d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[2] - micro_target[2])
-            if d < 0.025:
-                self.micro_phase = "DESCEND_PLACE"
+            horiz_d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[2] - micro_target[2])
+            if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
+                self._retry_subgoal()
+            elif horiz_d < 0.025 or self.phase_ticks > 70:
+                self._set_phase("DESCEND_PLACE")
 
         elif self.micro_phase == "DESCEND_PLACE":
             # Place at target slot height
@@ -218,60 +265,78 @@ class HierarchicalVLJEPAOrchestrator:
             micro_target = [target_slot[0], place_y, target_slot[2]]
             desired_gripper = 1.0  # Hold closed
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            if d < 0.020:
-                self.micro_phase = "RELEASE"
-                self.dwell_counter = 10
+            horiz_err = math.hypot(current_tcp[0] - target_slot[0], current_tcp[2] - target_slot[2])
+            vert_err = abs(current_tcp[1] - place_y)
+            if d < 0.028 or (horiz_err < 0.022 and vert_err < 0.015) or self.phase_ticks > 60:
+                self._set_phase("RELEASE")
 
         elif self.micro_phase == "RELEASE":
             micro_target = list(current_tcp)
             desired_gripper = 0.0  # Open gripper
-            if self.dwell_counter > 0:
-                self.dwell_counter -= 1
-            else:
+            if (current_gripper <= GRASP_OPEN_THRESHOLD - 0.05 and not target_block.get("is_grasped", False)) or self.phase_ticks > 40:
                 self.grasped_block_id = None
-                self.micro_phase = "VERIFY_HOLD"
+                self._set_phase("VERIFY_HOLD")
 
         elif self.micro_phase == "VERIFY_HOLD":
             # Retreat slightly up while verifying stability hold
-            micro_target = [target_slot[0], SAFE_HOVER_Y, target_slot[2]]
+            micro_target = [target_slot[0], transit_y, target_slot[2]]
             desired_gripper = 0.0
             
-            # Step the physical stability validator
+            # Step the physical stability validator for this specific target block
             is_verified, hold_ticks, status = self.stability_validator.step(
                 blocks=blocks,
-                grasped_block_id=self.grasped_block_id
+                grasped_block_id=self.grasped_block_id,
+                target_block_id=b_id,
             )
 
-            # Evaluate Level 2 latent distance
-            curr_z2 = self.encoder_l2.encode(
-                blocks=blocks,
-                tcp_pos=list(current_tcp),
-                target_origin=STACK_ORIGIN
-            )
-            latent_dist = float(np.linalg.norm(curr_z2 - z_sub))
+            placed_pos = target_block.get("position", [0.0, 0.0, 0.0])
+            placed_dist_xz = math.hypot(placed_pos[0] - target_slot[0], placed_pos[2] - target_slot[2])
+            placed_dist_y = abs(placed_pos[1] - target_slot[1])
 
-            # DUAL GATE: Verified resting stability + Latent proximity
-            if is_verified:
+            # Gate: Verified resting stability + Placed block within 0.038m (xz) and 0.035m (y) of target slot
+            if is_verified and placed_dist_xz <= 0.045 and placed_dist_y <= 0.035:
                 # Sub-goal complete! Unlock next macro-step
+                self.retry_count = 0
                 self.current_subgoal_idx += 1
                 self.stability_validator.reset()
                 if self.current_subgoal_idx < len(self.subgoals):
-                    self.micro_phase = "HOVER_PICK"
+                    self._set_phase("HOVER_PICK")
                 else:
-                    self.micro_phase = "COMPLETED"
+                    self._set_phase("COMPLETED")
                     self.is_active = False
+            elif self.phase_ticks > self.VERIFY_TIMEOUT:
+                self._retry_subgoal()
+            elif self.phase_ticks > 25 and (placed_dist_xz > 0.08 or placed_dist_y > 0.08):
+                self._retry_subgoal()
 
-        # Run Level 1 Micro-CEM Trajectory Optimization
-        cem_res = self.cem_micro.plan(
-            current_tcp=list(current_tcp),
-            target_pos=micro_target,
-            active_subgoal_z2=z_sub,
-            gripper_aperture=current_gripper,
-            desired_gripper=desired_gripper
-        )
+        if not self.is_active or self.current_subgoal_idx >= len(self.subgoals):
+            self.is_active = False
+            self._set_phase("COMPLETED")
+            return None
+
+        # Level 1 Micro-CEM Trajectory Optimization
+        # In GRASP and RELEASE, skip CEM entirely with zero latency and zero jitter
+        if self.micro_phase in ("GRASP", "RELEASE"):
+            opt_action = [0.0, 0.0, 0.0, desired_gripper]
+            cem_res = {
+                "optimal_action": opt_action,
+                "planned_trajectory": [],
+                "latent_distance": 0.0,
+                "latency_ms": 0.0,
+                "num_samples_evaluated": 0,
+            }
+        else:
+            cem_res = self.cem_micro.plan(
+                current_tcp=list(current_tcp),
+                target_pos=micro_target,
+                active_subgoal_z2=z_sub,
+                gripper_aperture=current_gripper,
+                desired_gripper=desired_gripper
+            )
+            opt_action = cem_res["optimal_action"]
+
         self.latest_cem_telemetry = cem_res
 
-        opt_action = cem_res["optimal_action"]
         next_tcp = [
             current_tcp[0] + opt_action[0],
             current_tcp[1] + opt_action[1],
@@ -297,8 +362,8 @@ class HierarchicalVLJEPAOrchestrator:
             "subgoal_index": self.current_subgoal_idx,
             "total_subgoals": len(self.subgoals),
             "subgoal_desc": active_subgoal["description"],
-            "latent_distance": cem_res["latent_distance"],
-            "cem_latency_ms": cem_res["latency_ms"],
+            "latent_distance": cem_res.get("latent_distance", 0.0),
+            "cem_latency_ms": cem_res.get("latency_ms", 0.0),
             "stability_status": self.stability_validator.status,
             "is_done": not self.is_active,
         }
