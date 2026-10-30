@@ -10,6 +10,7 @@ Operates at subtask boundaries (1 step = 1 complete pick-and-place phase).
 """
 
 import math
+import re
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 
@@ -229,6 +230,57 @@ class Level2TaskPlanner:
                     predicted_stability_prob=0.99,
                     description=desc,
                 ))
+            return subgoals
+
+        # 3b. Check for Multi-Tower Distinct Assembly
+        is_multi_towers = (
+            any(p in inst_lower for p in (
+                "distinct tower", "distinct towers", "separate tower", "separate towers",
+                "different tower", "different towers", "2 towers", "two towers",
+                "3 towers", "three towers", "dual towers", "dual tower", "pair of towers"
+            ))
+            or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", inst_lower))
+        )
+        if is_multi_towers:
+            m_t = re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", inst_lower)
+            word_to_num = {"1": 1, "one": 1, "2": 2, "two": 2, "3": 3, "three": 3, "4": 4, "four": 4, "5": 5, "five": 5}
+            num_towers = word_to_num.get(m_t.group(1), 2) if m_t else 2
+            m_b = re.search(r"\b(1|one|2|two|3|three|4|four|5|five)\s+(?:blocks?|cubes?|layers?)\s+(?:each|per)", inst_lower)
+            if not m_b:
+                m_b = re.search(r"(?:each|per)\s+(?:tower\s+)?(?:has\s+)?(1|one|2|two|3|three|4|four|5|five)\s+(?:blocks?|cubes?|layers?)", inst_lower)
+            blocks_per_tower = word_to_num.get(m_b.group(1), 2) if m_b else 2
+            origins = get_distinct_tower_origins(num_towers)
+
+            total_needed = num_towers * blocks_per_tower
+            task_blocks = available_ids[:total_needed]
+
+            subgoal_idx = 0
+            for t_idx in range(num_towers):
+                t_origin = origins[t_idx] if t_idx < len(origins) else target_origin
+                prev_id = "table"
+                for layer in range(blocks_per_tower):
+                    if subgoal_idx >= len(task_blocks):
+                        break
+                    b_id = task_blocks[subgoal_idx]
+                    slot_y = stack_slot_y(layer)
+                    target_xyz = (float(t_origin[0]), float(slot_y), float(t_origin[2]))
+                    support = "table" if layer == 0 else prev_id
+                    prev_id = b_id
+
+                    desc = f"Distinct Tower {t_idx+1} Subgoal {layer+1}/{blocks_per_tower}: Place {b_id} onto Tier {layer} ({target_xyz[0]:.3f}, {target_xyz[1]:.3f}, {target_xyz[2]:.3f})"
+                    z_txt = self.text_encoder.encode_text(f"tower {t_idx+1} layer {layer} {b_id} on {support}")
+                    subgoals.append(SubgoalSpecification(
+                        subgoal_id=subgoal_idx,
+                        action_type="stack" if layer > 0 else "pick_and_place",
+                        source_label=b_id,
+                        source_color=b_id.replace("block_", ""),
+                        target_xyz=target_xyz,
+                        support_label=support,
+                        target_latent_l2=z_txt,
+                        predicted_stability_prob=0.98,
+                        description=desc,
+                    ))
+                    subgoal_idx += 1
             return subgoals
 
         # 4. Default / Tower Structure (1 to 7 blocks vertical stack)

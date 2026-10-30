@@ -236,7 +236,7 @@ class RobotArmSimulation:
                     continue
                 # For other block to support this block, this block must be elevated above other
                 # and sufficiently centered over it (stack <= 0.75 * CUBE_SIZE, which allows pyramid bridging at ~0.71*CUBE_SIZE but rejects side-by-side cubes at >= 0.90*CUBE_SIZE)
-                if block.position[1] >= (other.position[1] + CUBE_HALF * 0.75):
+                if block.position[1] >= (other.position[1] + CUBE_HALF):
                     horiz_dist = math.hypot(block.position[0] - other.position[0], block.position[2] - other.position[2])
                     if horiz_dist <= CUBE_SIZE * 0.75:
                         candidate_support_y = other.position[1] + CUBE_SIZE

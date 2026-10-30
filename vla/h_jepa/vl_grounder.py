@@ -9,6 +9,7 @@ Translates high-level multi-box manipulation directives (e.g. 3-block, 5-block,
 """
 
 import math
+import re
 import hashlib
 from typing import Dict, List, Any, Optional, Tuple
 import numpy as np
@@ -18,6 +19,7 @@ from simulation.constants import (
     get_pyramid_slots,
     get_train_slots,
     get_letter_slots,
+    get_distinct_tower_origins,
     TABLE_TOP_Y,
     CUBE_SIZE,
 )
@@ -106,7 +108,15 @@ class VLJEPAGrounder:
                 is_letter = ltr.upper()
                 break
 
-        is_tower = any(w in inst_lower for w in ["tower", "stack", "vertical"]) and not any(w in inst_lower for w in ["pyramid", "stepped", "triangle"])
+        is_multi_towers = (
+            any(p in inst_lower for p in (
+                "distinct tower", "distinct towers", "separate tower", "separate towers",
+                "different tower", "different towers", "2 towers", "two towers",
+                "3 towers", "three towers", "dual towers", "dual tower", "pair of towers"
+            ))
+            or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", inst_lower))
+        )
+        is_tower = any(w in inst_lower for w in ["tower", "stack", "vertical"]) and not any(w in inst_lower for w in ["pyramid", "stepped", "triangle"]) and not is_multi_towers
         is_train = "train" in inst_lower or "line" in inst_lower or "row" in inst_lower
         
         pyr_type = "3_block_stepped"
@@ -128,6 +138,24 @@ class VLJEPAGrounder:
                             num_t = cnt
                             break
                 target_slots = get_train_slots(num_t, (0.38, TABLE_TOP_Y, 0.0))
+            elif is_multi_towers:
+                m_t = re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", inst_lower)
+                word_to_num = {"1": 1, "one": 1, "2": 2, "two": 2, "3": 3, "three": 3, "4": 4, "four": 4, "5": 5, "five": 5}
+                num_towers = word_to_num.get(m_t.group(1), 2) if m_t else 2
+                m_b = re.search(r"\b(1|one|2|two|3|three|4|four|5|five)\s+(?:blocks?|cubes?|layers?)\s+(?:each|per)", inst_lower)
+                if not m_b:
+                    m_b = re.search(r"(?:each|per)\s+(?:tower\s+)?(?:has\s+)?(1|one|2|two|3|three|4|four|5|five)\s+(?:blocks?|cubes?|layers?)", inst_lower)
+                blocks_per_tower = word_to_num.get(m_b.group(1), 2) if m_b else 2
+                origins = get_distinct_tower_origins(num_towers)
+                target_slots = []
+                for t_idx in range(num_towers):
+                    t_origin = origins[t_idx] if t_idx < len(origins) else STACK_ORIGIN
+                    for layer in range(blocks_per_tower):
+                        target_slots.append([
+                            t_origin[0],
+                            TABLE_TOP_Y + CUBE_SIZE * (layer + 0.5),
+                            t_origin[2]
+                        ])
             elif is_tower:
                 num_layers = 1
                 for token, cnt in [
@@ -180,7 +208,7 @@ class VLJEPAGrounder:
         z_goal = 0.5 * z_text + 0.5 * z_geom
         z_goal = z_goal / max(1e-6, np.linalg.norm(z_goal))
 
-        st_type = f"{len(target_slots)}_block_tower" if is_tower else ("linear_train" if is_train else pyr_type)
+        st_type = f"{num_towers}_distinct_towers" if is_multi_towers else (f"{len(target_slots)}_block_tower" if is_tower else ("linear_train" if is_train else pyr_type))
         metadata = {
             "structure_type": st_type,
             "num_blocks": len(target_slots),

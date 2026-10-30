@@ -605,12 +605,14 @@ Output a JSON object ONLY with the following schema:
                         continue
                     bx, by, bz = b["position"]
                     target_y = stack_slot_y(layer_idx)
+                    target_coords = [t_origin[0], target_y, t_origin[2]]
                     grounding.append({
                         "entity": b_id,
                         "color": b["color"],
                         "source_coords": [bx, by, bz],
                         "target_zone": f"Tower {t_idx+1} [Z={t_origin[2]:.2f}]",
                         "target_layer": layer_idx,
+                        "target_coords": target_coords,
                     })
                     steps = self._generate_pick_and_place(
                         bx, bz, t_origin[0], t_origin[2], target_y, b["name"],
@@ -841,6 +843,7 @@ Output a JSON object ONLY with the following schema:
             "thought": self.latest_thought,
             "grounding": self.latest_grounding,
             "plan": self.active_plan,
+            "action_type": action_type,
             "cost": cost_entry,
             "cost_summary": self.cost_tracker.to_dict(),
         }
