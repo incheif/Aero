@@ -22,6 +22,7 @@ from simulation.constants import (
     get_distinct_tower_origins,
     TABLE_TOP_Y,
     CUBE_SIZE,
+    CUBE_HALF,
 )
 from vla.instruction_interpreter import AVAILABLE_BLOCKS
 from .encoders import Level2ObservationEncoder
@@ -221,20 +222,72 @@ class VLJEPAGrounder:
         self,
         target_slots: List[List[float]],
         block_ids: List[str],
-        initial_blocks: List[Dict[str, Any]]
+        initial_blocks: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """
         Generates the sequential intermediate sub-goal latent embeddings z_sub^(2)
-        corresponding to each step of the pyramid or tower assembly:
-        e.g., Step 1: Base-1 placed
-              Step 2: Base-2 placed
-              Step 3: Apex placed
+        corresponding to each step of the pyramid, tower, or train assembly.
+        If any existing block physically obstructs a target slot before its turn,
+        a pre-clearing subgoal is prepended to move that block to a distant staging location.
         """
         subgoals = []
-        curr_state_blocks = [dict(b) for b in initial_blocks]
+        curr_state_blocks = [dict(b) for b in initial_blocks] if initial_blocks else []
+
+        # 1. Path Obstruction Detection & Pre-clearing Subgoals
+        staging_positions = [
+            [0.15, TABLE_TOP_Y + CUBE_HALF, 0.08],
+            [0.15, TABLE_TOP_Y + CUBE_HALF, -0.12],
+            [0.12, TABLE_TOP_Y + CUBE_HALF, 0.0],
+        ]
+        staging_idx = 0
+
+        curr_positions = {}
+        if initial_blocks:
+            for b in initial_blocks:
+                if b.get("id"):
+                    curr_positions[b["id"]] = list(b.get("position", [0.0, 0.0, 0.0]))
+
+        cleared_blocks = set()
+        clearing_subgoals = []
 
         for step_idx, (b_id, slot) in enumerate(zip(block_ids, target_slots)):
-            # Update virtual state: place block at its designated target
+            for other_id, other_pos in list(curr_positions.items()):
+                if other_id == b_id or other_id in cleared_blocks:
+                    continue
+                horiz_dist = math.hypot(other_pos[0] - slot[0], other_pos[2] - slot[2])
+                vert_dist = abs(other_pos[1] - slot[1])
+                if horiz_dist < CUBE_SIZE * 0.95 and vert_dist < CUBE_SIZE:
+                    other_scheduled_idx = block_ids.index(other_id) if other_id in block_ids else 999
+                    if other_scheduled_idx > step_idx:
+                        stage_slot = staging_positions[staging_idx % len(staging_positions)]
+                        staging_idx += 1
+
+                        for b in curr_state_blocks:
+                            if b.get("id") == other_id:
+                                b["position"] = list(stage_slot)
+                                b["is_grasped"] = False
+                                break
+                        curr_positions[other_id] = list(stage_slot)
+                        cleared_blocks.add(other_id)
+
+                        z_clear = self.encoder_l2.encode(
+                            blocks=curr_state_blocks,
+                            tcp_pos=[stage_slot[0], stage_slot[1] + 0.08, stage_slot[2]],
+                            target_origin=STACK_ORIGIN,
+                        )
+                        clearing_subgoals.append({
+                            "block_id": other_id,
+                            "target_slot": stage_slot,
+                            "z_sub": z_clear,
+                            "description": f"Pre-clear obstructing {other_id} from path to distant location ({stage_slot[0]:.3f}, {stage_slot[1]:.3f}, {stage_slot[2]:.3f})",
+                        })
+
+        for cs in clearing_subgoals:
+            cs["subgoal_index"] = len(subgoals)
+            subgoals.append(cs)
+
+        # 2. Main Assembly Subgoals
+        for step_idx, (b_id, slot) in enumerate(zip(block_ids, target_slots)):
             for b in curr_state_blocks:
                 if b.get("id") == b_id:
                     b["position"] = [slot[0], slot[1], slot[2]]
@@ -243,7 +296,6 @@ class VLJEPAGrounder:
                     b["is_grasped"] = False
                     break
 
-            # Encode intermediate scene state
             z_sub = self.encoder_l2.encode(
                 blocks=curr_state_blocks,
                 tcp_pos=[slot[0], slot[1] + 0.08, slot[2]],
@@ -252,7 +304,7 @@ class VLJEPAGrounder:
 
             tier_desc = f"Tier {round(max(0, slot[1] - TABLE_TOP_Y) / CUBE_SIZE)}"
             subgoals.append({
-                "subgoal_index": step_idx,
+                "subgoal_index": len(subgoals),
                 "block_id": b_id,
                 "target_slot": slot,
                 "z_sub": z_sub,

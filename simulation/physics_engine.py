@@ -119,6 +119,9 @@ class RobotArmSimulation:
         if gripper is not None:
             self.gripper_target = clamp(gripper, 0.0, 1.0)
             self.joint_targets["gripper"] = self.gripper_target
+        elif "gripper" in targets:
+            self.gripper_target = clamp(targets["gripper"], 0.0, 1.0)
+            self.joint_targets["gripper"] = self.gripper_target
 
     def step(self, dt: float = FIXED_DT):
         self.tick += 1
@@ -248,6 +251,65 @@ class RobotArmSimulation:
             if block.position[1] <= support_y:
                 block.position[1] = support_y
                 block.velocity[1] = 0.0
+
+        # 5. Horizontal Solid-Body Collision Resolution between Blocks (prevent merging / interpenetration)
+        block_keys = list(self.blocks.keys())
+        margin = TABLE_WALL_HALF_THICKNESS + CUBE_HALF
+        for i in range(len(block_keys)):
+            b1_id = block_keys[i]
+            b1 = self.blocks[b1_id]
+            for j in range(i + 1, len(block_keys)):
+                b2_id = block_keys[j]
+                b2 = self.blocks[b2_id]
+
+                if b1.is_grasped and b2.is_grasped:
+                    continue
+
+                # Vertical distance check: only collide if centers are within one cube height of each other
+                vert_dist = abs(b1.position[1] - b2.position[1])
+                if vert_dist >= CUBE_SIZE * 0.85:
+                    continue
+
+                dx = b1.position[0] - b2.position[0]
+                dz = b1.position[2] - b2.position[2]
+                overlap_x = CUBE_SIZE - abs(dx)
+                overlap_z = CUBE_SIZE - abs(dz)
+
+                if overlap_x > 0.0005 and overlap_z > 0.0005:
+                    # Cubes interpenetrate! Push apart along the axis of minimum penetration
+                    if overlap_x < overlap_z:
+                        sign = 1.0 if dx >= 0.0 else -1.0
+                        if b1.is_grasped:
+                            b2.position[0] -= overlap_x * sign
+                            b2.velocity[0] = -0.04 * sign
+                        elif b2.is_grasped:
+                            b1.position[0] += overlap_x * sign
+                            b1.velocity[0] = 0.04 * sign
+                        else:
+                            b1.position[0] += (overlap_x * 0.5) * sign
+                            b2.position[0] -= (overlap_x * 0.5) * sign
+                            b1.velocity[0] *= 0.5
+                            b2.velocity[0] *= 0.5
+                    else:
+                        sign = 1.0 if dz >= 0.0 else -1.0
+                        if b1.is_grasped:
+                            b2.position[2] -= overlap_z * sign
+                            b2.velocity[2] = -0.04 * sign
+                        elif b2.is_grasped:
+                            b1.position[2] += overlap_z * sign
+                            b1.velocity[2] = 0.04 * sign
+                        else:
+                            b1.position[2] += (overlap_z * 0.5) * sign
+                            b2.position[2] -= (overlap_z * 0.5) * sign
+                            b1.velocity[2] *= 0.5
+                            b2.velocity[2] *= 0.5
+
+                    if not b1.is_grasped:
+                        b1.position[0] = clamp(b1.position[0], -half_x + margin, half_x - margin)
+                        b1.position[2] = clamp(b1.position[2], -half_z + margin, half_z - margin)
+                    if not b2.is_grasped:
+                        b2.position[0] = clamp(b2.position[0], -half_x + margin, half_x - margin)
+                        b2.position[2] = clamp(b2.position[2], -half_z + margin, half_z - margin)
 
         # Return snapshot
         return self.get_snapshot()

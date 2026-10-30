@@ -19,6 +19,8 @@ from simulation.constants import (
     SAFE_HOVER_Y,
     PICK_Y,
     TABLE_TOP_Y,
+    CUBE_SIZE,
+    CUBE_HALF,
     stack_slot_y,
     get_pyramid_slots,
     get_train_slots,
@@ -702,6 +704,39 @@ Output a JSON object ONLY with the following schema:
             train_targets = interpretation.get("target_blocks", all_block_ids)
             slots = get_train_slots(len(train_targets), origin=(0.38, TABLE_TOP_Y, 0.0))
 
+            staging_loc = [0.15, TABLE_TOP_Y + CUBE_HALF, 0.08]
+            cleared_blocks = set()
+
+            # Pre-clear any blocks obstructing the train slots before their turn
+            for step_idx, (b_id, slot_target) in enumerate(zip(train_targets, slots)):
+                for other_id in train_targets:
+                    if other_id == b_id or other_id in cleared_blocks:
+                        continue
+                    other_b = blocks.get(other_id)
+                    if not other_b:
+                        continue
+                    ox, oy, oz = other_b["position"]
+                    tx, ty, tz = slot_target
+                    horiz_d = math.hypot(ox - tx, oz - tz)
+                    vert_d = abs(oy - ty)
+                    if horiz_d < CUBE_SIZE * 0.95 and vert_d < CUBE_SIZE:
+                        other_idx = train_targets.index(other_id)
+                        if other_idx > step_idx:
+                            cleared_blocks.add(other_id)
+                            grounding.append({
+                                "entity": other_id,
+                                "color": other_b["color"],
+                                "source_coords": [ox, oy, oz],
+                                "role": "Path Pre-Clearing (Distant Staging)",
+                                "target_coords": list(staging_loc),
+                            })
+                            steps = self._generate_pick_and_place(
+                                ox, oz, staging_loc[0], staging_loc[2], staging_loc[1],
+                                f"{other_b['name']} (Path Pre-Clear)"
+                            )
+                            plan.extend(steps)
+                            other_b["position"] = list(staging_loc)
+
             train_strs = []
             for idx, (b_id, slot_target) in enumerate(zip(train_targets, slots)):
                 b = blocks.get(b_id)
@@ -714,6 +749,7 @@ Output a JSON object ONLY with the following schema:
                 steps = self._generate_pick_and_place(bx, bz, tx, tz, ty, b["name"])
                 plan.extend(steps)
                 train_strs.append(f"{car_label}:{b['name']}")
+                b["position"] = [tx, ty, tz]
 
             plan.append({
                 "action": "HOME",

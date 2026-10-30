@@ -183,11 +183,39 @@ class Level2TaskPlanner:
             slots = get_train_slots(num_blocks, (0.38, TABLE_TOP_Y, 0.0))
             task_blocks = available_ids[:len(slots)]
 
+            # Pre-clear any blocks obstructing the train slots before their turn
+            staging_loc = (0.15, TABLE_TOP_Y + CUBE_HALF, 0.08)
+            curr_pos = {b["id"]: list(b["position"]) for b in current_blocks if "id" in b and "position" in b}
+            cleared_ids = set()
+
+            for step_idx, (b_id, slot) in enumerate(zip(task_blocks, slots)):
+                for other_id, other_pos in list(curr_pos.items()):
+                    if other_id == b_id or other_id in cleared_ids:
+                        continue
+                    horiz_d = math.hypot(other_pos[0] - slot[0], other_pos[2] - slot[2])
+                    vert_d = abs(other_pos[1] - slot[1])
+                    if horiz_d < CUBE_SIZE * 0.95 and vert_d < CUBE_SIZE:
+                        other_step = task_blocks.index(other_id) if other_id in task_blocks else 999
+                        if other_step > step_idx:
+                            cleared_ids.add(other_id)
+                            curr_pos[other_id] = list(staging_loc)
+                            subgoals.append(SubgoalSpecification(
+                                subgoal_id=len(subgoals),
+                                action_type="pick_and_place",
+                                source_label=other_id,
+                                source_color=other_id.replace("block_", ""),
+                                target_xyz=staging_loc,
+                                support_label="table",
+                                target_latent_l2=self.text_encoder.encode_text(f"pre-clear {other_id} to distant staging"),
+                                predicted_stability_prob=0.99,
+                                description=f"Pre-clear obstructing {other_id} from path to distant location ({staging_loc[0]:.3f}, {staging_loc[1]:.3f}, {staging_loc[2]:.3f})",
+                            ))
+
             for idx, (b_id, slot) in enumerate(zip(task_blocks, slots)):
                 desc = f"Train Subgoal {idx+1}/{len(slots)}: Align {b_id} at slot ({slot[0]:.3f}, {slot[1]:.3f}, {slot[2]:.3f})"
                 z_txt = self.text_encoder.encode_text(f"train step {idx+1} {b_id}")
                 subgoals.append(SubgoalSpecification(
-                    subgoal_id=idx,
+                    subgoal_id=len(subgoals),
                     action_type="pick_and_place",
                     source_label=b_id,
                     source_color=b_id.replace("block_", ""),
