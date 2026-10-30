@@ -170,9 +170,20 @@ class RobotArmSimulation:
                     self.release_cooldown_ticks = 15
                 else:
                     # Move block to lock onto TCP mid-finger pinch point
-                    grasped_block.position = list(tcp_pos)
-                    # Physical table boundary clamp: carried block bottom can never penetrate table surface
-                    grasped_block.position[1] = max(TABLE_TOP_Y + CUBE_HALF + 0.002, tcp_pos[1])
+                    # Physical clamp: carried block can never penetrate table surface OR any underlying blocks
+                    min_support_y = TABLE_TOP_Y + CUBE_HALF + 0.002
+                    for other_id, other in self.blocks.items():
+                        if other_id == self.grasped_block_id or other.is_grasped:
+                            continue
+                        dx = abs(tcp_pos[0] - other.position[0])
+                        dz = abs(tcp_pos[2] - other.position[2])
+                        if dx < CUBE_SIZE * 0.95 and dz < CUBE_SIZE * 0.95:
+                            if tcp_pos[1] >= other.position[1] - 0.010:
+                                cand_y = other.position[1] + CUBE_SIZE
+                                if cand_y > min_support_y:
+                                    min_support_y = cand_y
+
+                    grasped_block.position = [tcp_pos[0], max(min_support_y, tcp_pos[1]), tcp_pos[2]]
                     grasped_block.rotation = list(tcp_rot)
                     grasped_block.velocity = [0.0, 0.0, 0.0]
 
@@ -237,11 +248,14 @@ class RobotArmSimulation:
                 # Grasped blocks being carried by gripper cannot act as support platforms
                 if other.is_grasped:
                     continue
-                # For other block to support this block, this block must be elevated above other
-                # and sufficiently centered over it (stack <= 0.75 * CUBE_SIZE, which allows pyramid bridging at ~0.71*CUBE_SIZE but rejects side-by-side cubes at >= 0.90*CUBE_SIZE)
-                if block.position[1] >= (other.position[1] + CUBE_HALF):
-                    horiz_dist = math.hypot(block.position[0] - other.position[0], block.position[2] - other.position[2])
-                    if horiz_dist <= CUBE_SIZE * 0.75:
+                # For other block to support this block, this block must be above other
+                if block.position[1] >= other.position[1]:
+                    dx = abs(block.position[0] - other.position[0])
+                    dz = abs(block.position[2] - other.position[2])
+                    overlap_x = CUBE_SIZE - dx
+                    overlap_z = CUBE_SIZE - dz
+                    # Horizontal overlap exists when AABBs share contact area (supports 1-on-1 stacking and pyramid bridging)
+                    if overlap_x > 0.005 and overlap_z > 0.005:
                         candidate_support_y = other.position[1] + CUBE_SIZE
                         if candidate_support_y > support_y:
                             support_y = candidate_support_y
@@ -252,7 +266,7 @@ class RobotArmSimulation:
                 block.position[1] = support_y
                 block.velocity[1] = 0.0
 
-        # 5. Horizontal Solid-Body Collision Resolution between Blocks (prevent merging / interpenetration)
+        # 5. Full 3D Solid-Body Collision Resolution between Blocks (prevent merging in X, Y, and Z)
         block_keys = list(self.blocks.keys())
         margin = TABLE_WALL_HALF_THICKNESS + CUBE_HALF
         for i in range(len(block_keys)):
@@ -265,44 +279,70 @@ class RobotArmSimulation:
                 if b1.is_grasped and b2.is_grasped:
                     continue
 
-                # Vertical distance check: only collide if centers are within one cube height of each other
-                vert_dist = abs(b1.position[1] - b2.position[1])
-                if vert_dist >= CUBE_SIZE * 0.85:
-                    continue
-
                 dx = b1.position[0] - b2.position[0]
+                dy = b1.position[1] - b2.position[1]
                 dz = b1.position[2] - b2.position[2]
                 overlap_x = CUBE_SIZE - abs(dx)
+                overlap_y = CUBE_SIZE - abs(dy)
                 overlap_z = CUBE_SIZE - abs(dz)
 
-                if overlap_x > 0.0005 and overlap_z > 0.0005:
-                    # Cubes interpenetrate! Push apart along the axis of minimum penetration
-                    if overlap_x < overlap_z:
-                        sign = 1.0 if dx >= 0.0 else -1.0
-                        if b1.is_grasped:
-                            b2.position[0] -= overlap_x * sign
-                            b2.velocity[0] = -0.04 * sign
-                        elif b2.is_grasped:
-                            b1.position[0] += overlap_x * sign
-                            b1.velocity[0] = 0.04 * sign
+                if overlap_x > 0.0005 and overlap_y > 0.0005 and overlap_z > 0.0005:
+                    # Cubes interpenetrate in 3D!
+                    # Case 1: Vertical stacking penetration (one is above the other with horizontal overlap)
+                    if overlap_y <= min(overlap_x, overlap_z) or (overlap_x > 0.010 and overlap_z > 0.010 and abs(dy) > CUBE_HALF):
+                        if dy >= 0.0:
+                            # b1 is above b2: enforce b1 rests flush on top of b2
+                            if b1.is_grasped:
+                                if not b2.is_grasped:
+                                    b2.position[1] = max(min_table_y, b1.position[1] - CUBE_SIZE)
+                                    b2.velocity[1] = 0.0
+                            elif b2.is_grasped:
+                                b1.position[1] = b2.position[1] + CUBE_SIZE
+                                b1.velocity[1] = 0.0
+                            else:
+                                b1.position[1] = b2.position[1] + CUBE_SIZE
+                                b1.velocity[1] = 0.0
                         else:
-                            b1.position[0] += (overlap_x * 0.5) * sign
-                            b2.position[0] -= (overlap_x * 0.5) * sign
-                            b1.velocity[0] *= 0.5
-                            b2.velocity[0] *= 0.5
+                            # b2 is above b1: enforce b2 rests flush on top of b1
+                            if b2.is_grasped:
+                                if not b1.is_grasped:
+                                    b1.position[1] = max(min_table_y, b2.position[1] - CUBE_SIZE)
+                                    b1.velocity[1] = 0.0
+                            elif b1.is_grasped:
+                                b2.position[1] = b1.position[1] + CUBE_SIZE
+                                b2.velocity[1] = 0.0
+                            else:
+                                b2.position[1] = b1.position[1] + CUBE_SIZE
+                                b2.velocity[1] = 0.0
+
+                    # Case 2: Horizontal side-by-side penetration
                     else:
-                        sign = 1.0 if dz >= 0.0 else -1.0
-                        if b1.is_grasped:
-                            b2.position[2] -= overlap_z * sign
-                            b2.velocity[2] = -0.04 * sign
-                        elif b2.is_grasped:
-                            b1.position[2] += overlap_z * sign
-                            b1.velocity[2] = 0.04 * sign
+                        if overlap_x < overlap_z:
+                            sign = 1.0 if dx >= 0.0 else -1.0
+                            if b1.is_grasped:
+                                b2.position[0] -= overlap_x * sign
+                                b2.velocity[0] = -0.04 * sign
+                            elif b2.is_grasped:
+                                b1.position[0] += overlap_x * sign
+                                b1.velocity[0] = 0.04 * sign
+                            else:
+                                b1.position[0] += (overlap_x * 0.5) * sign
+                                b2.position[0] -= (overlap_x * 0.5) * sign
+                                b1.velocity[0] *= 0.5
+                                b2.velocity[0] *= 0.5
                         else:
-                            b1.position[2] += (overlap_z * 0.5) * sign
-                            b2.position[2] -= (overlap_z * 0.5) * sign
-                            b1.velocity[2] *= 0.5
-                            b2.velocity[2] *= 0.5
+                            sign = 1.0 if dz >= 0.0 else -1.0
+                            if b1.is_grasped:
+                                b2.position[2] -= overlap_z * sign
+                                b2.velocity[2] = -0.04 * sign
+                            elif b2.is_grasped:
+                                b1.position[2] += overlap_z * sign
+                                b1.velocity[2] = 0.04 * sign
+                            else:
+                                b1.position[2] += (overlap_z * 0.5) * sign
+                                b2.position[2] -= (overlap_z * 0.5) * sign
+                                b1.velocity[2] *= 0.5
+                                b2.velocity[2] *= 0.5
 
                     if not b1.is_grasped:
                         b1.position[0] = clamp(b1.position[0], -half_x + margin, half_x - margin)
