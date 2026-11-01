@@ -405,20 +405,28 @@ class HierarchicalVLJEPAOrchestrator:
                 self._set_phase("DESCEND_PLACE")
 
         elif self.micro_phase == "DESCEND_PLACE":
-            # Pure vertical descent down onto target slot
+            # Pure vertical descent down onto target slot with soft approach
             place_y = eff_slot[1] + 0.008
             micro_target = [eff_slot[0], place_y, eff_slot[2]]
             desired_gripper = 1.0  # Hold closed
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
             horiz_err = math.hypot(current_tcp[0] - eff_slot[0], current_tcp[2] - eff_slot[2])
             vert_err = abs(current_tcp[1] - place_y)
-            if d < 0.028 or (horiz_err < 0.020 and vert_err < 0.012) or self.phase_ticks > 60:
+            # Sub-centimeter touchdown (<= 6mm): require firm resting contact before opening jaws
+            touchdown_reached = (horiz_err < 0.010 and vert_err < 0.006) or (d < 0.008 and self.phase_ticks >= 15)
+            if touchdown_reached or self.phase_ticks > 75:
                 self._set_phase("RELEASE")
 
         elif self.micro_phase == "RELEASE":
-            micro_target = list(current_tcp)
+            # Stationary soft-release: firmly lock TCP at placement target while gripper jaws open
+            place_y = eff_slot[1] + 0.008
+            micro_target = [eff_slot[0], place_y, eff_slot[2]]
             desired_gripper = 0.0  # Open gripper
-            if (current_gripper <= GRASP_OPEN_THRESHOLD - 0.05 and not target_block.get("is_grasped", False)) or self.phase_ticks > 40:
+            # Zero-impulse dwell: hold stationary for at least 18 ticks so fingertip friction
+            # vanishes completely before retracting arm
+            is_jaws_clear = (current_gripper <= GRASP_OPEN_THRESHOLD - 0.05 and not target_block.get("is_grasped", False))
+            dwell_satisfied = self.phase_ticks >= 18
+            if (is_jaws_clear and dwell_satisfied) or self.phase_ticks > 50:
                 self.grasped_block_id = None
                 self._set_phase("VERIFY_HOLD")
 
@@ -460,7 +468,7 @@ class HierarchicalVLJEPAOrchestrator:
             return None
 
         # Level 1 Closed-Loop Precision PD Motor Control (Zero Jitter, Sub-Millimeter Landing)
-        if self.micro_phase in ("GRASP", "RELEASE"):
+        if self.micro_phase == "GRASP":
             mc_res = {
                 "next_tcp": list(current_tcp),
                 "delta_action": [0.0, 0.0, 0.0, desired_gripper],

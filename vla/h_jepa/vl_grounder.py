@@ -118,7 +118,7 @@ class VLJEPAGrounder:
             ))
             or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", inst_lower))
         )
-        is_tower = any(w in inst_lower for w in ["tower", "stack", "vertical"]) and not any(w in inst_lower for w in ["pyramid", "stepped", "triangle"]) and not is_multi_towers
+        is_tower = any(w in inst_lower for w in ["tower", "stack", "vertical"]) and not any(w in inst_lower for w in ["pyramid", "pyramind", "stepped", "triangle"]) and not is_multi_towers
         is_train = "train" in inst_lower or "line" in inst_lower or "row" in inst_lower
         
         pyr_type = "3_block_stepped"
