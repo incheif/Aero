@@ -9,7 +9,7 @@ false positives and ensure drift-free multi-box manipulation (pyramids, towers, 
 
 import time
 import math
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Set
 import numpy as np
 
 from simulation.constants import (
@@ -17,6 +17,7 @@ from simulation.constants import (
     SAFE_HOVER_Y,
     PICK_Y,
     TABLE_TOP_Y,
+    TABLE_HALF_EXTENTS,
     CUBE_SIZE,
     GRASP_CLOSE_THRESHOLD,
     GRASP_OPEN_THRESHOLD,
@@ -180,6 +181,82 @@ class HierarchicalVLJEPAOrchestrator:
                 return b
         return None
 
+    def _find_corridor_detour(
+        self,
+        start: Tuple[float, float],
+        goal: Tuple[float, float],
+        blocks: List[Dict[str, Any]],
+        ignore_ids: Set[str],
+        clearance: float = 0.075,
+    ) -> Optional[Tuple[float, float]]:
+        """
+        Calculates a horizontal detour waypoint if any non-target obstacle block
+        lies within the safety clearance corridor between start and goal.
+        """
+        dx = goal[0] - start[0]
+        dz = goal[1] - start[1]
+        seg_len = math.hypot(dx, dz)
+        if seg_len < 0.06:
+            return None
+
+        ux = dx / seg_len
+        uz = dz / seg_len
+        nx = -uz
+        nz = ux
+
+        half_x, _, half_z = TABLE_HALF_EXTENTS
+        margin = 0.06
+
+        worst_obs = None
+        min_dist_to_line = float("inf")
+        worst_t = 0.0
+
+        for b in blocks:
+            b_id = b.get("id")
+            if b_id in ignore_ids or b.get("is_grasped"):
+                continue
+            pos = b.get("position")
+            if not pos or len(pos) < 3:
+                continue
+            ox, _, oz = pos[0], pos[1], pos[2]
+
+            vox = ox - start[0]
+            voz = oz - start[1]
+            t = vox * ux + voz * uz
+
+            # Check if obstacle lies along the interior of the flight corridor
+            if 0.040 < t < (seg_len - 0.040):
+                perp_dist = abs(vox * nx + voz * nz)
+                if perp_dist < clearance and perp_dist < min_dist_to_line:
+                    min_dist_to_line = perp_dist
+                    worst_obs = (ox, oz)
+                    worst_t = t
+
+        if worst_obs is None:
+            return None
+
+        ox, oz = worst_obs
+        px = start[0] + worst_t * ux
+        pz = start[1] + worst_t * uz
+
+        side_a = (px + nx * (clearance + 0.025), pz + nz * (clearance + 0.025))
+        side_b = (px - nx * (clearance + 0.025), pz - nz * (clearance + 0.025))
+
+        def is_valid(pt):
+            return (-half_x + margin <= pt[0] <= half_x - margin) and (-half_z + margin <= pt[1] <= half_z - margin)
+
+        a_valid = is_valid(side_a)
+        b_valid = is_valid(side_b)
+
+        if a_valid and not b_valid:
+            return side_a
+        elif b_valid and not a_valid:
+            return side_b
+        else:
+            d_a = math.hypot(side_a[0] - ox, side_a[1] - oz)
+            d_b = math.hypot(side_b[0] - ox, side_b[1] - oz)
+            return side_a if d_a >= d_b else side_b
+
     def step(
         self,
         current_tcp: Tuple[float, float, float],
@@ -238,25 +315,49 @@ class HierarchicalVLJEPAOrchestrator:
         micro_target = list(current_tcp)
         desired_gripper = current_gripper
 
-        # Target transit altitude clearing any existing stack layers
-        transit_y = max(SAFE_HOVER_Y, eff_slot[1] + 0.070)
+        # Dynamic scene-aware safe transit altitude (generous clearance above any obstacle in workspace)
+        max_scene_y = max((b.get("position", [0, 0, 0])[1] for b in blocks if not b.get("is_grasped")), default=TABLE_TOP_Y)
+        transit_y = max(
+            SAFE_HOVER_Y,
+            eff_slot[1] + 0.080,
+            block_pos[1] + 0.080,
+            max_scene_y + CUBE_SIZE * 1.5 + 0.035,
+        )
+        transit_y = min(transit_y, 1.08)  # Clamp to physical arm reach limit
 
         if self.micro_phase == "HOVER_PICK":
-            # Above block
-            micro_target = [block_pos[0], transit_y, block_pos[2]]
             desired_gripper = 0.0  # Open
-            d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            if d < 0.030 or self.phase_ticks > 60:
+            horiz_d = math.hypot(current_tcp[0] - block_pos[0], current_tcp[2] - block_pos[2])
+            vert_err = abs(current_tcp[1] - transit_y)
+
+            # 1. Ascend-First Guard: if low, ascend vertically at current (x, z) before horizontal flight
+            if current_tcp[1] < transit_y - 0.025 and horiz_d > 0.025:
+                micro_target = [current_tcp[0], transit_y, current_tcp[2]]
+            else:
+                # 2. Check for horizontal corridor detour around intermediate blocks
+                detour = self._find_corridor_detour(
+                    start=(current_tcp[0], current_tcp[2]),
+                    goal=(block_pos[0], block_pos[2]),
+                    blocks=blocks,
+                    ignore_ids={b_id},
+                )
+                if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.030:
+                    micro_target = [detour[0], transit_y, detour[1]]
+                else:
+                    micro_target = [block_pos[0], transit_y, block_pos[2]]
+
+            # Transition to DESCEND_PICK only once horizontally centered directly above block
+            if (horiz_d < 0.015 and vert_err < 0.025) or self.phase_ticks > 80:
                 self._set_phase("DESCEND_PICK")
 
         elif self.micro_phase == "DESCEND_PICK":
-            # Down to grasp height
+            # Pure vertical descent down around target cube
             pick_y = max(0.756, block_pos[1] + 0.010)
             micro_target = [block_pos[0], pick_y, block_pos[2]]
             desired_gripper = 0.0  # Still open
             horiz_err = math.hypot(current_tcp[0] - block_pos[0], current_tcp[2] - block_pos[2])
             vert_err = abs(current_tcp[1] - pick_y)
-            if (horiz_err < 0.010 and abs(current_tcp[1] - pick_y) < 0.004) or self.phase_ticks > 60:
+            if (horiz_err < 0.010 and vert_err < 0.005) or self.phase_ticks > 60:
                 self._set_phase("GRASP")
 
         elif self.micro_phase == "GRASP":
@@ -269,33 +370,49 @@ class HierarchicalVLJEPAOrchestrator:
                 self._retry_subgoal()
 
         elif self.micro_phase == "LIFT":
-            micro_target = [current_tcp[0], transit_y, current_tcp[2]]
+            # Pure vertical lift above the pick location
+            micro_target = [block_pos[0], transit_y, block_pos[2]]
             desired_gripper = 1.0  # Hold closed
             d = abs(current_tcp[1] - transit_y)
             if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
                 self._retry_subgoal()
-            elif d < 0.025 or self.phase_ticks > 50:
+            elif d < 0.020 or self.phase_ticks > 50:
                 self._set_phase("HOVER_PLACE")
 
         elif self.micro_phase == "HOVER_PLACE":
-            # Hover directly above target slot at safe transit height
-            micro_target = [eff_slot[0], transit_y, eff_slot[2]]
             desired_gripper = 1.0  # Hold closed
-            horiz_d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[2] - micro_target[2])
+            horiz_d = math.hypot(current_tcp[0] - eff_slot[0], current_tcp[2] - eff_slot[2])
+            vert_err = abs(current_tcp[1] - transit_y)
+
+            # Ensure safe transit altitude is maintained
+            if current_tcp[1] < transit_y - 0.020 and horiz_d > 0.025:
+                micro_target = [current_tcp[0], transit_y, current_tcp[2]]
+            else:
+                detour = self._find_corridor_detour(
+                    start=(current_tcp[0], current_tcp[2]),
+                    goal=(eff_slot[0], eff_slot[2]),
+                    blocks=blocks,
+                    ignore_ids={b_id},
+                )
+                if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.030:
+                    micro_target = [detour[0], transit_y, detour[1]]
+                else:
+                    micro_target = [eff_slot[0], transit_y, eff_slot[2]]
+
             if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
                 self._retry_subgoal()
-            elif horiz_d < 0.025 or self.phase_ticks > 70:
+            elif (horiz_d < 0.018 and vert_err < 0.025) or self.phase_ticks > 90:
                 self._set_phase("DESCEND_PLACE")
 
         elif self.micro_phase == "DESCEND_PLACE":
-            # Place at target slot height
+            # Pure vertical descent down onto target slot
             place_y = eff_slot[1] + 0.008
             micro_target = [eff_slot[0], place_y, eff_slot[2]]
             desired_gripper = 1.0  # Hold closed
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
             horiz_err = math.hypot(current_tcp[0] - eff_slot[0], current_tcp[2] - eff_slot[2])
             vert_err = abs(current_tcp[1] - place_y)
-            if d < 0.028 or (horiz_err < 0.022 and vert_err < 0.015) or self.phase_ticks > 60:
+            if d < 0.028 or (horiz_err < 0.020 and vert_err < 0.012) or self.phase_ticks > 60:
                 self._set_phase("RELEASE")
 
         elif self.micro_phase == "RELEASE":

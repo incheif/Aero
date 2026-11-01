@@ -153,6 +153,9 @@ class TestHierarchicalVLJEPA(unittest.TestCase):
         dummy_z_sub = np.random.randn(128).astype(np.float32)
         dummy_z_sub /= np.linalg.norm(dummy_z_sub)
 
+        # Warmup cycle (eliminates Python/NumPy JIT & cache cold-start overhead)
+        cem.plan(current_tcp=self.tcp_pos, target_pos=target_pos, active_subgoal_z2=dummy_z_sub, gripper_aperture=0.0)
+
         # Benchmark 10 consecutive CEM planning cycles
         latencies = []
         for _ in range(10):

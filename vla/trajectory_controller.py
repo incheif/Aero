@@ -89,10 +89,22 @@ class TrajectoryController:
         if dist_setpoint <= max_step:
             self.current_setpoint = [float(target_pos[0]), float(target_pos[1]), float(target_pos[2])]
         else:
-            scale = max_step / dist_setpoint
-            self.current_setpoint[0] += dx * scale
-            self.current_setpoint[1] += dy * scale
-            self.current_setpoint[2] += dz * scale
+            h_dist = math.hypot(dx, dz)
+            # Ascend-First Guard: when ascending out of workspace while moving horizontally,
+            # prioritize vertical ascent to SAFE_HOVER_Y to clear all table objects
+            if dy > 0 and self.current_setpoint[1] < min(target_pos[1], SAFE_HOVER_Y - 0.020) and h_dist > 0.030:
+                step_y = min(max_step, dy)
+                self.current_setpoint[1] += step_y
+            elif dy < 0 and h_dist > 0.025:
+                # Descend-Last Guard: travel horizontally at current height until horizontally aligned over target
+                scale = min(1.0, max_step / max(0.001, h_dist))
+                self.current_setpoint[0] += dx * scale
+                self.current_setpoint[2] += dz * scale
+            else:
+                scale = max_step / dist_setpoint
+                self.current_setpoint[0] += dx * scale
+                self.current_setpoint[1] += dy * scale
+                self.current_setpoint[2] += dz * scale
 
         # Prevent setpoint from drifting excessively ahead of physical TCP if joints lag
         lag = math.hypot(

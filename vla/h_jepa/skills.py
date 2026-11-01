@@ -108,17 +108,23 @@ class PickSkill(BaseSkill):
             return {"target_pos": current_tcp, "desired_gripper": current_gripper, "phase": "FAILED", "is_done": True}
 
         b_pos = block["position"]
-        transit_y = max(SAFE_HOVER_Y, b_pos[1] + 0.100)
+        max_scene_y = max((b.get("position", [0, 0, 0])[1] for b in blocks.values() if not b.get("is_grasped")), default=TABLE_TOP_Y)
+        transit_y = max(SAFE_HOVER_Y, b_pos[1] + 0.080, max_scene_y + CUBE_SIZE * 1.5 + 0.035)
+        transit_y = min(transit_y, 1.08)
         pick_y = max(0.756, b_pos[1] + 0.010)
 
         target_pos = list(current_tcp)
         desired_gripper = current_gripper
 
         if self.phase == "HOVER":
-            target_pos = [b_pos[0], transit_y, b_pos[2]]
             desired_gripper = 0.0
             dist = math.hypot(current_tcp[0] - b_pos[0], current_tcp[2] - b_pos[2])
-            if dist < 0.020 or self.elapsed_ticks > 50:
+            # Ascend-First Guard: if low, ascend vertically before translating horizontally
+            if current_tcp[1] < transit_y - 0.025 and dist > 0.025:
+                target_pos = [current_tcp[0], transit_y, current_tcp[2]]
+            else:
+                target_pos = [b_pos[0], transit_y, b_pos[2]]
+            if (dist < 0.015 and abs(current_tcp[1] - transit_y) < 0.025) or self.elapsed_ticks > 60:
                 self.phase = "DESCEND"
 
         elif self.phase == "DESCEND":
@@ -184,17 +190,23 @@ class PlaceSkill(BaseSkill):
         world_state: Dict[str, Any],
     ) -> Dict[str, Any]:
         self.elapsed_ticks += 1
-        transit_y = max(SAFE_HOVER_Y, self.target_slot[1] + 0.075)
+        max_scene_y = max((b.get("position", [0, 0, 0])[1] for b in blocks.values() if not b.get("is_grasped")), default=TABLE_TOP_Y)
+        transit_y = max(SAFE_HOVER_Y, self.target_slot[1] + 0.080, max_scene_y + CUBE_SIZE * 1.5 + 0.035)
+        transit_y = min(transit_y, 1.08)
         place_y = self.target_slot[1] + 0.008
 
         target_pos = list(current_tcp)
         desired_gripper = current_gripper
 
         if self.phase == "TRANSIT":
-            target_pos = [self.target_slot[0], transit_y, self.target_slot[2]]
             desired_gripper = 1.0
             h_dist = math.hypot(current_tcp[0] - self.target_slot[0], current_tcp[2] - self.target_slot[2])
-            if h_dist < 0.020 or self.elapsed_ticks > 60:
+            # Ascend-First Guard: ensure safe transit altitude is reached before horizontal motion
+            if current_tcp[1] < transit_y - 0.020 and h_dist > 0.025:
+                target_pos = [current_tcp[0], transit_y, current_tcp[2]]
+            else:
+                target_pos = [self.target_slot[0], transit_y, self.target_slot[2]]
+            if (h_dist < 0.018 and abs(current_tcp[1] - transit_y) < 0.025) or self.elapsed_ticks > 70:
                 self.phase = "DESCEND"
 
         elif self.phase == "DESCEND":

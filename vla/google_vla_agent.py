@@ -909,7 +909,11 @@ Output a JSON object ONLY with the following schema:
         Dynamically adjusts transit and approach altitudes to safely clear lower layers of tower.
         """
         # Calculate safe transit hover altitude above any existing stack layers or clearance planes
-        transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, min_transit_y or 0.0)
+        max_scene_y = TABLE_TOP_Y
+        if scene_blocks:
+            max_scene_y = max((b.get("position", [0, 0, 0])[1] for b in scene_blocks), default=TABLE_TOP_Y)
+        transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, max_scene_y + CUBE_SIZE * 1.5 + 0.035, min_transit_y or 0.0)
+        transit_y = min(transit_y, 1.08)
 
         return [
             # 1. Safe Hover over source object
