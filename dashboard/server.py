@@ -40,6 +40,10 @@ from simulation.constants import (
     stack_slot_y,
 )
 from simulation.physics_engine import RobotArmSimulation
+try:
+    from simulation.mujoco_engine import MujocoSimulation, MUJOCO_AVAILABLE
+except ImportError:
+    MUJOCO_AVAILABLE = False
 from simulation.camera import render_camera_frame, encode_image_base64, pixel_to_world, world_to_pixel
 from simulation.kinematics import inverse_kinematics
 from vla.semantic_mapper import SemanticSpatialMapper
@@ -63,6 +67,10 @@ class TestKeyRequest(BaseModel):
     model: Optional[str] = "gemini-2.5-flash"
     session_id: Optional[str] = None
 
+class PhysicsBackendRequest(BaseModel):
+    backend: str
+    session_id: Optional[str] = None
+
 class TeleopRequest(BaseModel):
     joints: Optional[Dict[str, float]] = None
     gripper: Optional[float] = None
@@ -74,7 +82,12 @@ class UserSession:
 
     def __init__(self, session_id: str):
         self.session_id = session_id
-        self.sim = RobotArmSimulation()
+        self.physics_backend = os.environ.get("AERO_PHYSICS_BACKEND", "mujoco" if MUJOCO_AVAILABLE else "analytical")
+        if self.physics_backend == "mujoco" and MUJOCO_AVAILABLE:
+            self.sim = MujocoSimulation()
+        else:
+            self.physics_backend = "analytical"
+            self.sim = RobotArmSimulation()
         self.mapper = SemanticSpatialMapper()
         self.explorer = TabletopFrontierExplorer()
         self.vla_agent = GoogleVLAAgent()
@@ -106,7 +119,11 @@ class UserSession:
             "system",
             "STARTUP",
             f"Session {session_id} initialized with private workcell.",
-            "Rapier3D physics running at 60 FPS (dt=16.6ms). 7 blocks spawned at canonical table coordinates."
+            (
+            "MuJoCo 3.x rigid-body physics backend running at 60 FPS (dt=16.6ms). Native contact manifolds and friction cones."
+            if self.physics_backend == "mujoco"
+            else "Analytical 4-pass relaxation physics running at 60 FPS (dt=16.6ms). Bi-directional grasp clamping."
+        )
         )
 
     def log_event(self, category: str, badge: str, what: str, how: str) -> Dict[str, Any]:
@@ -566,6 +583,7 @@ class UserSession:
         return {
             "type": "telemetry",
             "session_id": self.session_id,
+            "physics_backend": self.physics_backend,
             "tick": snapshot["tick"],
             "fps": round(self.current_fps, 1),
             "joints": snapshot["joints"],
@@ -968,8 +986,36 @@ async def api_session_info(request: Request):
         "elapsed_seconds": round(elapsed, 1),
         "remaining_seconds": round(remaining, 1),
         "max_duration_seconds": SESSION_MAX_DURATION,
+        "physics_backend": sess.physics_backend,
+        "mujoco_available": MUJOCO_AVAILABLE,
     }
 
+
+
+
+@app.post("/api/sim/physics_backend")
+async def api_set_physics_backend(req: PhysicsBackendRequest, request: Request):
+    sid = req.session_id or extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    target = req.backend.lower()
+    if target == "mujoco" and not MUJOCO_AVAILABLE:
+        return {"status": "error", "message": "MuJoCo is not installed on this system."}
+    if target not in ("mujoco", "analytical"):
+        return {"status": "error", "message": "Invalid backend. Choose 'mujoco' or 'analytical'."}
+
+    sess.physics_backend = target
+    if target == "mujoco":
+        sess.sim = MujocoSimulation()
+    else:
+        sess.sim = RobotArmSimulation()
+    sess.handle_reset()
+    sess.log_event(
+        "system",
+        "BACKEND_SWITCH",
+        f"Physics backend switched to {target.upper()}",
+        f"Active simulation engine is now {target.upper()} running at 60 Hz."
+    )
+    return {"status": "ok", "physics_backend": sess.physics_backend}
 
 # Static directory
 static_dir = os.path.join(os.path.dirname(__file__), "static")

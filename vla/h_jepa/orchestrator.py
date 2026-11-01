@@ -197,6 +197,9 @@ class HierarchicalVLJEPAOrchestrator:
             self._set_phase("COMPLETED")
             return None
 
+        if current_gripper == 0.0 and 'gripper' in current_joints:
+            current_gripper = current_joints['gripper']
+
         self.phase_ticks += 1
 
         active_subgoal = self.subgoals[self.current_subgoal_idx]

@@ -403,6 +403,10 @@ document.addEventListener('DOMContentLoaded', () => {
       setVal('dock-fps-val', `${data.fps} FPS`);
     }
 
+    if (data.physics_backend) {
+      setVal('dock-physics-val', data.physics_backend.toUpperCase());
+    }
+
     if (data.vla && data.vla.status) {
       setVal('dock-motion-status', data.vla.status);
     }
