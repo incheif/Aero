@@ -99,3 +99,4 @@ class TestMujocoEngine:
 
         # Native MuJoCo contact compliance is well under 1.0 mm
         assert max_pen < 0.001, f"Excessive penetration in MuJoCo: {max_pen * 1000:.2f} mm"
+

@@ -14,6 +14,7 @@ import hashlib
 from typing import Dict, List, Any, Optional, Tuple
 import numpy as np
 
+from vla.instruction_interpreter import COLOR_ALIAS_MAP, AVAILABLE_BLOCKS
 from simulation.constants import (
     STACK_ORIGIN,
     get_pyramid_slots,
@@ -179,13 +180,63 @@ class VLJEPAGrounder:
 
         if block_ids:
             b_ids = block_ids[:len(target_slots)]
-        elif initial_blocks:
-            b_ids = [b.get("id") for b in initial_blocks if b.get("id")][:len(target_slots)]
         else:
-            default_pool = list(AVAILABLE_BLOCKS.keys()) if AVAILABLE_BLOCKS else [
-                "cube_red", "cube_blue", "cube_green", "cube_yellow", "cube_cyan", "cube_purple", "cube_pink"
-            ]
-            b_ids = default_pool[:len(target_slots)]
+            # Extract color mentions from the instruction text
+            sorted_aliases = sorted(COLOR_ALIAS_MAP.keys(), key=lambda x: len(x), reverse=True)
+            found_colors = []
+            for alias in sorted_aliases:
+                for m in re.finditer(rf"\b{re.escape(alias)}\b", inst_lower):
+                    if alias == "green" and any(p in inst_lower for p in ("green pad", "green target", "green zone", "green circle")):
+                        continue
+                    found_colors.append((m.start(), COLOR_ALIAS_MAP[alias]))
+            found_colors.sort(key=lambda x: x[0])
+            mentioned = []
+            for _, b_id in found_colors:
+                if b_id not in mentioned:
+                    mentioned.append(b_id)
+
+            if is_multi_towers:
+                split_pattern = r"\b(?:next\s+tower|second\s+tower|2nd\s+tower|other\s+tower|tower\s+2|tower\s+two|third\s+tower|3rd\s+tower|tower\s+3|tower\s+three|fourth\s+tower|tower\s+4|fifth\s+tower|tower\s+5|and\s+then\s+(?:another\s+)?tower)\b"
+                parts = re.split(split_pattern, inst_lower)
+                all_blocks = [b.get("id") for b in initial_blocks] if initial_blocks else list(AVAILABLE_BLOCKS.keys())
+                allocated = set()
+                towers = []
+                if len(parts) >= num_towers:
+                    for i in range(num_towers):
+                        part_c = []
+                        for alias in sorted_aliases:
+                            for m in re.finditer(rf"\b{re.escape(alias)}\b", parts[i]):
+                                if alias == "green" and any(p in parts[i] for p in ("green pad", "green target")):
+                                    continue
+                                part_c.append((m.start(), COLOR_ALIAS_MAP[alias]))
+                        part_c.sort(key=lambda x: x[0])
+                        t_b = [b_id for _, b_id in part_c if b_id not in allocated][:blocks_per_tower]
+                        for b_id in t_b:
+                            allocated.add(b_id)
+                        towers.append(t_b)
+                else:
+                    curr = 0
+                    for _ in range(num_towers):
+                        t_b = [b for b in mentioned[curr:curr + blocks_per_tower] if b not in allocated]
+                        for b in t_b:
+                            allocated.add(b)
+                        towers.append(t_b)
+                        curr += blocks_per_tower
+
+                remaining_pool = [b for b in all_blocks if b not in allocated]
+                for i in range(len(towers)):
+                    while len(towers[i]) < blocks_per_tower and remaining_pool:
+                        fill_b = remaining_pool.pop(0)
+                        towers[i].append(fill_b)
+                        allocated.add(fill_b)
+                b_ids = [b for t in towers for b in t][:len(target_slots)]
+            else:
+                all_available = [b.get("id") for b in initial_blocks] if initial_blocks else list(AVAILABLE_BLOCKS.keys())
+                b_ids = list(mentioned)
+                for b in all_available:
+                    if b not in b_ids:
+                        b_ids.append(b)
+                b_ids = b_ids[:len(target_slots)]
 
         # Synthesize virtual ideal target state for encoder evaluation
         ideal_blocks = []

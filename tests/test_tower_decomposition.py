@@ -105,6 +105,18 @@ class TestTowerDecomposition(unittest.TestCase):
         self.assertEqual(self.interpreter.route_task("build a tower", mode="fast"), "SYSTEM_1_FAST_PATH")
         self.assertEqual(self.interpreter.route_task("pick red", mode="hjepa"), "SYSTEM_2_H_JEPA")
 
+    def test_05_multi_tower_clause_color_assignment(self):
+        """Validates that distinct multi-tower requests with clauses assign the exact specified colors."""
+        cmd = "Make 2 distinct towers of 2 blocks each. one tower with pink and purple blocks next tower with green and red blocks"
+        res = self.interpreter.interpret(cmd)
+        self.assertEqual(res["action_type"], "STACK_DUAL_TOWERS")
+        self.assertEqual(res["num_towers"], 2)
+        self.assertEqual(len(res["tower_blocks_list"]), 2)
+        # Tower 1 must have pink and purple
+        self.assertEqual(res["tower_blocks_list"][0], ["block_pink", "block_purple"])
+        # Tower 2 must have green and red
+        self.assertEqual(res["tower_blocks_list"][1], ["block_emerald", "block_magenta"])
+
 
 if __name__ == "__main__":
     unittest.main()

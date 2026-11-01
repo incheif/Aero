@@ -35,6 +35,24 @@ for b_id, info in AVAILABLE_BLOCKS.items():
     for alias in info["aliases"]:
         COLOR_ALIAS_MAP[alias] = b_id
 
+def extract_ordered_colors(text: str) -> List[str]:
+    """Extracts unique block IDs mentioned in text ordered by appearance."""
+    sorted_aliases = sorted(COLOR_ALIAS_MAP.keys(), key=lambda x: len(x), reverse=True)
+    found = []
+    text_lower = text.lower()
+    for alias in sorted_aliases:
+        for m in re.finditer(rf"\b{re.escape(alias)}\b", text_lower):
+            # Avoid matching "green pad" as green block
+            if alias == "green" and any(p in text_lower for p in ("green pad", "green target", "green zone", "green circle")):
+                continue
+            found.append((m.start(), COLOR_ALIAS_MAP[alias]))
+    found.sort(key=lambda x: x[0])
+    ordered = []
+    for _, b_id in found:
+        if b_id not in ordered:
+            ordered.append(b_id)
+    return ordered
+
 # Word-to-number dictionary for parsing natural language numbers
 WORD_TO_NUM = {
     "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
@@ -638,39 +656,43 @@ class InstructionInterpreter:
             num_towers = parse_num_token(m_towers.group(1)) if m_towers else 2
             distribution = parse_tower_distribution(cmd, num_towers)
 
-            known_colors = [
-                ("red", "block_magenta", "Red Cube"),
-                ("blue", "block_cyan", "Blue Cube"),
-                ("yellow", "block_yellow", "Yellow Cube"),
-                ("green", "block_emerald", "Green Cube"),
-                ("orange", "block_orange", "Orange Cube"),
-                ("cyan", "block_cyan", "Blue Cube"),
-                ("magenta", "block_magenta", "Red Cube"),
-                ("emerald", "block_emerald", "Green Cube"),
-            ]
-            found_colors = []
-            for alias, b_id, label in known_colors:
-                for match in re.finditer(rf"\b{re.escape(alias)}\b", cmd):
-                    found_colors.append((match.start(), b_id, label))
-            found_colors.sort(key=lambda x: x[0])
+            all_blocks = ["block_magenta", "block_cyan", "block_yellow", "block_emerald", "block_orange", "block_purple", "block_pink"]
+            
+            # Check for per-tower clause transitions (e.g. "one tower with X next tower with Y")
+            split_pattern = r"\b(?:next\s+tower|second\s+tower|2nd\s+tower|other\s+tower|tower\s+2|tower\s+two|third\s+tower|3rd\s+tower|tower\s+3|tower\s+three|fourth\s+tower|tower\s+4|fifth\s+tower|tower\s+5|and\s+then\s+(?:another\s+)?tower)\b"
+            parts = re.split(split_pattern, cmd, flags=re.IGNORECASE)
 
-            mentioned_b_ids = []
-            for _, b_id, _ in found_colors:
-                if b_id not in mentioned_b_ids:
-                    mentioned_b_ids.append(b_id)
-
-            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
-            pool = list(mentioned_b_ids)
-            for b in all_blocks:
-                if b not in pool:
-                    pool.append(b)
-
+            allocated: Set[str] = set()
             tower_blocks_list = []
-            curr_idx = 0
-            for count in distribution:
-                t_blocks = pool[curr_idx:curr_idx + count]
-                tower_blocks_list.append(t_blocks)
-                curr_idx += count
+
+            if len(parts) >= num_towers:
+                # Per-clause assignment for each tower
+                for i in range(num_towers):
+                    part_colors = [c for c in extract_ordered_colors(parts[i]) if c not in allocated]
+                    needed = distribution[i] if i < len(distribution) else 2
+                    t_blocks = part_colors[:needed]
+                    for b in t_blocks:
+                        allocated.add(b)
+                    tower_blocks_list.append(t_blocks)
+            else:
+                # Global ordered color assignment
+                flat_colors = extract_ordered_colors(cmd)
+                curr = 0
+                for count in distribution:
+                    t_blocks = [c for c in flat_colors[curr:curr + count] if c not in allocated]
+                    for b in t_blocks:
+                        allocated.add(b)
+                    tower_blocks_list.append(t_blocks)
+                    curr += count
+
+            # Fill in any missing blocks from remaining workspace pool
+            remaining_pool = [b for b in all_blocks if b not in allocated]
+            for i in range(len(tower_blocks_list)):
+                needed = distribution[i] if i < len(distribution) else 2
+                while len(tower_blocks_list[i]) < needed and remaining_pool:
+                    fill_b = remaining_pool.pop(0)
+                    tower_blocks_list[i].append(fill_b)
+                    allocated.add(fill_b)
 
             desc_parts = []
             for i, tb in enumerate(tower_blocks_list):

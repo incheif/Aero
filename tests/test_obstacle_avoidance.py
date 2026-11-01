@@ -115,3 +115,4 @@ class TestObstacleAvoidance:
                     max_overlap = overlap
 
         assert max_overlap < 0.001, f"Collision detected in MuJoCo: {max_overlap*1000:.2f} mm"
+

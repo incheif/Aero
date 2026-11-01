@@ -902,6 +902,7 @@ Output a JSON object ONLY with the following schema:
         obj_name: str,
         min_transit_y: Optional[float] = None,
         extra_dwell: int = 0,
+        scene_blocks: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Generates robust closed-loop pick-and-place waypoint sub-plan
