@@ -317,11 +317,12 @@ class HierarchicalVLJEPAOrchestrator:
 
         # Dynamic scene-aware safe transit altitude (generous clearance above any obstacle in workspace)
         max_scene_y = max((b.get("position", [0, 0, 0])[1] for b in blocks if not b.get("is_grasped")), default=TABLE_TOP_Y)
+        carried_clearance = CUBE_SIZE + 0.035
         transit_y = max(
             SAFE_HOVER_Y,
-            eff_slot[1] + 0.080,
-            block_pos[1] + 0.080,
-            max_scene_y + CUBE_SIZE * 1.5 + 0.035,
+            eff_slot[1] + carried_clearance,
+            block_pos[1] + carried_clearance,
+            max_scene_y + CUBE_SIZE + carried_clearance,
         )
         transit_y = min(transit_y, 1.08)  # Clamp to physical arm reach limit
 
@@ -330,8 +331,8 @@ class HierarchicalVLJEPAOrchestrator:
             horiz_d = math.hypot(current_tcp[0] - block_pos[0], current_tcp[2] - block_pos[2])
             vert_err = abs(current_tcp[1] - transit_y)
 
-            # 1. Ascend-First Guard: if low, ascend vertically at current (x, z) before horizontal flight
-            if current_tcp[1] < transit_y - 0.025 and horiz_d > 0.025:
+            # 1. Strict Ascend-First Guard: ascend vertically at current (x, z) before ANY horizontal flight
+            if current_tcp[1] < transit_y - 0.020:
                 micro_target = [current_tcp[0], transit_y, current_tcp[2]]
             else:
                 # 2. Check for horizontal corridor detour around intermediate blocks
@@ -346,17 +347,25 @@ class HierarchicalVLJEPAOrchestrator:
                 else:
                     micro_target = [block_pos[0], transit_y, block_pos[2]]
 
-            # Transition to DESCEND_PICK only once horizontally centered directly above block
-            if (horiz_d < 0.015 and vert_err < 0.025) or self.phase_ticks > 80:
+            # Transition to DESCEND_PICK ONLY once horizontally centered directly above block at transit height
+            if horiz_d < 0.015 and vert_err < 0.025:
                 self._set_phase("DESCEND_PICK")
+            elif self.phase_ticks > 180:
+                self._retry_subgoal()
 
         elif self.micro_phase == "DESCEND_PICK":
             # Pure vertical descent down around target cube
             pick_y = max(0.756, block_pos[1] + 0.010)
-            micro_target = [block_pos[0], pick_y, block_pos[2]]
-            desired_gripper = 0.0  # Still open
             horiz_err = math.hypot(current_tcp[0] - block_pos[0], current_tcp[2] - block_pos[2])
             vert_err = abs(current_tcp[1] - pick_y)
+            desired_gripper = 0.0  # Still open
+
+            # Guard: If horizontal error drifts during descent, correct horizontal centering before dropping lower
+            if horiz_err > 0.018:
+                micro_target = [block_pos[0], current_tcp[1], block_pos[2]]
+            else:
+                micro_target = [block_pos[0], pick_y, block_pos[2]]
+
             if (horiz_err < 0.010 and vert_err < 0.005) or self.phase_ticks > 60:
                 self._set_phase("GRASP")
 
@@ -373,19 +382,24 @@ class HierarchicalVLJEPAOrchestrator:
             # Pure vertical lift above the pick location
             micro_target = [block_pos[0], transit_y, block_pos[2]]
             desired_gripper = 1.0  # Hold closed
-            d = abs(current_tcp[1] - transit_y)
+            is_lifted = (current_tcp[1] >= transit_y - 0.025)
             if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
                 self._retry_subgoal()
-            elif d < 0.020 or self.phase_ticks > 50:
+            elif is_lifted:
                 self._set_phase("HOVER_PLACE")
+            elif self.phase_ticks > 90:
+                if current_tcp[1] >= SAFE_HOVER_Y - 0.020:
+                    self._set_phase("HOVER_PLACE")
+                else:
+                    self._retry_subgoal()
 
         elif self.micro_phase == "HOVER_PLACE":
             desired_gripper = 1.0  # Hold closed
             horiz_d = math.hypot(current_tcp[0] - eff_slot[0], current_tcp[2] - eff_slot[2])
             vert_err = abs(current_tcp[1] - transit_y)
 
-            # Ensure safe transit altitude is maintained
-            if current_tcp[1] < transit_y - 0.020 and horiz_d > 0.025:
+            # Ensure safe transit altitude is strictly maintained
+            if current_tcp[1] < transit_y - 0.020:
                 micro_target = [current_tcp[0], transit_y, current_tcp[2]]
             else:
                 detour = self._find_corridor_detour(
@@ -401,17 +415,25 @@ class HierarchicalVLJEPAOrchestrator:
 
             if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
                 self._retry_subgoal()
-            elif (horiz_d < 0.018 and vert_err < 0.025) or self.phase_ticks > 90:
+            elif horiz_d < 0.015 and vert_err < 0.025:
                 self._set_phase("DESCEND_PLACE")
+            elif self.phase_ticks > 180:
+                self._retry_subgoal()
 
         elif self.micro_phase == "DESCEND_PLACE":
             # Pure vertical descent down onto target slot with soft approach
             place_y = eff_slot[1] + 0.008
-            micro_target = [eff_slot[0], place_y, eff_slot[2]]
-            desired_gripper = 1.0  # Hold closed
-            d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
             horiz_err = math.hypot(current_tcp[0] - eff_slot[0], current_tcp[2] - eff_slot[2])
             vert_err = abs(current_tcp[1] - place_y)
+            desired_gripper = 1.0  # Hold closed
+
+            # Guard: If horizontal error drifts during descent, correct horizontal centering before dropping lower
+            if horiz_err > 0.018:
+                micro_target = [eff_slot[0], current_tcp[1], eff_slot[2]]
+            else:
+                micro_target = [eff_slot[0], place_y, eff_slot[2]]
+
+            d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
             # Sub-centimeter touchdown (<= 6mm): require firm resting contact before opening jaws
             touchdown_reached = (horiz_err < 0.010 and vert_err < 0.006) or (d < 0.008 and self.phase_ticks >= 15)
             if touchdown_reached or self.phase_ticks > 75:
@@ -431,7 +453,7 @@ class HierarchicalVLJEPAOrchestrator:
                 self._set_phase("VERIFY_HOLD")
 
         elif self.micro_phase == "VERIFY_HOLD":
-            # Retreat slightly up while verifying stability hold
+            # Retreat vertically up to transit altitude while verifying stability hold
             micro_target = [eff_slot[0], transit_y, eff_slot[2]]
             desired_gripper = 0.0
             
@@ -445,9 +467,10 @@ class HierarchicalVLJEPAOrchestrator:
             placed_pos = target_block.get("position", [0.0, 0.0, 0.0])
             placed_dist_xz = math.hypot(placed_pos[0] - eff_slot[0], placed_pos[2] - eff_slot[2])
             placed_dist_y = abs(placed_pos[1] - eff_slot[1])
+            is_ascended = (current_tcp[1] >= transit_y - 0.025)
 
-            # Gate: Verified resting stability + Placed block within 0.045m (xz) and 0.035m (y) of target slot
-            if is_verified and placed_dist_xz <= 0.045 and placed_dist_y <= 0.035:
+            # Gate: Verified resting stability + Placed block within bounds + STRICT vertical ascent clear of stack
+            if is_verified and placed_dist_xz <= 0.045 and placed_dist_y <= 0.035 and is_ascended:
                 # Sub-goal complete! Unlock next macro-step
                 self.retry_count = 0
                 self.current_subgoal_idx += 1
