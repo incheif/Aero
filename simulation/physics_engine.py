@@ -17,6 +17,7 @@ from .constants import (
     CUBE_SIZE,
     CUBE_HALF,
     BLOCK_SPAWNS,
+    generate_random_block_spawns,
     STACK_ORIGIN,
     STACK_ORIGIN_A,
     STACK_ORIGIN_B,
@@ -84,9 +85,10 @@ class RobotArmSimulation:
         self.active_task_blocks: Optional[List[str]] = None
         self.active_task_targets: Optional[Dict[str, List[float]]] = None
 
-    def reset_blocks(self):
+    def reset_blocks(self, randomize: bool = False):
         self.blocks.clear()
-        for spawn in BLOCK_SPAWNS:
+        spawns = generate_random_block_spawns() if randomize else BLOCK_SPAWNS
+        for spawn in spawns:
             self.blocks[spawn["id"]] = PhysicsBlock(
                 block_id=spawn["id"],
                 name=spawn["name"],
@@ -96,14 +98,14 @@ class RobotArmSimulation:
             )
         self.grasped_block_id = None
 
-    def reset(self):
+    def reset(self, randomize: bool = False):
         self.tick = 0
         self.joints = copy.deepcopy(DEFAULT_JOINTS)
         self.joint_targets = copy.deepcopy(DEFAULT_JOINTS)
         self.gripper_target = 0.0
         self.active_task_blocks = None
         self.active_task_targets = None
-        self.reset_blocks()
+        self.reset_blocks(randomize=randomize)
         self.torque_tracker.reset()
         self.stability_validator.reset()
 

@@ -319,18 +319,32 @@
           </div>
         </div>
 
-        <!-- 3. Dedicated Rest Arm Button Card -->
+        <!-- 3. Dedicated Rest & Shuffle Simulation Controls -->
         <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
-          <button class="btn-rest-hero" id="btn-rest-main">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-            </svg>
-            Rest Arm / Reset Simulation
-          </button>
-          <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
-            Returns arm to resting home pose and resets blocks
-          </span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button class="btn-rest-hero" id="btn-rest-main" title="Return arm to resting home pose and reset table">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              Rest / Reset
+            </button>
+            <button class="btn-rest-hero" id="btn-shuffle-main" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;" title="Shuffle all 7 blocks to brand new random tabletop positions">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+                <circle cx="16" cy="8" r="1.5" fill="currentColor"/>
+                <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                <circle cx="8" cy="16" r="1.5" fill="currentColor"/>
+                <circle cx="16" cy="16" r="1.5" fill="currentColor"/>
+              </svg>
+              🎲 Shuffle Cubes
+            </button>
+          </div>
+          <label style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.68rem; color: var(--text-dim); cursor: pointer; user-select: none;">
+            <input type="checkbox" id="chk-random-spawns" checked style="accent-color: var(--accent); cursor: pointer;" />
+            <span>Randomize block locations on each reset</span>
+          </label>
         </div>
       </div>
 

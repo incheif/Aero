@@ -407,6 +407,13 @@ document.addEventListener('DOMContentLoaded', () => {
       setVal('dock-physics-val', data.physics_backend.toUpperCase());
     }
 
+    if (data.randomize_spawns !== undefined) {
+      const chk = document.getElementById('chk-random-spawns');
+      if (chk && !chk.matches(':focus')) {
+        chk.checked = Boolean(data.randomize_spawns);
+      }
+    }
+
     if (data.vla && data.vla.status) {
       setVal('dock-motion-status', data.vla.status);
     }
@@ -895,6 +902,33 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-rest-inline')?.addEventListener('click', triggerRestArm);
   document.getElementById('btn-rest-main')?.addEventListener('click', triggerRestArm);
   document.getElementById('btn-reset')?.addEventListener('click', triggerRestArm);
+
+  const shuffleBtn = document.getElementById('btn-shuffle-main');
+  if (shuffleBtn) {
+    shuffleBtn.addEventListener('click', async () => {
+      try {
+        await sessionFetch('/api/sim/shuffle', { method: 'POST' });
+        console.log('[System] Blocks shuffled to random positions.');
+      } catch (err) {
+        console.error('Error shuffling cubes:', err);
+      }
+    });
+  }
+
+  const randomCheckbox = document.getElementById('chk-random-spawns');
+  if (randomCheckbox) {
+    randomCheckbox.addEventListener('change', async (e) => {
+      try {
+        await sessionFetch('/api/sim/toggle_random_spawns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: e.target.checked }),
+        });
+      } catch (err) {
+        console.error('Error toggling random spawns:', err);
+      }
+    });
+  }
 
   document.getElementById('btn-reset-cost')?.addEventListener('click', async () => {
     await sessionFetch('/api/vla/cost/reset', { method: 'POST' });

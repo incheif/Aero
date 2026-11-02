@@ -26,6 +26,7 @@ from .constants import (
     CUBE_SIZE,
     CUBE_HALF,
     BLOCK_SPAWNS,
+    generate_random_block_spawns,
     STACK_ORIGIN,
     STACK_ORIGIN_A,
     STACK_ORIGIN_B,
@@ -143,8 +144,9 @@ class MujocoSimulation:
                 "qvel_adr": self.model.jnt_dofadr[j_id],
             }
 
-    def reset_blocks(self):
-        for spawn in BLOCK_SPAWNS:
+    def reset_blocks(self, randomize: bool = False):
+        spawns = generate_random_block_spawns() if randomize else BLOCK_SPAWNS
+        for spawn in spawns:
             b_id = spawn["id"]
             pos = spawn["position"]
             adr = self.joint_indices[b_id]
@@ -170,14 +172,14 @@ class MujocoSimulation:
         self.grasped_block_id = None
         mujoco.mj_forward(self.model, self.data)
 
-    def reset(self):
+    def reset(self, randomize: bool = False):
         self.tick = 0
         self.joints = copy.deepcopy(DEFAULT_JOINTS)
         self.joint_targets = copy.deepcopy(DEFAULT_JOINTS)
         self.gripper_target = 0.0
         self.active_task_blocks = None
         self.active_task_targets = None
-        self.reset_blocks()
+        self.reset_blocks(randomize=randomize)
         self.torque_tracker.reset()
         self.stability_validator.reset()
 

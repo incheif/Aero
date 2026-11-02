@@ -3,7 +3,10 @@ Physical and geometric constants for the Robot Arm VLA Workcell.
 Directly aligns with the VSArena Rapier simulation specifications from new_project_1.
 """
 
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional, Any
+import random
+import math
+import copy
 
 # Timing & Physics
 FIXED_DT: float = 1.0 / 60.0
@@ -328,3 +331,51 @@ VLA_X_MIN: float = -0.55
 VLA_X_MAX: float = 0.75
 VLA_Z_MIN: float = -0.50
 VLA_Z_MAX: float = 0.50
+
+def generate_random_block_spawns(seed: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Generates collision-free, reach-validated tabletop spawn coordinates for all 7 blocks.
+    - Ensures each block is within 5-DOF arm reach envelope (0.42m - 0.68m from arm mount).
+    - Guarantees >= 0.078m clearance between all cubes to prevent overlap and collisions.
+    - Preserves >= 0.100m clearance from the target stacking zones.
+    """
+    rng = random.Random(seed)
+    arm_mount = (ARM_MOUNT[0], ARM_MOUNT[2])  # X, Z coordinates on table plane (-0.28, 0.0)
+    stack_pad = (STACK_ORIGIN[0], STACK_ORIGIN[2])
+    min_dist = 0.078
+
+    positions = []
+    attempts = 0
+    max_attempts = 1500
+    while len(positions) < len(BLOCK_SPAWNS) and attempts < max_attempts:
+        attempts += 1
+        x = rng.uniform(0.12, 0.36)
+        z = rng.uniform(-0.28, 0.28)
+
+        # Check arm reach bounds
+        arm_d = math.hypot(x - arm_mount[0], z - arm_mount[1])
+        if arm_d < 0.42 or arm_d > 0.68:
+            continue
+
+        # Clearance from stack pad
+        if math.hypot(x - stack_pad[0], z - stack_pad[1]) < 0.10:
+            continue
+
+        # Clearance from other blocks
+        if any(math.hypot(x - px, z - pz) < min_dist for px, pz in positions):
+            continue
+
+        positions.append((round(x, 3), round(z, 3)))
+
+    if len(positions) < len(BLOCK_SPAWNS):
+        return copy.deepcopy(BLOCK_SPAWNS)
+
+    randomized = []
+    table_y = TABLE_TOP_Y + CUBE_HALF + 0.006
+    for idx, template in enumerate(BLOCK_SPAWNS):
+        rx, rz = positions[idx]
+        b_dict = copy.deepcopy(template)
+        b_dict["position"] = [rx, table_y, rz]
+        randomized.append(b_dict)
+    return randomized
+

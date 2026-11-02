@@ -114,6 +114,7 @@ class UserSession:
         self.frame_count: int = 0
         self.fps_timer: float = time.time()
         self.current_fps: float = 60.0
+        self.randomize_spawns: bool = True
 
         self.log_event(
             "system",
@@ -205,7 +206,9 @@ class UserSession:
             or (hasattr(self.vla_agent, "h_jepa") and getattr(self.vla_agent.h_jepa, "is_active", False))
         )
 
-    def handle_reset(self):
+    def handle_reset(self, randomize: Optional[bool] = None):
+        if randomize is None:
+            randomize = getattr(self, "randomize_spawns", True)
         self.color_seek_active = False
         self.color_seek.reset()
         self.controller.stop()
@@ -218,15 +221,16 @@ class UserSession:
         self.explorer.exploration_pct = 25.0
         for k in self.explorer.explored_cells:
             self.explorer.explored_cells[k] = 0.25
-        self.sim.reset()
+        self.sim.reset(randomize=randomize)
         self.mapper.update_from_simulation(self.sim.get_snapshot())
         self.vla_agent.execution_status = "RESTING"
         self.vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
+        spawn_desc = "Blocks re-spawned at randomized tabletop coordinates." if randomize else "Blocks re-spawned at baseline canonical coordinates."
         self.log_event(
             "system",
             "RESET",
-            "Workspace and arm reset to canonical state.",
-            "Joint targets zeroed/rest pose. Blocks re-spawned at baseline coordinates. Trajectory queue stopped."
+            "Workspace and arm reset" + (" (Randomized Spawns)" if randomize else " (Canonical Spawns)"),
+            f"Joint targets zeroed/rest pose. {spawn_desc} Trajectory queue stopped."
         )
 
     async def handle_vla_command(self, cmd: str) -> Dict[str, Any]:
@@ -880,8 +884,35 @@ async def api_reset(request: Request):
     sess = session_manager.get_or_create(sid)
     if sess.is_suspended:
         sess.resume()
-    sess.handle_reset()
+    randomize = getattr(sess, "randomize_spawns", True)
+    sess.handle_reset(randomize=randomize)
     return {"status": "ok", "message": "Arm returned to rest pose and workspace reset."}
+
+
+@app.post("/api/sim/shuffle")
+async def api_shuffle(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
+    sess.handle_reset(randomize=True)
+    return {"status": "ok", "message": "Blocks shuffled to randomized tabletop positions."}
+
+
+@app.post("/api/sim/toggle_random_spawns")
+async def api_toggle_random_spawns(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    try:
+        data = await request.json()
+        enabled = data.get("enabled")
+    except Exception:
+        enabled = None
+    if enabled is not None:
+        sess.randomize_spawns = bool(enabled)
+    else:
+        sess.randomize_spawns = not getattr(sess, "randomize_spawns", True)
+    return {"status": "ok", "randomize_spawns": sess.randomize_spawns}
 
 
 @app.post("/api/session/resume")
