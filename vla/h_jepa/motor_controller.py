@@ -24,7 +24,7 @@ class PrecisionCartesianController:
         Kp: float = 6.0,
         Kd: float = 0.3,
         max_speed: float = 0.65,      # 0.65 m/s (~10.8mm per tick at 60Hz)
-        min_approach_speed: float = 0.12, # 0.12 m/s (~2.0mm per tick)
+        min_approach_speed: float = 0.035, # 0.035 m/s (~0.58mm per tick for gentle touchdown)
         dt: float = FIXED_DT,
     ):
         self.Kp = Kp

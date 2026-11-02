@@ -100,6 +100,7 @@ class HierarchicalVLJEPAOrchestrator:
         if self.micro_phase != phase:
             self.micro_phase = phase
             self.phase_ticks = 0
+            self.touchdown_dwell = 0
             self.motor_controller.reset()
 
     def _retry_subgoal(self):
@@ -306,9 +307,12 @@ class HierarchicalVLJEPAOrchestrator:
                         support_blocks.append(b)
 
             if support_blocks:
-                eff_slot[0] = sum(b["position"][0] for b in support_blocks) / len(support_blocks)
-                eff_slot[2] = sum(b["position"][2] for b in support_blocks) / len(support_blocks)
                 max_support_y = max(b["position"][1] for b in support_blocks)
+                # Align exclusively with the immediate top supporting tier (within 22mm of top face)
+                # Eliminates eccentric stacking on towers and preserves true center-of-mass balance
+                top_supports = [b for b in support_blocks if b["position"][1] >= max_support_y - 0.022]
+                eff_slot[0] = sum(b["position"][0] for b in top_supports) / len(top_supports)
+                eff_slot[2] = sum(b["position"][2] for b in top_supports) / len(top_supports)
                 eff_slot[1] = max_support_y + CUBE_SIZE
 
         # Micro-Phase Target Computation
@@ -425,18 +429,25 @@ class HierarchicalVLJEPAOrchestrator:
             place_y = eff_slot[1] + 0.008
             horiz_err = math.hypot(current_tcp[0] - eff_slot[0], current_tcp[2] - eff_slot[2])
             vert_err = abs(current_tcp[1] - place_y)
-            desired_gripper = 1.0  # Hold closed
+            desired_gripper = 1.0  # Hold closed firmly during descent
 
             # Guard: If horizontal error drifts during descent, correct horizontal centering before dropping lower
-            if horiz_err > 0.018:
+            if horiz_err > 0.014:
                 micro_target = [eff_slot[0], current_tcp[1], eff_slot[2]]
             else:
                 micro_target = [eff_slot[0], place_y, eff_slot[2]]
 
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            # Sub-centimeter touchdown (<= 6mm): require firm resting contact before opening jaws
-            touchdown_reached = (horiz_err < 0.010 and vert_err < 0.006) or (d < 0.008 and self.phase_ticks >= 15)
-            if touchdown_reached or self.phase_ticks > 75:
+            # Soft contact touchdown: require block to rest on surface and dwell with closed jaws for 10 ticks
+            # to dissipate all impact momentum and kinetic vibrations before releasing
+            contact_reached = (horiz_err < 0.008 and vert_err < 0.006) or (d < 0.006)
+            if contact_reached:
+                self.touchdown_dwell = getattr(self, "touchdown_dwell", 0) + 1
+            else:
+                self.touchdown_dwell = 0
+
+            if self.touchdown_dwell >= 10 or self.phase_ticks > 80:
+                self.touchdown_dwell = 0
                 self._set_phase("RELEASE")
 
         elif self.micro_phase == "RELEASE":

@@ -273,7 +273,9 @@ class StabilityValidator:
                 return False, 0, self.status
             vel = target_b.get("velocity", [0.0, 0.0, 0.0])
             speed = math.hypot(vel[0], vel[1], vel[2])
-            settled = speed <= 0.04
+            rot = target_b.get("rotation", [0.0, 0.0, 0.0, 1.0])
+            is_upright = orientation_score(rot) >= 0.88
+            settled = (speed <= 0.04) and is_upright
             valid_blocks = [target_b]
         else:
             # Check if stacked blocks are in target pad
