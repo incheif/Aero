@@ -180,7 +180,7 @@ class RobotArmSimulation:
                         dx = abs(tcp_pos[0] - other.position[0])
                         dz = abs(tcp_pos[2] - other.position[2])
                         # Check horizontal AABB overlap with any other block
-                        if dx < CUBE_SIZE - 0.0005 and dz < CUBE_SIZE - 0.0005:
+                        if dx < CUBE_SIZE - 0.015 and dz < CUBE_SIZE - 0.015:
                             if tcp_pos[1] >= other.position[1] - 0.015:
                                 cand_y = other.position[1] + CUBE_SIZE
                                 if cand_y > min_support_y:
