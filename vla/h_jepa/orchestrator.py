@@ -14,6 +14,7 @@ import numpy as np
 
 from simulation.constants import (
     STACK_ORIGIN,
+    SAFE_STAGING_SLOTS,
     SAFE_HOVER_Y,
     PICK_Y,
     TABLE_TOP_Y,
@@ -182,13 +183,27 @@ class HierarchicalVLJEPAOrchestrator:
                 return b
         return None
 
+    def _find_free_staging_slot(self, blocks: List[Dict[str, Any]]) -> List[float]:
+        """Finds a safe tabletop perimeter staging slot free of any physical objects."""
+        for slot in SAFE_STAGING_SLOTS:
+            slot_l = [float(slot[0]), float(slot[1]), float(slot[2])]
+            is_free = True
+            for b in blocks:
+                bp = b.get("position", [0, 0, 0])
+                if math.hypot(bp[0] - slot_l[0], bp[2] - slot_l[2]) < 0.080:
+                    is_free = False
+                    break
+            if is_free:
+                return slot_l
+        return [float(SAFE_STAGING_SLOTS[0][0]), TABLE_TOP_Y + CUBE_HALF, float(SAFE_STAGING_SLOTS[0][2])]
+
     def _find_corridor_detour(
         self,
         start: Tuple[float, float],
         goal: Tuple[float, float],
         blocks: List[Dict[str, Any]],
         ignore_ids: Set[str],
-        clearance: float = 0.075,
+        clearance: float = 0.090,
     ) -> Optional[Tuple[float, float]]:
         """
         Calculates a horizontal detour waypoint if any non-target obstacle block
@@ -197,7 +212,7 @@ class HierarchicalVLJEPAOrchestrator:
         dx = goal[0] - start[0]
         dz = goal[1] - start[1]
         seg_len = math.hypot(dx, dz)
-        if seg_len < 0.06:
+        if seg_len < 0.05:
             return None
 
         ux = dx / seg_len
@@ -221,12 +236,16 @@ class HierarchicalVLJEPAOrchestrator:
                 continue
             ox, _, oz = pos[0], pos[1], pos[2]
 
+            # Destination cluster: ignore blocks that sit at or immediately adjacent to destination
+            if math.hypot(ox - goal[0], oz - goal[1]) < 0.065:
+                continue
+
             vox = ox - start[0]
             voz = oz - start[1]
             t = vox * ux + voz * uz
 
             # Check if obstacle lies along the interior of the flight corridor
-            if 0.040 < t < (seg_len - 0.040):
+            if 0.020 < t < (seg_len - 0.020):
                 perp_dist = abs(vox * nx + voz * nz)
                 if perp_dist < clearance and perp_dist < min_dist_to_line:
                     min_dist_to_line = perp_dist
@@ -240,8 +259,8 @@ class HierarchicalVLJEPAOrchestrator:
         px = start[0] + worst_t * ux
         pz = start[1] + worst_t * uz
 
-        side_a = (px + nx * (clearance + 0.025), pz + nz * (clearance + 0.025))
-        side_b = (px - nx * (clearance + 0.025), pz - nz * (clearance + 0.025))
+        side_a = (px + nx * (clearance + 0.035), pz + nz * (clearance + 0.035))
+        side_b = (px - nx * (clearance + 0.035), pz - nz * (clearance + 0.035))
 
         def is_valid(pt):
             return (-half_x + margin <= pt[0] <= half_x - margin) and (-half_z + margin <= pt[1] <= half_z - margin)
@@ -332,11 +351,56 @@ class HierarchicalVLJEPAOrchestrator:
 
         if self.micro_phase == "HOVER_PICK":
             desired_gripper = 0.0  # Open
+
+            # Runtime Predictive Obstruction Check:
+            # If the pick target or target slot is obstructed by another block at runtime,
+            # predict the collision and dynamically insert a path-clearing subgoal
+            if self.phase_ticks == 1 and not active_subgoal.get("is_clearing", False):
+                obs_block = None
+                obs_reason = ""
+                # Check pick zone: another block is physically crowding the pick target (< 0.065)
+                for b in blocks:
+                    if b.get("id") == b_id or b.get("is_grasped"):
+                        continue
+                    bp = b.get("position", [0, 0, 0])
+                    if math.hypot(bp[0] - block_pos[0], bp[2] - block_pos[2]) < 0.065 and abs(bp[1] - block_pos[1]) < 0.065:
+                        obs_block = b
+                        obs_reason = "pick zone obstruction"
+                        break
+                # Check drop slot: another unplaced block is occupying the slot (< 0.038)
+                if not obs_block:
+                    for b in blocks:
+                        if b.get("id") == b_id or b.get("is_grasped"):
+                            continue
+                        bp = b.get("position", [0, 0, 0])
+                        # Ignore blocks that are beneath this slot (supporting layers of the tower/pyramid)
+                        if bp[1] < eff_slot[1] - 0.02:
+                            continue
+                        if math.hypot(bp[0] - eff_slot[0], bp[2] - eff_slot[2]) < 0.038 and abs(bp[1] - eff_slot[1]) < 0.040:
+                            obs_block = b
+                            obs_reason = "slot obstruction"
+                            break
+
+                if obs_block:
+                    stage_slot = self._find_free_staging_slot(blocks)
+                    clear_subgoal = {
+                        "subgoal_index": self.current_subgoal_idx,
+                        "block_id": obs_block["id"],
+                        "target_slot": list(stage_slot),
+                        "z_sub": active_subgoal["z_sub"],
+                        "description": f"Predict & clear path: relocate obstructing {obs_block['id']} ({obs_reason}) to perimeter staging ({stage_slot[0]:.2f}, {stage_slot[2]:.2f})",
+                        "is_clearing": True,
+                    }
+                    self.subgoals.insert(self.current_subgoal_idx, clear_subgoal)
+                    for idx, sg in enumerate(self.subgoals):
+                        sg["subgoal_index"] = idx
+                    return self.step(current_tcp, current_joints, blocks, current_gripper)
+
             horiz_d = math.hypot(current_tcp[0] - block_pos[0], current_tcp[2] - block_pos[2])
             vert_err = abs(current_tcp[1] - transit_y)
 
             # 1. Strict Ascend-First Guard: ascend vertically at current (x, z) before ANY horizontal flight
-            if current_tcp[1] < transit_y - 0.020:
+            if current_tcp[1] < transit_y - 0.015:
                 micro_target = [current_tcp[0], transit_y, current_tcp[2]]
             else:
                 # 2. Check for horizontal corridor detour around intermediate blocks
@@ -345,14 +409,15 @@ class HierarchicalVLJEPAOrchestrator:
                     goal=(block_pos[0], block_pos[2]),
                     blocks=blocks,
                     ignore_ids={b_id},
+                    clearance=0.090,
                 )
-                if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.030:
+                if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.018:
                     micro_target = [detour[0], transit_y, detour[1]]
                 else:
                     micro_target = [block_pos[0], transit_y, block_pos[2]]
 
             # Transition to DESCEND_PICK ONLY once horizontally centered directly above block at transit height
-            if horiz_d < 0.015 and vert_err < 0.025:
+            if horiz_d < 0.012 and vert_err < 0.020:
                 self._set_phase("DESCEND_PICK")
             elif self.phase_ticks > 180:
                 self._retry_subgoal()
@@ -365,12 +430,12 @@ class HierarchicalVLJEPAOrchestrator:
             desired_gripper = 0.0  # Still open
 
             # Guard: If horizontal error drifts during descent, correct horizontal centering before dropping lower
-            if horiz_err > 0.018:
+            if horiz_err > 0.010:
                 micro_target = [block_pos[0], current_tcp[1], block_pos[2]]
             else:
                 micro_target = [block_pos[0], pick_y, block_pos[2]]
 
-            if (horiz_err < 0.010 and vert_err < 0.005) or self.phase_ticks > 60:
+            if (horiz_err < 0.008 and vert_err < 0.005) or self.phase_ticks > 60:
                 self._set_phase("GRASP")
 
         elif self.micro_phase == "GRASP":
@@ -386,7 +451,7 @@ class HierarchicalVLJEPAOrchestrator:
             # Pure vertical lift above the pick location
             micro_target = [block_pos[0], transit_y, block_pos[2]]
             desired_gripper = 1.0  # Hold closed
-            is_lifted = (current_tcp[1] >= transit_y - 0.025)
+            is_lifted = (current_tcp[1] >= transit_y - 0.020)
             if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
                 self._retry_subgoal()
             elif is_lifted:
@@ -403,7 +468,7 @@ class HierarchicalVLJEPAOrchestrator:
             vert_err = abs(current_tcp[1] - transit_y)
 
             # Ensure safe transit altitude is strictly maintained
-            if current_tcp[1] < transit_y - 0.020:
+            if current_tcp[1] < transit_y - 0.015:
                 micro_target = [current_tcp[0], transit_y, current_tcp[2]]
             else:
                 detour = self._find_corridor_detour(
@@ -411,15 +476,16 @@ class HierarchicalVLJEPAOrchestrator:
                     goal=(eff_slot[0], eff_slot[2]),
                     blocks=blocks,
                     ignore_ids={b_id},
+                    clearance=0.090,
                 )
-                if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.030:
+                if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.018:
                     micro_target = [detour[0], transit_y, detour[1]]
                 else:
                     micro_target = [eff_slot[0], transit_y, eff_slot[2]]
 
             if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
                 self._retry_subgoal()
-            elif horiz_d < 0.015 and vert_err < 0.025:
+            elif horiz_d < 0.012 and vert_err < 0.020:
                 self._set_phase("DESCEND_PLACE")
             elif self.phase_ticks > 180:
                 self._retry_subgoal()
@@ -432,14 +498,12 @@ class HierarchicalVLJEPAOrchestrator:
             desired_gripper = 1.0  # Hold closed firmly during descent
 
             # Guard: If horizontal error drifts during descent, correct horizontal centering before dropping lower
-            if horiz_err > 0.014:
+            if horiz_err > 0.010:
                 micro_target = [eff_slot[0], current_tcp[1], eff_slot[2]]
             else:
                 micro_target = [eff_slot[0], place_y, eff_slot[2]]
 
             d = math.hypot(current_tcp[0] - micro_target[0], current_tcp[1] - micro_target[1], current_tcp[2] - micro_target[2])
-            # Soft contact touchdown: require block to rest on surface and dwell with closed jaws for 10 ticks
-            # to dissipate all impact momentum and kinetic vibrations before releasing
             contact_reached = (horiz_err < 0.008 and vert_err < 0.006) or (d < 0.006)
             if contact_reached:
                 self.touchdown_dwell = getattr(self, "touchdown_dwell", 0) + 1
@@ -455,8 +519,6 @@ class HierarchicalVLJEPAOrchestrator:
             place_y = eff_slot[1] + 0.008
             micro_target = [eff_slot[0], place_y, eff_slot[2]]
             desired_gripper = 0.0  # Open gripper
-            # Zero-impulse dwell: hold stationary for at least 18 ticks so fingertip friction
-            # vanishes completely before retracting arm
             is_jaws_clear = (current_gripper <= GRASP_OPEN_THRESHOLD - 0.05 and not target_block.get("is_grasped", False))
             dwell_satisfied = self.phase_ticks >= 18
             if (is_jaws_clear and dwell_satisfied) or self.phase_ticks > 50:
@@ -478,7 +540,7 @@ class HierarchicalVLJEPAOrchestrator:
             placed_pos = target_block.get("position", [0.0, 0.0, 0.0])
             placed_dist_xz = math.hypot(placed_pos[0] - eff_slot[0], placed_pos[2] - eff_slot[2])
             placed_dist_y = abs(placed_pos[1] - eff_slot[1])
-            is_ascended = (current_tcp[1] >= transit_y - 0.025)
+            is_ascended = (current_tcp[1] >= transit_y - 0.020)
 
             # Gate: Verified resting stability + Placed block within bounds + STRICT vertical ascent clear of stack
             if is_verified and placed_dist_xz <= 0.045 and placed_dist_y <= 0.035 and is_ascended:

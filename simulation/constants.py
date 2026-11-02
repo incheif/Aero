@@ -57,6 +57,16 @@ SAFE_HOVER_Y: float = 0.920  # Safe search, acquisition, and transit altitude (g
 PICK_Y: float = 0.7575       # TCP pick altitude clears table surface (0.7555m)
 MAX_ALTITUDE_CLAMP: float = 1.12 # Enforces maximum vertical reach limit (permits 5-layer tower reach up to 1.05m)
 
+# Safe Tabletop Perimeter Staging Slots for Path Clearing
+SAFE_STAGING_SLOTS: List[Tuple[float, float, float]] = [
+    (0.15, TABLE_TOP_Y + CUBE_HALF, -0.28),   # Left perimeter flank
+    (0.15, TABLE_TOP_Y + CUBE_HALF, 0.28),    # Right perimeter flank
+    (0.22, TABLE_TOP_Y + CUBE_HALF, -0.32),   # Far-left perimeter
+    (0.22, TABLE_TOP_Y + CUBE_HALF, 0.32),    # Far-right perimeter
+    (0.10, TABLE_TOP_Y + CUBE_HALF, -0.25),   # Rear-left perimeter
+    (0.10, TABLE_TOP_Y + CUBE_HALF, 0.25),    # Rear-right perimeter
+]
+
 # Joint Limits (Radians for arm joints, 0..1 for gripper)
 JOINT_LIMITS: Dict[str, Tuple[float, float]] = {
     "baseYaw": (-3.14159, 3.14159),

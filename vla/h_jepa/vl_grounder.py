@@ -11,12 +11,13 @@ Translates high-level multi-box manipulation directives (e.g. 3-block, 5-block,
 import math
 import re
 import hashlib
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Set
 import numpy as np
 
 from vla.instruction_interpreter import COLOR_ALIAS_MAP, AVAILABLE_BLOCKS
 from simulation.constants import (
     STACK_ORIGIN,
+    SAFE_STAGING_SLOTS,
     get_pyramid_slots,
     get_train_slots,
     get_letter_slots,
@@ -118,7 +119,7 @@ class VLJEPAGrounder:
             ))
             or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", inst_lower))
         )
-        is_tower = any(w in inst_lower for w in ["tower", "stack", "vertical"]) and not any(w in inst_lower for w in ["pyramid", "pyramind", "stepped", "triangle"]) and not is_multi_towers
+        is_tower = any(w in inst_lower for w in ["tower", "stack", "vertical"]) and not any(w in inst_lower for w in ["pyramid", "stepped", "triangle"]) and not is_multi_towers
         is_train = "train" in inst_lower or "line" in inst_lower or "row" in inst_lower
         
         pyr_type = "3_block_stepped"
@@ -278,67 +279,93 @@ class VLJEPAGrounder:
         """
         Generates the sequential intermediate sub-goal latent embeddings z_sub^(2)
         corresponding to each step of the pyramid, tower, or train assembly.
-        If any existing block physically obstructs a target slot before its turn,
-        a pre-clearing subgoal is prepended to move that block to a distant staging location.
+        Predicts physical obstructions (slot obstruction or pick envelope obstruction)
+        and inserts predictive path-clearing subgoals to relocate obstructing blocks
+        to safe perimeter staging zones before execution.
         """
         subgoals = []
         curr_state_blocks = [dict(b) for b in initial_blocks] if initial_blocks else []
 
-        # 1. Path Obstruction Detection & Pre-clearing Subgoals
-        staging_positions = [
-            [0.15, TABLE_TOP_Y + CUBE_HALF, 0.08],
-            [0.15, TABLE_TOP_Y + CUBE_HALF, -0.12],
-            [0.12, TABLE_TOP_Y + CUBE_HALF, 0.0],
-        ]
-        staging_idx = 0
-
-        curr_positions = {}
+        curr_positions: Dict[str, List[float]] = {}
         if initial_blocks:
             for b in initial_blocks:
                 if b.get("id"):
                     curr_positions[b["id"]] = list(b.get("position", [0.0, 0.0, 0.0]))
 
-        cleared_blocks = set()
-        clearing_subgoals = []
+        cleared_blocks: Set[str] = set()
+        used_staging: List[List[float]] = []
+
+        def get_free_staging_slot() -> List[float]:
+            for slot in SAFE_STAGING_SLOTS:
+                slot_l = [float(slot[0]), float(slot[1]), float(slot[2])]
+                if any(math.hypot(slot_l[0] - u[0], slot_l[2] - u[2]) < 0.060 for u in used_staging):
+                    continue
+                if any(math.hypot(slot_l[0] - ts[0], slot_l[2] - ts[2]) < 0.090 for ts in target_slots):
+                    continue
+                if any(math.hypot(slot_l[0] - cp[0], slot_l[2] - cp[2]) < 0.080 for cp in curr_positions.values()):
+                    continue
+                used_staging.append(slot_l)
+                return slot_l
+            idx = len(used_staging) % len(SAFE_STAGING_SLOTS)
+            fb = [float(SAFE_STAGING_SLOTS[idx][0]), TABLE_TOP_Y + CUBE_HALF, float(SAFE_STAGING_SLOTS[idx][2])]
+            used_staging.append(fb)
+            return fb
 
         for step_idx, (b_id, slot) in enumerate(zip(block_ids, target_slots)):
+            b_pick = curr_positions.get(b_id)
+
             for other_id, other_pos in list(curr_positions.items()):
                 if other_id == b_id or other_id in cleared_blocks:
                     continue
-                horiz_dist = math.hypot(other_pos[0] - slot[0], other_pos[2] - slot[2])
-                vert_dist = abs(other_pos[1] - slot[1])
-                if horiz_dist < CUBE_SIZE * 0.95 and vert_dist < CUBE_SIZE:
-                    other_scheduled_idx = block_ids.index(other_id) if other_id in block_ids else 999
-                    if other_scheduled_idx > step_idx:
-                        stage_slot = staging_positions[staging_idx % len(staging_positions)]
-                        staging_idx += 1
 
-                        for b in curr_state_blocks:
-                            if b.get("id") == other_id:
-                                b["position"] = list(stage_slot)
-                                b["is_grasped"] = False
-                                break
-                        curr_positions[other_id] = list(stage_slot)
-                        cleared_blocks.add(other_id)
+                other_scheduled_idx = block_ids.index(other_id) if other_id in block_ids else 999
+                # If other block is already assembled in a previous step at its intended slot, do not clear
+                if other_scheduled_idx < step_idx:
+                    continue
 
-                        z_clear = self.encoder_l2.encode(
-                            blocks=curr_state_blocks,
-                            tcp_pos=[stage_slot[0], stage_slot[1] + 0.08, stage_slot[2]],
-                            target_origin=STACK_ORIGIN,
-                        )
-                        clearing_subgoals.append({
-                            "block_id": other_id,
-                            "target_slot": stage_slot,
-                            "z_sub": z_clear,
-                            "description": f"Pre-clear obstructing {other_id} from path to distant location ({stage_slot[0]:.3f}, {stage_slot[1]:.3f}, {stage_slot[2]:.3f})",
-                        })
+                is_obstructing = False
+                obs_reason = ""
 
-        for cs in clearing_subgoals:
-            cs["subgoal_index"] = len(subgoals)
-            subgoals.append(cs)
+                # 1. Target Slot Obstruction: another block sits within the drop slot footprint
+                horiz_dist_slot = math.hypot(other_pos[0] - slot[0], other_pos[2] - slot[2])
+                vert_dist_slot = abs(other_pos[1] - slot[1])
+                if horiz_dist_slot < 0.040 and vert_dist_slot < 0.045:
+                    is_obstructing = True
+                    obs_reason = "target slot obstruction"
 
-        # 2. Main Assembly Subgoals
-        for step_idx, (b_id, slot) in enumerate(zip(block_ids, target_slots)):
+                # 2. Pick Envelope Obstruction: another block sits inside the open gripper jaws envelope
+                elif b_pick is not None:
+                    horiz_dist_pick = math.hypot(other_pos[0] - b_pick[0], other_pos[2] - b_pick[2])
+                    vert_dist_pick = abs(other_pos[1] - b_pick[1])
+                    if horiz_dist_pick < 0.065 and vert_dist_pick < 0.065:
+                        is_obstructing = True
+                        obs_reason = "pick envelope obstruction"
+
+                if is_obstructing:
+                    stage_slot = get_free_staging_slot()
+                    for b in curr_state_blocks:
+                        if b.get("id") == other_id:
+                            b["position"] = list(stage_slot)
+                            b["is_grasped"] = False
+                            break
+                    curr_positions[other_id] = list(stage_slot)
+                    cleared_blocks.add(other_id)
+
+                    z_clear = self.encoder_l2.encode(
+                        blocks=curr_state_blocks,
+                        tcp_pos=[stage_slot[0], stage_slot[1] + 0.08, stage_slot[2]],
+                        target_origin=STACK_ORIGIN,
+                    )
+                    subgoals.append({
+                        "subgoal_index": len(subgoals),
+                        "block_id": other_id,
+                        "target_slot": stage_slot,
+                        "z_sub": z_clear,
+                        "description": f"Predict & clear path: relocate obstructing {other_id} ({obs_reason}) to perimeter staging ({stage_slot[0]:.2f}, {stage_slot[2]:.2f})",
+                        "is_clearing": True,
+                    })
+
+            # Main Assembly Subgoal for b_id
             for b in curr_state_blocks:
                 if b.get("id") == b_id:
                     b["position"] = [slot[0], slot[1], slot[2]]
@@ -346,13 +373,14 @@ class VLJEPAGrounder:
                     b["in_pad"] = True
                     b["is_grasped"] = False
                     break
+            if b_id in curr_positions:
+                curr_positions[b_id] = [slot[0], slot[1], slot[2]]
 
             z_sub = self.encoder_l2.encode(
                 blocks=curr_state_blocks,
                 tcp_pos=[slot[0], slot[1] + 0.08, slot[2]],
                 target_origin=STACK_ORIGIN,
             )
-
             tier_desc = f"Tier {round(max(0, slot[1] - TABLE_TOP_Y) / CUBE_SIZE)}"
             subgoals.append({
                 "subgoal_index": len(subgoals),
@@ -360,6 +388,7 @@ class VLJEPAGrounder:
                 "target_slot": slot,
                 "z_sub": z_sub,
                 "description": f"Assemble {b_id} at {tier_desc} slot ({slot[0]:.3f}, {slot[1]:.3f}, {slot[2]:.3f})",
+                "is_clearing": False,
             })
 
         return subgoals

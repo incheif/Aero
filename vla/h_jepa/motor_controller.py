@@ -23,7 +23,7 @@ class PrecisionCartesianController:
         self,
         Kp: float = 6.0,
         Kd: float = 0.3,
-        max_speed: float = 0.65,      # 0.65 m/s (~10.8mm per tick at 60Hz)
+        max_speed: float = 0.72,      # 0.65 m/s (~10.8mm per tick at 60Hz)
         min_approach_speed: float = 0.035, # 0.035 m/s (~0.58mm per tick for gentle touchdown)
         dt: float = FIXED_DT,
     ):
@@ -82,7 +82,7 @@ class PrecisionCartesianController:
         # Velocity shaping: cruise speed with linear deceleration ramp near target
         # When dist > 0.05m -> cruise at max_speed
         # When dist < 0.05m -> ramp down to min_approach_speed
-        decel_dist = 0.04
+        decel_dist = 0.035
         if dist > decel_dist:
             speed = self.max_speed
         else:
