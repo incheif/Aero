@@ -53,7 +53,7 @@ class TestMujocoEngine:
         assert plan_res["status"] == "PLAN_READY"
 
         ticks = 0
-        max_ticks = 600
+        max_ticks = 650
         while orchestrator.is_active and ticks < max_ticks:
             snap = sim.get_snapshot()
             step_cmd = orchestrator.step(

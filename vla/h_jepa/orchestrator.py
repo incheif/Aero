@@ -26,7 +26,7 @@ from simulation.constants import (
     get_pyramid_slots,
     get_train_slots,
 )
-from simulation.kinematics import inverse_kinematics
+from simulation.kinematics import inverse_kinematics, forward_kinematics
 from simulation.scoring import StabilityValidator, vec_dist
 from .encoders import (
     Level2ObservationEncoder,
@@ -380,6 +380,38 @@ class HierarchicalVLJEPAOrchestrator:
                         if math.hypot(bp[0] - eff_slot[0], bp[2] - eff_slot[2]) < 0.038 and abs(bp[1] - eff_slot[1]) < 0.040:
                             obs_block = b
                             obs_reason = "slot obstruction"
+                            break
+
+                # Check arm reach corridor: will any arm link intersect another block when reaching to pick?
+                if not obs_block:
+                    ik_test = inverse_kinematics((block_pos[0], PICK_Y, block_pos[2]), 0.0)
+                    fk_test = forward_kinematics(ik_test)
+                    ps = fk_test["shoulder"]["position"]
+                    pe = fk_test["elbow"]["position"]
+                    pw = fk_test["wrist"]["position"]
+                    pp = fk_test["palm"]["position"]
+                    test_pts = []
+                    for a in (0.33, 0.66, 1.0):
+                        test_pts.append(([ps[i] + a * (pe[i] - ps[i]) for i in range(3)], 0.026))
+                    for a in (0.25, 0.5, 0.75, 1.0):
+                        test_pts.append(([pe[i] + a * (pw[i] - pe[i]) for i in range(3)], 0.024))
+                    for a in (0.5, 1.0):
+                        test_pts.append(([pw[i] + a * (pp[i] - pw[i]) for i in range(3)], 0.024))
+
+                    for b in blocks:
+                        if b.get("id") == b_id or b.get("is_grasped"):
+                            continue
+                        bp = b.get("position", [0, 0, 0])
+                        for pt, rad in test_pts:
+                            cx = min(max(pt[0], bp[0] - CUBE_HALF), bp[0] + CUBE_HALF)
+                            cy = min(max(pt[1], bp[1] - CUBE_HALF), bp[1] + CUBE_HALF)
+                            cz = min(max(pt[2], bp[2] - CUBE_HALF), bp[2] + CUBE_HALF)
+                            d = math.sqrt((pt[0] - cx)**2 + (pt[1] - cy)**2 + (pt[2] - cz)**2)
+                            if d < rad:
+                                obs_block = b
+                                obs_reason = "arm reach corridor obstruction"
+                                break
+                        if obs_block:
                             break
 
                 if obs_block:

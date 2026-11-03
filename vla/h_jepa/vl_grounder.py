@@ -233,11 +233,48 @@ class VLJEPAGrounder:
                 b_ids = [b for t in towers for b in t][:len(target_slots)]
             else:
                 all_available = [b.get("id") for b in initial_blocks] if initial_blocks else list(AVAILABLE_BLOCKS.keys())
-                b_ids = list(mentioned)
-                for b in all_available:
-                    if b not in b_ids:
-                        b_ids.append(b)
-                b_ids = b_ids[:len(target_slots)]
+                if is_train and initial_blocks and not mentioned:
+                    blocks_dict = {}
+                    if isinstance(initial_blocks, dict):
+                        blocks_dict = {k: v.get("position", [0, 0, 0]) if isinstance(v, dict) else getattr(v, "position", [0, 0, 0]) for k, v in initial_blocks.items()}
+                    elif isinstance(initial_blocks, list):
+                        blocks_dict = {b["id"]: b.get("position", [0, 0, 0]) for b in initial_blocks if isinstance(b, dict) and "id" in b}
+                    
+                    if blocks_dict:
+                        ordered = []
+                        cands = list(all_available)
+                        while cands:
+                            best = None
+                            for c in cands:
+                                pc = blocks_dict.get(c, [0, 0, 0])
+                                rc = math.hypot(pc[0], pc[2])
+                                has_front = False
+                                for o in cands:
+                                    if o == c:
+                                        continue
+                                    po = blocks_dict.get(o, [0, 0, 0])
+                                    ro = math.hypot(po[0], po[2])
+                                    if ro < rc - 0.04:
+                                        cross = abs(po[0] * pc[2] - po[2] * pc[0]) / max(rc, 0.001)
+                                        if cross < 0.065:
+                                            has_front = True
+                                            break
+                                if not has_front:
+                                    best = c
+                                    break
+                            if best is None:
+                                best = cands[0]
+                            ordered.append(best)
+                            cands.remove(best)
+                        b_ids = ordered[:len(target_slots)]
+                    else:
+                        b_ids = list(all_available)[:len(target_slots)]
+                else:
+                    b_ids = list(mentioned)
+                    for b in all_available:
+                        if b not in b_ids:
+                            b_ids.append(b)
+                    b_ids = b_ids[:len(target_slots)]
 
         # Synthesize virtual ideal target state for encoder evaluation
         ideal_blocks = []

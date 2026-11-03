@@ -131,22 +131,47 @@ class RobotArmSimulation:
         Enforces physical solid impassability between robot arm links/gripper and blocks.
         Blocks cannot be passed through by the arm:
         - Placed/stacked blocks are immovable solid anchors: arm is physically blocked at contact face.
-        - Free tabletop blocks are physically pushed along contact normal.
+        - Arm links (upper arm, elbow, forearm, wrist) cannot penetrate ANY block.
+        - Free tabletop blocks are pushed along contact normal when contacted by end-effector.
         """
         fk = forward_kinematics(self.joints)
         prev_fk = forward_kinematics(prev_joints)
         grip_val = self.joints.get("gripper", 0.0)
 
-        arm_proxies = [
-            ("palm", fk["palm"]["position"], 0.024),
-            ("wrist", fk["wrist"]["position"], 0.024),
-            ("forearm", fk["forearm"]["position"], 0.024),
-        ]
+        p_shoulder = fk["shoulder"]["position"]
+        p_elbow = fk["elbow"]["position"]
+        p_wrist = fk["wrist"]["position"]
+        p_palm = fk["palm"]["position"]
+
+        prev_shoulder = prev_fk["shoulder"]["position"]
+        prev_elbow = prev_fk["elbow"]["position"]
+        prev_wrist = prev_fk["wrist"]["position"]
+        prev_palm = prev_fk["palm"]["position"]
+
+        arm_proxies = []
+        # Upper Arm link (shoulder -> elbow, 4 points)
+        for alpha in (0.25, 0.5, 0.75, 1.0):
+            pos = [p_shoulder[i] + alpha * (p_elbow[i] - p_shoulder[i]) for i in range(3)]
+            prev_pos = [prev_shoulder[i] + alpha * (prev_elbow[i] - prev_shoulder[i]) for i in range(3)]
+            arm_proxies.append((f"upper_{alpha}", pos, 0.026, prev_pos))
+
+        # Forearm link (elbow -> wrist, 4 points)
+        for alpha in (0.25, 0.5, 0.75, 1.0):
+            pos = [p_elbow[i] + alpha * (p_wrist[i] - p_elbow[i]) for i in range(3)]
+            prev_pos = [prev_elbow[i] + alpha * (prev_wrist[i] - prev_elbow[i]) for i in range(3)]
+            arm_proxies.append((f"forearm_{alpha}", pos, 0.024, prev_pos))
+
+        # Wrist link (wrist -> palm, 2 points)
+        for alpha in (0.5, 1.0):
+            pos = [p_wrist[i] + alpha * (p_palm[i] - p_wrist[i]) for i in range(3)]
+            prev_pos = [prev_wrist[i] + alpha * (prev_palm[i] - prev_wrist[i]) for i in range(3)]
+            arm_proxies.append((f"wrist_{alpha}", pos, 0.024, prev_pos))
+
         if self.grasped_block_id is None:
             arm_proxies.extend([
-                ("tcp", fk["tcp"]["position"], 0.020),
-                ("jawLeft", fk["jawLeft"]["position"], 0.012),
-                ("jawRight", fk["jawRight"]["position"], 0.012),
+                ("tcp", fk["tcp"]["position"], 0.020, prev_fk["tcp"]["position"]),
+                ("jawLeft", fk["jawLeft"]["position"], 0.012, prev_fk["jawLeft"]["position"]),
+                ("jawRight", fk["jawRight"]["position"], 0.012, prev_fk["jawRight"]["position"]),
             ])
 
         blocked_by_placed = False
@@ -180,7 +205,7 @@ class RobotArmSimulation:
             if is_vertical_retreat:
                 continue
 
-            for p_name, p_pos, p_rad in arm_proxies:
+            for p_name, p_pos, p_rad, prev_p_pos in arm_proxies:
                 # Closest point on block box to proxy center
                 cx = min(max(p_pos[0], bx - CUBE_HALF), bx + CUBE_HALF)
                 cy = min(max(p_pos[1], by - CUBE_HALF), by + CUBE_HALF)
@@ -190,13 +215,15 @@ class RobotArmSimulation:
 
                 # True penetration beyond margin (> 4mm)
                 if pen > 0.004:
-                    prev_p_pos = prev_fk[p_name]["position"]
                     # If this proxy is at/above block and strictly moving upward, it is ascending away
                     is_ascending_away = (p_pos[1] >= by - 0.005 and p_pos[1] > prev_p_pos[1] + 0.0003)
                     if is_ascending_away:
                         continue
 
-                    if is_placed or not is_over_table(bx, bz):
+                    is_arm_link = not p_name.startswith("jaw") and p_name != "tcp"
+                    # Placed blocks are immovable solid anchors.
+                    # Arm links (upper arm, elbow, forearm, wrist) cannot penetrate ANY block!
+                    if is_placed or not is_over_table(bx, bz) or is_arm_link:
                         blocked_by_placed = True
                         break
                     else:

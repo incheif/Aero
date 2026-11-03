@@ -29,6 +29,7 @@ from simulation.constants import (
     BLOCK_TARGETS,
 )
 from simulation.camera import render_camera_frame, encode_image_base64, world_to_pixel
+from simulation.kinematics import inverse_kinematics, forward_kinematics
 from .cost_tracker import VLACostTracker
 from .instruction_interpreter import InstructionInterpreter
 try:
@@ -705,11 +706,11 @@ Output a JSON object ONLY with the following schema:
             train_targets = interpretation.get("target_blocks", all_block_ids)
             slots = get_train_slots(len(train_targets), origin=(0.38, TABLE_TOP_Y, 0.0))
 
-            staging_loc = [0.15, TABLE_TOP_Y + CUBE_HALF, 0.08]
             cleared_blocks = set()
 
-            # Pre-clear any blocks obstructing the train slots before their turn
+            # Pre-clear any blocks obstructing train slots or arm reach corridors before their turn
             for step_idx, (b_id, slot_target) in enumerate(zip(train_targets, slots)):
+                b_curr = blocks.get(b_id)
                 for other_id in train_targets:
                     if other_id == b_id or other_id in cleared_blocks:
                         continue
@@ -720,10 +721,30 @@ Output a JSON object ONLY with the following schema:
                     tx, ty, tz = slot_target
                     horiz_d = math.hypot(ox - tx, oz - tz)
                     vert_d = abs(oy - ty)
-                    if horiz_d < CUBE_SIZE * 0.95 and vert_d < CUBE_SIZE:
+                    is_slot_obstruct = (horiz_d < CUBE_SIZE * 0.95 and vert_d < CUBE_SIZE)
+
+                    # Arm reach corridor check for pick target b_id
+                    is_arm_obstruct = False
+                    if b_curr:
+                        bx, by, bz = b_curr["position"]
+                        ik_p = inverse_kinematics((bx, PICK_Y, bz), 0.0)
+                        fk_p = forward_kinematics(ik_p)
+                        pw = fk_p["wrist"]["position"]
+                        pf = fk_p["forearm"]["position"]
+                        for test_p in (pw, pf):
+                            cx = min(max(test_p[0], ox - CUBE_HALF), ox + CUBE_HALF)
+                            cy = min(max(test_p[1], oy - CUBE_HALF), oy + CUBE_HALF)
+                            cz = min(max(test_p[2], oz - CUBE_HALF), oz + CUBE_HALF)
+                            if math.hypot(test_p[0] - cx, test_p[1] - cy, test_p[2] - cz) < 0.028:
+                                is_arm_obstruct = True
+                                break
+
+                    if is_slot_obstruct or is_arm_obstruct:
                         other_idx = train_targets.index(other_id)
                         if other_idx > step_idx:
                             cleared_blocks.add(other_id)
+                            safe_z = -0.32 if oz < 0 else 0.32
+                            staging_loc = [0.22, TABLE_TOP_Y + CUBE_HALF, safe_z]
                             grounding.append({
                                 "entity": other_id,
                                 "color": other_b["color"],
@@ -733,7 +754,8 @@ Output a JSON object ONLY with the following schema:
                             })
                             steps = self._generate_pick_and_place(
                                 ox, oz, staging_loc[0], staging_loc[2], staging_loc[1],
-                                f"{other_b['name']} (Path Pre-Clear)"
+                                f"{other_b['name']} (Path Pre-Clear)",
+                                scene_blocks=list(blocks.values())
                             )
                             plan.extend(steps)
                             other_b["position"] = list(staging_loc)
@@ -747,7 +769,10 @@ Output a JSON object ONLY with the following schema:
                 tx, ty, tz = slot_target
                 car_label = "Engine (Lead)" if idx == 0 else f"Carriage {idx}"
                 grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "role": car_label, "target_coords": [tx, ty, tz]})
-                steps = self._generate_pick_and_place(bx, bz, tx, tz, ty, b["name"])
+                steps = self._generate_pick_and_place(
+                    bx, bz, tx, tz, ty, b["name"],
+                    scene_blocks=list(blocks.values())
+                )
                 plan.extend(steps)
                 train_strs.append(f"{car_label}:{b['name']}")
                 b["position"] = [tx, ty, tz]
