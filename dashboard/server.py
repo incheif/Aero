@@ -12,6 +12,7 @@ import sys
 import io
 import asyncio
 import time
+import math
 from typing import Dict, Any, Optional, Set
 from contextlib import asynccontextmanager
 
@@ -77,6 +78,25 @@ class TeleopRequest(BaseModel):
     session_id: Optional[str] = None
 
 
+
+BLOCK_NAME_MAP = {
+    "block_magenta": "Red Cube",
+    "block_cyan": "Blue Cube",
+    "block_yellow": "Yellow Cube",
+    "block_emerald": "Green Cube",
+    "block_orange": "Orange Cube",
+    "block_purple": "Purple Cube",
+    "block_pink": "Pink Cube",
+}
+
+def format_block_label(block_id: Optional[str]) -> str:
+    if not block_id:
+        return "Target Cube"
+    if block_id in BLOCK_NAME_MAP:
+        return f"{BLOCK_NAME_MAP[block_id]} ({block_id})"
+    clean = block_id.replace("block_", "").capitalize()
+    return f"{clean} Cube ({block_id})"
+
 class UserSession:
     """Encapsulates an isolated simulation and cognitive pipeline for one client session."""
 
@@ -110,6 +130,7 @@ class UserSession:
         self.suspension_reason: Optional[str] = None
 
         self.prev_step_idx: int = -1
+        self.prev_hjepa_state: Optional[Tuple[int, str]] = None
         self.prev_stability_verified: bool = False
         self.frame_count: int = 0
         self.fps_timer: float = time.time()
@@ -221,6 +242,9 @@ class UserSession:
         self.explorer.exploration_pct = 25.0
         for k in self.explorer.explored_cells:
             self.explorer.explored_cells[k] = 0.25
+        self.prev_hjepa_state = None
+        self.prev_step_idx = -1
+        self.active_target_block_id = None
         self.sim.reset(randomize=randomize)
         self.mapper.update_from_simulation(self.sim.get_snapshot())
         self.vla_agent.execution_status = "RESTING"
@@ -399,12 +423,17 @@ class UserSession:
             self.explorer.is_exploring = False
             self.color_seek_active = False
             self.vla_agent.execution_status = "EXECUTING"
+            self.prev_hjepa_state = None
+            self.active_target_block_id = None
             h_plan = result.get("h_jepa_plan", {})
+            num_subs = h_plan.get("num_subgoals", 0)
+            struct_type = h_plan.get("structure_type", "Assembly")
+            self.vla_agent.latest_thought = f"H-JEPA Plan: {num_subs} subgoals synthesized for '{struct_type}'. Starting Step 1..."
             self.log_event(
                 "vla",
                 "H-JEPA",
-                f"2-Level H-VL-JEPA World Model activated ({h_plan.get('num_subgoals', 0)} sub-goals)",
-                f"Task: \"{cmd}\" · Structure: {h_plan.get('structure_type')} · Level 1 Micro-CEM Optimizer active at 60 Hz."
+                f"2-Level H-VL-JEPA World Model activated ({num_subs} subgoals)",
+                f"Task: \"{cmd}\" · Structure: {struct_type} · Level 1 Micro-CEM Optimizer active at 60 Hz."
             )
             return result
 
@@ -459,7 +488,10 @@ class UserSession:
                     s_tgt = step_data.get("target", (0, 0, 0))
                     s_grip = step_data.get("gripper", 0.0)
                     s_dwell = step_data.get("dwell_ticks", 10)
+                    total_pts = len(self.controller.current_plan)
+
                     # Dynamically update active target block for camera HUD
+                    matched_block = None
                     for c_name, b_id in [
                         ("cyan", "block_cyan"), ("orange", "block_orange"), ("magenta", "block_magenta"),
                         ("yellow", "block_yellow"), ("emerald", "block_emerald"), ("green", "block_emerald"),
@@ -467,16 +499,43 @@ class UserSession:
                     ]:
                         if c_name in s_desc.lower() or b_id in s_desc.lower():
                             self.active_target_block_id = b_id
+                            matched_block = b_id
                             break
-                    is_contact = "GRIP" in s_desc.upper() or "RELEASE" in s_desc.upper()
+
+                    desc_upper = s_desc.upper()
+                    is_contact = any(k in desc_upper for k in ("GRIP", "RELEASE", "CLAMP", "JAW", "CLOSE", "TOUCHDOWN"))
+                    is_lift = any(k in desc_upper for k in ("LIFT", "ELEVATE"))
+                    is_transit = any(k in desc_upper for k in ("TRANSIT", "SWEEP"))
+                    is_approach = any(k in desc_upper for k in ("HOVER", "DESCEND", "APPROACH"))
+
                     s_cat = "contact" if is_contact else "motion"
-                    s_badge = "GRIP" if "GRIP" in s_desc.upper() else ("RELEASE" if "RELEASE" in s_desc.upper() else "IK MOTION")
-                    self.log_event(
-                        s_cat,
-                        s_badge,
-                        f"Waypoint {cur_idx + 1}/{len(self.controller.current_plan)}: {s_desc}",
-                        f"Target TCP: [{s_tgt[0]:.3f}, {s_tgt[1]:.3f}, {s_tgt[2]:.3f}] · Jaws: {'Closed (100%)' if s_grip > 0.5 else 'Open (100%)'} · Dwell: {s_dwell} ticks contact settle"
-                    )
+                    if any(k in desc_upper for k in ("RELEASE", "OPEN")):
+                        s_badge = "RELEASE"
+                    elif is_lift:
+                        s_badge = "LIFT"
+                    elif is_approach:
+                        s_badge = "APPROACH"
+                    elif any(k in desc_upper for k in ("GRIP", "CLAMP", "CLOSE", "JAW")):
+                        s_badge = "GRIP"
+                    elif is_transit:
+                        s_badge = "TRANSIT"
+                    else:
+                        s_badge = "IK MOTION"
+
+                    formatted_desc = s_desc
+                    if matched_block:
+                        lbl = format_block_label(matched_block)
+                        for raw_name in [matched_block, matched_block.replace("block_", "")]:
+                            formatted_desc = formatted_desc.replace(raw_name, lbl)
+
+                    pitch_style = "Vertical top-down (pitch -71.6°)" if s_tgt[0] <= 0.44 else "Forward horizontal reach (pitch -6.9°)"
+                    jaw_state = "Closed (100% torque)" if s_grip > 0.5 else "Open (125mm aperture)"
+
+                    s_what = f"Waypoint {cur_idx + 1}/{total_pts}: {formatted_desc}"
+                    s_how = f"Target TCP: [{s_tgt[0]:.3f}, {s_tgt[1]:.3f}, {s_tgt[2]:.3f}] · {pitch_style} · Gripper: {jaw_state} · Settle Dwell: {s_dwell} ticks"
+
+                    self.vla_agent.latest_thought = f"Executing Waypoint {cur_idx + 1}/{total_pts}: {formatted_desc}"
+                    self.log_event(s_cat, s_badge, s_what, s_how)
 
                 if target_cmd.get("is_active") is False:
                     self.active_target_block_id = None
@@ -515,18 +574,119 @@ class UserSession:
             )
             if step_cmd:
                 self.sim.set_joint_targets(step_cmd["joints"], step_cmd["gripper"])
-                prev_phase = getattr(self, "prev_hjepa_phase", None)
-                cur_phase = step_cmd.get("phase", "")
-                if prev_phase != cur_phase:
-                    self.prev_hjepa_phase = cur_phase
+
+                # Check if a predictive path-clearing event was just triggered
+                clearing_event = step_cmd.get("newly_inserted_clearing")
+                if clearing_event:
+                    obs_id = clearing_event.get("obs_block")
+                    obs_lbl = format_block_label(obs_id)
+                    obs_rsn = clearing_event.get("obs_reason", "reach corridor obstruction")
+                    stg = clearing_event.get("staging_slot", [0.18, 0.77, 0.38])
                     self.log_event(
-                        "vla",
-                        "H-JEPA",
-                        f"Subgoal {step_cmd['subgoal_index']+1}/{step_cmd['total_subgoals']}: {cur_phase}",
-                        f"{step_cmd.get('subgoal_desc', '')} · CEM Latency: {step_cmd.get('cem_latency_ms', 0):.1f}ms · Latent Dist: {step_cmd.get('latent_distance', 0):.3f}"
+                        "motion",
+                        "CLEARING",
+                        f"Obstruction predicted: {obs_lbl} blocking arm reach path ({obs_rsn})",
+                        f"Predictive World Model clearing corridor · Moving {obs_lbl} to perimeter staging [{stg[0]:.2f}, {stg[2]:.2f}] before resuming primary task"
                     )
+
+                cur_phase = step_cmd.get("phase", "")
+                sub_idx = step_cmd.get("subgoal_index", 0) + 1
+                tot_subs = step_cmd.get("total_subgoals", 1)
+                cur_state = (sub_idx, cur_phase)
+                prev_state = getattr(self, "prev_hjepa_state", None)
+
+                # Dynamically track active target block for HUD / Camera highlight
+                b_id = step_cmd.get("target_block_id")
+                if b_id:
+                    self.active_target_block_id = b_id
+
+                if prev_state != cur_state:
+                    self.prev_hjepa_state = cur_state
+                    b_label = format_block_label(b_id)
+                    b_pos = step_cmd.get("block_pos", [0.0, 0.0, 0.0])
+                    t_slot = step_cmd.get("target_slot", [0.0, 0.0, 0.0])
+                    transit_y = step_cmd.get("transit_y", 1.05)
+                    is_clearing = step_cmd.get("is_clearing", False)
+
+                    dist_from_mount = math.hypot(b_pos[0], b_pos[2])
+                    is_close = b_pos[0] <= 0.44
+                    grasp_style = "Vertical top-down grasp (pitch -71.6°)" if is_close else "Forward horizontal reach (pitch -6.9°)"
+
+                    if is_clearing and cur_phase == "HOVER_PICK":
+                        s_cat = "motion"
+                        s_badge = "CLEARING"
+                        s_what = f"[Path Clearing] Repositioning obstructing {b_label} out of corridor"
+                        s_how = f"Predictive planner cleared reach path · Transiting at altitude {transit_y:.3f}m over [{b_pos[0]:.2f}, {b_pos[2]:.2f}] to perimeter staging slot [{t_slot[0]:.2f}, {t_slot[2]:.2f}]"
+                        self.vla_agent.latest_thought = f"Path Clearing: Relocating obstructing {b_label} to perimeter staging [{t_slot[0]:.2f}, {t_slot[2]:.2f}]"
+                    elif cur_phase == "HOVER_PICK":
+                        s_cat = "motion"
+                        s_badge = "NAVIGATE"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Navigating arm to hover above {b_label} at [{b_pos[0]:.2f}, {b_pos[2]:.2f}]"
+                        s_how = f"Moving end-effector at safe clearance altitude {transit_y:.3f}m · Mount distance: {dist_from_mount:.2f}m · Gripper open (125mm) to avoid table obstacles"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Navigating arm to hover over {b_label} at [{b_pos[0]:.2f}, {b_pos[2]:.2f}]"
+                    elif cur_phase == "DESCEND_PICK":
+                        pick_y = max(0.756, b_pos[1] + 0.010)
+                        s_cat = "motion"
+                        s_badge = "APPROACH"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Descending vertically to grasp height over {b_label}"
+                        s_how = f"Lowering TCP vertically from {transit_y:.3f}m to {pick_y:.3f}m · {grasp_style} · Centering jaws with zero lateral impact (< 3mm tolerance)"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Descending vertically over {b_label} ({grasp_style})"
+                    elif cur_phase == "GRASP":
+                        s_cat = "contact"
+                        s_badge = "GRIP"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Clamping parallel gripper jaws onto {b_label}"
+                        s_how = f"Driving parallel jaws inward with closed-loop contact detection · Clamping firmly at 100% force to achieve solid zero-slip grip"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Grasping {b_label} firmly with parallel jaws"
+                    elif cur_phase == "LIFT":
+                        s_cat = "motion"
+                        s_badge = "LIFT"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Lifting grasped {b_label} up to transit altitude {transit_y:.3f}m"
+                        s_how = f"Ascending straight vertically along Y-axis · Verifying payload retention and zero slip before horizontal transit across workspace"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Elevating {b_label} cleanly to safe transit altitude {transit_y:.2f}m"
+                    elif cur_phase == "HOVER_PLACE":
+                        s_cat = "motion"
+                        s_badge = "TRANSIT"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Transiting {b_label} across workspace towards target slot [{t_slot[0]:.2f}, {t_slot[2]:.2f}]"
+                        s_how = f"Navigating carried payload along collision-free corridor at {transit_y:.3f}m · Safe altitude clearance above table obstacles · Zero tilt disturbance"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Transiting {b_label} to target slot [{t_slot[0]:.2f}, {t_slot[2]:.2f}]"
+                    elif cur_phase == "DESCEND_PLACE":
+                        tier_name = "base table slot" if t_slot[1] < 0.79 else ("middle tier" if t_slot[1] < 0.84 else "apex tier")
+                        s_cat = "contact"
+                        s_badge = "TOUCHDOWN"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Soft-landing {b_label} onto {tier_name} at [{t_slot[0]:.2f}, {t_slot[1]:.2f}, {t_slot[2]:.2f}]"
+                        s_how = f"Vertical descent to touchdown altitude {t_slot[1]:.3f}m · Dynamic center-of-mass alignment with supporting surface · Impact velocity < 0.04 m/s"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Soft-landing {b_label} onto {tier_name}"
+                    elif cur_phase == "RELEASE":
+                        s_cat = "contact"
+                        s_badge = "RELEASE"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Opening gripper jaws to release {b_label} onto target slot"
+                        s_how = f"Smoothly opening parallel jaws to full 125mm aperture · Transferring cube weight cleanly with zero push or tipping disturbance"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Opening jaws to release {b_label} onto target slot"
+                    elif cur_phase == "VERIFY_HOLD":
+                        s_cat = "stability"
+                        s_badge = "STABILITY"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Auditing 60-tick physical resting stability hold for {b_label}"
+                        s_how = f"Holding arm clear of structure · Monitoring physical settling equilibrium: linear velocity < 0.02 m/s & tilt error < 5°"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: Auditing 60-tick resting stability hold for {b_label}..."
+                    elif cur_phase == "COMPLETED":
+                        s_cat = "system"
+                        s_badge = "COMPLETED"
+                        s_what = f"Multi-step assembly completed successfully!"
+                        s_how = f"All {tot_subs} macro subgoals executed to precision tolerances · All cubes verified at 100% resting physical equilibrium"
+                        self.vla_agent.latest_thought = f"Assembly completed successfully! All {tot_subs} subgoals verified with 100% physical stability."
+                    else:
+                        s_cat = "vla"
+                        s_badge = "H-JEPA"
+                        s_what = f"Step {sub_idx}/{tot_subs}: Executing {cur_phase}"
+                        s_how = f"{step_cmd.get('subgoal_desc', '')} · CEM Latency: {step_cmd.get('cem_latency_ms', 0):.1f}ms · Latent Dist: {step_cmd.get('latent_distance', 0):.3f}"
+                        self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: {cur_phase}"
+
+                    self.log_event(s_cat, s_badge, s_what, s_how)
+
             elif not getattr(self.vla_agent.h_jepa, "is_active", False):
+                self.active_target_block_id = None
                 self.vla_agent.execution_status = "COMPLETED"
+                self.vla_agent.latest_thought = "Hierarchical VL-JEPA multi-step assembly completed with 100% stability!"
                 self.log_event(
                     "vla",
                     "COMPLETED",

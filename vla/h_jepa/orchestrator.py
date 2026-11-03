@@ -427,6 +427,11 @@ class HierarchicalVLJEPAOrchestrator:
                     self.subgoals.insert(self.current_subgoal_idx, clear_subgoal)
                     for idx, sg in enumerate(self.subgoals):
                         sg["subgoal_index"] = idx
+                    self.newly_inserted_clearing = {
+                        "obs_block": obs_block["id"],
+                        "obs_reason": obs_reason,
+                        "staging_slot": list(stage_slot),
+                    }
                     return self.step(current_tcp, current_joints, blocks, current_gripper)
 
             horiz_d = math.hypot(current_tcp[0] - block_pos[0], current_tcp[2] - block_pos[2])
@@ -630,6 +635,9 @@ class HierarchicalVLJEPAOrchestrator:
         else:
             target_joints = current_joints
 
+        clearing_event = getattr(self, "newly_inserted_clearing", None)
+        self.newly_inserted_clearing = None
+
         return {
             "joints": target_joints,
             "gripper": next_gripper,
@@ -638,6 +646,13 @@ class HierarchicalVLJEPAOrchestrator:
             "subgoal_index": self.current_subgoal_idx,
             "total_subgoals": len(self.subgoals),
             "subgoal_desc": active_subgoal["description"],
+            "target_block_id": b_id,
+            "target_slot": list(eff_slot),
+            "block_pos": list(block_pos),
+            "transit_y": float(transit_y),
+            "micro_target": list(micro_target),
+            "is_clearing": bool(active_subgoal.get("is_clearing", False)),
+            "newly_inserted_clearing": clearing_event,
             "latent_distance": self.latest_cem_telemetry.get("latent_distance", 0.0),
             "cem_latency_ms": self.latest_cem_telemetry.get("latency_ms", 0.0),
             "stability_status": self.stability_validator.status,
