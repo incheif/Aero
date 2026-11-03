@@ -39,8 +39,11 @@ from .constants import (
     GRASP_OPEN_THRESHOLD,
     GRASP_RADIUS,
     GRASP_BOX,
+    JAW_MIN_SEP,
+    JAW_MAX_SEP,
+    JAW_LENGTH,
 )
-from .kinematics import forward_kinematics, clamp, is_over_table
+from .kinematics import forward_kinematics, clamp, is_over_table, vec_add, quat_rotate_vec
 from .scoring import (
     TorqueTracker,
     StabilityValidator,
@@ -201,11 +204,11 @@ class MujocoSimulation:
 
     def _enforce_arm_block_impassability(self, prev_joints: Dict[str, float]) -> Dict[str, Any]:
         """
-        Enforces physical solid impassability between robot arm links/gripper and blocks.
-        Blocks cannot be passed through by the arm:
-        - Placed/stacked blocks are immovable solid anchors: arm is physically blocked at contact face.
-        - Arm links (upper arm, elbow, forearm, wrist) cannot penetrate ANY block.
-        - Free tabletop blocks are pushed along contact normal when contacted by end-effector.
+        Enforces physical solid impassability between robot arm links, claws, carried block, and blocks.
+        All blocks and all robot components are solid bodies:
+        - Upper arm, elbow, forearm, wrist, palm, and jaw claws cannot pass through or penetrate ANY block.
+        - The arm is physically stopped (joints reverted) upon contacting any block surface.
+        - Tabletop blocks are pushed along contact normal without allowing the arm to penetrate.
         """
         fk = forward_kinematics(self.joints)
         prev_fk = forward_kinematics(prev_joints)
@@ -221,33 +224,64 @@ class MujocoSimulation:
         prev_wrist = prev_fk["wrist"]["position"]
         prev_palm = prev_fk["palm"]["position"]
 
+        rot = fk["tcp"]["rotation"]
+        origin = p_palm
+        sep = JAW_MIN_SEP * 0.5 + ((JAW_MAX_SEP - JAW_MIN_SEP) * 0.5) * (1.0 - clamp(grip_val, 0.0, 1.0))
+
+        # Palm crossbar & Jaw base offsets
+        left_base = vec_add(origin, quat_rotate_vec(rot, (0.0, 0.0, sep)))
+        right_base = vec_add(origin, quat_rotate_vec(rot, (0.0, 0.0, -sep)))
+
+        prev_rot = prev_fk["tcp"]["rotation"]
+        prev_origin = prev_palm
+        prev_grip_val = prev_joints.get("gripper", 0.0)
+        prev_sep = JAW_MIN_SEP * 0.5 + ((JAW_MAX_SEP - JAW_MIN_SEP) * 0.5) * (1.0 - clamp(prev_grip_val, 0.0, 1.0))
+        prev_left_base = vec_add(prev_origin, quat_rotate_vec(prev_rot, (0.0, 0.0, prev_sep)))
+        prev_right_base = vec_add(prev_origin, quat_rotate_vec(prev_rot, (0.0, 0.0, -prev_sep)))
+
         arm_proxies = []
-        # Upper Arm link (shoulder -> elbow, 4 points)
-        for alpha in (0.25, 0.5, 0.75, 1.0):
-            pos = [p_shoulder[i] + alpha * (p_elbow[i] - p_shoulder[i]) for i in range(3)]
-            prev_pos = [prev_shoulder[i] + alpha * (prev_elbow[i] - prev_shoulder[i]) for i in range(3)]
-            arm_proxies.append((f"upper_{alpha}", pos, 0.026, prev_pos))
 
-        # Forearm link (elbow -> wrist, 4 points)
-        for alpha in (0.25, 0.5, 0.75, 1.0):
-            pos = [p_elbow[i] + alpha * (p_wrist[i] - p_elbow[i]) for i in range(3)]
-            prev_pos = [prev_elbow[i] + alpha * (prev_wrist[i] - prev_elbow[i]) for i in range(3)]
-            arm_proxies.append((f"forearm_{alpha}", pos, 0.024, prev_pos))
+        # 1. Upper Arm link (shoulder -> elbow, 10 dense continuous points, radius 0.025m)
+        for i in range(1, 11):
+            alpha = i / 10.0
+            pos = [p_shoulder[j] + alpha * (p_elbow[j] - p_shoulder[j]) for j in range(3)]
+            prev_pos = [prev_shoulder[j] + alpha * (prev_elbow[j] - prev_shoulder[j]) for j in range(3)]
+            arm_proxies.append((f"upper_{i}", pos, 0.025, prev_pos))
 
-        # Wrist link (wrist -> palm, 2 points)
-        for alpha in (0.5, 1.0):
-            pos = [p_wrist[i] + alpha * (p_palm[i] - p_wrist[i]) for i in range(3)]
-            prev_pos = [prev_wrist[i] + alpha * (prev_palm[i] - prev_wrist[i]) for i in range(3)]
-            arm_proxies.append((f"wrist_{alpha}", pos, 0.024, prev_pos))
+        # 2. Forearm link (elbow -> wrist, 9 dense continuous points, radius 0.023m)
+        for i in range(1, 10):
+            alpha = i / 9.0
+            pos = [p_elbow[j] + alpha * (p_wrist[j] - p_elbow[j]) for j in range(3)]
+            prev_pos = [prev_elbow[j] + alpha * (prev_wrist[j] - prev_elbow[j]) for j in range(3)]
+            arm_proxies.append((f"forearm_{i}", pos, 0.023, prev_pos))
 
-        if self.grasped_block_id is None:
-            arm_proxies.extend([
-                ("tcp", fk["tcp"]["position"], 0.020, prev_fk["tcp"]["position"]),
-                ("jawLeft", fk["jawLeft"]["position"], 0.012, prev_fk["jawLeft"]["position"]),
-                ("jawRight", fk["jawRight"]["position"], 0.012, prev_fk["jawRight"]["position"]),
-            ])
+        # 3. Wrist link (wrist -> palm, 4 dense continuous points, radius 0.022m)
+        for i in range(1, 5):
+            alpha = i / 4.0
+            pos = [p_wrist[j] + alpha * (p_palm[j] - p_wrist[j]) for j in range(3)]
+            prev_pos = [prev_wrist[j] + alpha * (prev_palm[j] - prev_wrist[j]) for j in range(3)]
+            arm_proxies.append((f"wrist_{i}", pos, 0.022, prev_pos))
 
-        blocked_by_placed = False
+        # 4. Palm body & lateral mounts (3 points across gripper palm plate, radius 0.020m / 0.014m)
+        arm_proxies.append(("palm_center", p_palm, 0.020, prev_palm))
+        arm_proxies.append(("palm_left", left_base, 0.014, prev_left_base))
+        arm_proxies.append(("palm_right", right_base, 0.014, prev_right_base))
+
+        # 5. Left and Right Jaw Claws (4 points along each finger from base to tip, radius 0.009m)
+        for i in range(1, 5):
+            alpha = i / 4.0
+            jaw_len_offset = JAW_LENGTH * alpha
+            pos_l = vec_add(origin, quat_rotate_vec(rot, (jaw_len_offset, 0.0, sep)))
+            prev_pos_l = vec_add(prev_origin, quat_rotate_vec(prev_rot, (jaw_len_offset, 0.0, prev_sep)))
+            arm_proxies.append((f"jawLeft_{i}", pos_l, 0.009, prev_pos_l))
+
+            pos_r = vec_add(origin, quat_rotate_vec(rot, (jaw_len_offset, 0.0, -sep)))
+            prev_pos_r = vec_add(prev_origin, quat_rotate_vec(prev_rot, (jaw_len_offset, 0.0, -prev_sep)))
+            arm_proxies.append((f"jawRight_{i}", pos_r, 0.009, prev_pos_r))
+
+        blocked = False
+        tcp_pos = fk["tcp"]["position"]
+
         for b_id, block in self.blocks.items():
             if b_id == self.grasped_block_id or block.is_grasped:
                 continue
@@ -255,10 +289,11 @@ class MujocoSimulation:
                 continue
 
             bx, by, bz = block.position
-            dx_tcp = abs(fk["tcp"]["position"][0] - bx)
-            dz_tcp = abs(fk["tcp"]["position"][2] - bz)
-            dy_tcp = abs(fk["tcp"]["position"][1] - by)
+            dx_tcp = abs(tcp_pos[0] - bx)
+            dz_tcp = abs(tcp_pos[2] - bz)
+            dy_tcp = abs(tcp_pos[1] - by)
 
+            # Placed or stacked status
             is_placed = (
                 getattr(block, "is_placed", False)
                 or block.supported_by != "table"
@@ -267,51 +302,85 @@ class MujocoSimulation:
                     math.hypot(bx - self.active_task_targets[b_id][0], bz - self.active_task_targets[b_id][2]) < 0.038)
             )
 
-            # Allow unobstructed pick: target block within grasp envelope or vertical approach
-            is_grasp_candidate = (dx_tcp <= GRASP_BOX["x"] * 1.5 and dz_tcp <= GRASP_BOX["z"] * 1.5 and dy_tcp <= 0.040)
-            is_pick_approach = (dx_tcp < 0.048 and dz_tcp < 0.048 and fk["tcp"]["position"][1] >= by - 0.008)
-            if not is_placed and (is_grasp_candidate or is_pick_approach):
-                continue
+            # Check deliberate pick descent: open jaws straddling target cube from above
+            is_targeted_pick = (
+                self.grasped_block_id is None
+                and grip_val <= GRASP_OPEN_THRESHOLD + 0.05
+                and dx_tcp < 0.026
+                and dz_tcp < 0.026
+                and tcp_pos[1] >= by - 0.005
+            )
 
-            # Allow unobstructed vertical ascent when releasing and retreating upward from placed block
-            is_vertical_retreat = (dx_tcp < 0.045 and dz_tcp < 0.045 and fk["tcp"]["position"][1] >= by and grip_val <= GRASP_OPEN_THRESHOLD + 0.05)
-            if is_vertical_retreat:
-                continue
+            # Check deliberate grasp pinch: jaws closing around target cube inside grasp box
+            is_grasp_pinch = (
+                self.grasped_block_id is None
+                and dx_tcp <= GRASP_BOX["x"] * 1.3
+                and dz_tcp <= GRASP_BOX["z"] * 1.3
+                and dy_tcp <= 0.032
+            )
 
+            # Check vertical retreat immediately after placing/releasing
+            is_vertical_retreat = (
+                dx_tcp < 0.045
+                and dz_tcp < 0.045
+                and tcp_pos[1] >= by - 0.005
+                and grip_val <= GRASP_OPEN_THRESHOLD + 0.05
+            )
+
+            # Check collision between carried block and scene blocks
+            if self.grasped_block_id is not None:
+                dx_held = abs(tcp_pos[0] - bx)
+                dy_held = abs(tcp_pos[1] - by)
+                dz_held = abs(tcp_pos[2] - bz)
+                if dx_held < CUBE_SIZE - 0.006 and dz_held < CUBE_SIZE - 0.006 and dy_held < CUBE_SIZE - 0.006:
+                    blocked = True
+                    break
+
+            # Check all robot arm and claw proxies against this block
             for p_name, p_pos, p_rad, prev_p_pos in arm_proxies:
-                # Closest point on block box to proxy center
+                # If target pick or grasp pinch, jaws pinch or straddle outside faces of cube
+                if (is_targeted_pick or is_grasp_pinch) and p_name.startswith("jaw"):
+                    if abs(p_pos[0] - bx) >= CUBE_HALF - 0.005 or abs(p_pos[2] - bz) >= CUBE_HALF - 0.005:
+                        continue
+
+                # Upward ascent away from contact is always allowed
+                if p_pos[1] >= by - 0.005 and p_pos[1] > prev_p_pos[1] + 0.0003:
+                    continue
+
+                if is_vertical_retreat and (p_name.startswith("jaw") or p_name.startswith("palm")):
+                    continue
+
+                # Closest point on block cube to proxy center
                 cx = min(max(p_pos[0], bx - CUBE_HALF), bx + CUBE_HALF)
                 cy = min(max(p_pos[1], by - CUBE_HALF), by + CUBE_HALF)
                 cz = min(max(p_pos[2], bz - CUBE_HALF), bz + CUBE_HALF)
                 dist = math.sqrt((p_pos[0] - cx)**2 + (p_pos[1] - cy)**2 + (p_pos[2] - cz)**2)
                 pen = p_rad - dist
 
-                # True penetration beyond margin (> 4mm)
-                if pen > 0.004:
-                    # If this proxy is at/above block and strictly moving upward, it is ascending away
-                    is_ascending_away = (p_pos[1] >= by - 0.005 and p_pos[1] > prev_p_pos[1] + 0.0003)
-                    if is_ascending_away:
-                        continue
-
-                    is_arm_link = not p_name.startswith("jaw") and p_name != "tcp"
-                    # Placed blocks are immovable solid anchors.
-                    # Arm links (upper arm, elbow, forearm, wrist) cannot penetrate ANY block!
-                    if is_placed or not is_over_table(bx, bz) or is_arm_link:
-                        blocked_by_placed = True
-                        break
-                    else:
+                # Impassability threshold: 3mm
+                if pen > 0.003:
+                    blocked = True
+                    # If free tabletop block, repel away along normal without allowing arm to penetrate
+                    if not is_placed and is_over_table(bx, bz):
                         sign_x = 1.0 if bx >= p_pos[0] else -1.0
                         sign_z = 1.0 if bz >= p_pos[2] else -1.0
-                        block.position[0] += pen * sign_x * 0.5
-                        block.velocity[0] = sign_x * 0.15
-                        block.position[2] += pen * sign_z * 0.5
-                        block.velocity[2] = sign_z * 0.15
+                        block.position[0] += pen * sign_x * 0.4
+                        block.velocity[0] = sign_x * 0.12
+                        block.position[2] += pen * sign_z * 0.4
+                        block.velocity[2] = sign_z * 0.12
+                        if hasattr(self, "joint_indices") and b_id in self.joint_indices:
+                            adr = self.joint_indices[b_id]
+                            self.data.qpos[adr["qpos_adr"]] = block.position[0]
+                            self.data.qpos[adr["qpos_adr"] + 2] = block.position[2]
+                            self.data.qvel[adr["qvel_adr"]] = block.velocity[0]
+                            self.data.qvel[adr["qvel_adr"] + 2] = block.velocity[2]
+                    break
 
-            if blocked_by_placed:
+            if blocked:
                 break
 
-        if blocked_by_placed:
-            # Revert positioning arm joints to prevent slicing through block; allow gripper to actuate
+        if blocked:
+            # Physically stop positioning joints at contact face to enforce 100% solid barrier
             for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"):
                 self.joints[k] = prev_joints[k]
             fk = forward_kinematics(self.joints)
