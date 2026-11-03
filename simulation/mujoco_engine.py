@@ -40,7 +40,7 @@ from .constants import (
     GRASP_RADIUS,
     GRASP_BOX,
 )
-from .kinematics import forward_kinematics, clamp
+from .kinematics import forward_kinematics, clamp, is_over_table
 from .scoring import (
     TorqueTracker,
     StabilityValidator,
@@ -199,6 +199,98 @@ class MujocoSimulation:
             self.gripper_target = clamp(targets["gripper"], 0.0, 1.0)
             self.joint_targets["gripper"] = self.gripper_target
 
+    def _enforce_arm_block_impassability(self, prev_joints: Dict[str, float]) -> Dict[str, Any]:
+        """
+        Enforces physical solid impassability between robot arm links/gripper and blocks.
+        Blocks cannot be passed through by the arm:
+        - Placed/stacked blocks are immovable solid anchors: arm is physically blocked at contact face.
+        - Free tabletop blocks are physically pushed along contact normal.
+        """
+        fk = forward_kinematics(self.joints)
+        prev_fk = forward_kinematics(prev_joints)
+        grip_val = self.joints.get("gripper", 0.0)
+
+        arm_proxies = [
+            ("palm", fk["palm"]["position"], 0.024),
+            ("wrist", fk["wrist"]["position"], 0.024),
+            ("forearm", fk["forearm"]["position"], 0.024),
+        ]
+        if self.grasped_block_id is None:
+            arm_proxies.extend([
+                ("tcp", fk["tcp"]["position"], 0.020),
+                ("jawLeft", fk["jawLeft"]["position"], 0.012),
+                ("jawRight", fk["jawRight"]["position"], 0.012),
+            ])
+
+        blocked_by_placed = False
+        for b_id, block in self.blocks.items():
+            if b_id == self.grasped_block_id or block.is_grasped:
+                continue
+            if self.release_cooldown_ticks > 0 and b_id == getattr(self, "last_released_id", None):
+                continue
+
+            bx, by, bz = block.position
+            dx_tcp = abs(fk["tcp"]["position"][0] - bx)
+            dz_tcp = abs(fk["tcp"]["position"][2] - bz)
+            dy_tcp = abs(fk["tcp"]["position"][1] - by)
+
+            is_placed = (
+                getattr(block, "is_placed", False)
+                or block.supported_by != "table"
+                or (block.stacked_layer or 0) > 0
+                or (self.active_task_targets and b_id in self.active_task_targets and
+                    math.hypot(bx - self.active_task_targets[b_id][0], bz - self.active_task_targets[b_id][2]) < 0.038)
+            )
+
+            # Allow unobstructed pick: target block within grasp envelope or vertical approach
+            is_grasp_candidate = (dx_tcp <= GRASP_BOX["x"] * 1.5 and dz_tcp <= GRASP_BOX["z"] * 1.5 and dy_tcp <= 0.040)
+            is_pick_approach = (dx_tcp < 0.048 and dz_tcp < 0.048 and fk["tcp"]["position"][1] >= by - 0.008)
+            if not is_placed and (is_grasp_candidate or is_pick_approach):
+                continue
+
+            # Allow unobstructed vertical ascent when releasing and retreating upward from placed block
+            is_vertical_retreat = (dx_tcp < 0.045 and dz_tcp < 0.045 and fk["tcp"]["position"][1] >= by and grip_val <= GRASP_OPEN_THRESHOLD + 0.05)
+            if is_vertical_retreat:
+                continue
+
+            for p_name, p_pos, p_rad in arm_proxies:
+                # Closest point on block box to proxy center
+                cx = min(max(p_pos[0], bx - CUBE_HALF), bx + CUBE_HALF)
+                cy = min(max(p_pos[1], by - CUBE_HALF), by + CUBE_HALF)
+                cz = min(max(p_pos[2], bz - CUBE_HALF), bz + CUBE_HALF)
+                dist = math.sqrt((p_pos[0] - cx)**2 + (p_pos[1] - cy)**2 + (p_pos[2] - cz)**2)
+                pen = p_rad - dist
+
+                # True penetration beyond margin (> 4mm)
+                if pen > 0.004:
+                    prev_p_pos = prev_fk[p_name]["position"]
+                    # If this proxy is at/above block and strictly moving upward, it is ascending away
+                    is_ascending_away = (p_pos[1] >= by - 0.005 and p_pos[1] > prev_p_pos[1] + 0.0003)
+                    if is_ascending_away:
+                        continue
+
+                    if is_placed or not is_over_table(bx, bz):
+                        blocked_by_placed = True
+                        break
+                    else:
+                        sign_x = 1.0 if bx >= p_pos[0] else -1.0
+                        sign_z = 1.0 if bz >= p_pos[2] else -1.0
+                        block.position[0] += pen * sign_x * 0.5
+                        block.velocity[0] = sign_x * 0.15
+                        block.position[2] += pen * sign_z * 0.5
+                        block.velocity[2] = sign_z * 0.15
+
+            if blocked_by_placed:
+                break
+
+        if blocked_by_placed:
+            # Revert positioning arm joints to prevent slicing through block; allow gripper to actuate
+            for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"):
+                self.joints[k] = prev_joints[k]
+            fk = forward_kinematics(self.joints)
+
+        return fk
+
     def step(self, dt: float = FIXED_DT) -> Dict[str, Any]:
         self.tick += 1
         prev_joints = copy.deepcopy(self.joints)
@@ -227,8 +319,9 @@ class MujocoSimulation:
         # Sample joint torque / kinematic effort telemetry
         self.torque_tracker.sample(prev_joints, self.joints)
 
+        # Enforce solid arm-to-block impassability (blocks cannot be passed through by the arm)
+        fk = self._enforce_arm_block_impassability(prev_joints)
         # 2. Forward Kinematics to find current link and TCP positions
-        fk = forward_kinematics(self.joints)
         tcp_pos = fk["tcp"]["position"]
         tcp_rot = fk["tcp"]["rotation"]
 
@@ -241,8 +334,10 @@ class MujocoSimulation:
                 # Check for release
                 if grip_val < GRASP_OPEN_THRESHOLD:
                     grasped_block.is_grasped = False
+                    grasped_block.is_placed = True
+                    self.last_released_id = self.grasped_block_id
                     self.grasped_block_id = None
-                    self.release_cooldown_ticks = 15
+                    self.release_cooldown_ticks = 30
                     # Give slight downward settling velocity in MuJoCo
                     adr = self.joint_indices[grasped_block.id]
                     self.data.qvel[adr["qvel_adr"] : adr["qvel_adr"] + 3] = [0.0, -0.05, 0.0]
@@ -255,7 +350,7 @@ class MujocoSimulation:
                             continue
                         dx = abs(tcp_pos[0] - other.position[0])
                         dz = abs(tcp_pos[2] - other.position[2])
-                        if dx < CUBE_SIZE - 0.015 and dz < CUBE_SIZE - 0.015:
+                        if dx < CUBE_SIZE - 0.024 and dz < CUBE_SIZE - 0.024:
                             if tcp_pos[1] >= other.position[1] - 0.015:
                                 cand_y = other.position[1] + CUBE_SIZE
                                 if cand_y > min_support_y:

@@ -673,7 +673,8 @@ Output a JSON object ONLY with the following schema:
                 extra_dwell = 10 if is_apex else 0
                 steps = self._generate_pick_and_place(
                     bx, bz, tx, tz, ty, b["name"],
-                    extra_dwell=extra_dwell
+                    extra_dwell=extra_dwell,
+                    scene_blocks=list(blocks.values())
                 )
                 plan.extend(steps)
                 pyr_strs.append(f"{slot_role}:{b['name']}")
@@ -916,6 +917,16 @@ Output a JSON object ONLY with the following schema:
         transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, max_scene_y + CUBE_SIZE * 1.5 + 0.035, min_transit_y or 0.0)
         transit_y = min(transit_y, 1.08)
 
+        effective_place_y = dst_y + 0.010
+        if scene_blocks:
+            for ob in scene_blocks:
+                op = ob.get("position", [0, 0, 0])
+                d_horiz = math.hypot(op[0] - dst_x, op[2] - dst_z)
+                if 0.005 < d_horiz < CUBE_SIZE * 1.5:
+                    top_y = op[1] + CUBE_HALF
+                    if effective_place_y < top_y + 0.005:
+                        effective_place_y = top_y + 0.005
+
         return [
             # 1. Safe Hover over source object
             {
@@ -960,15 +971,15 @@ Output a JSON object ONLY with the following schema:
             # 6. Gentle descent to destination layer slot
             {
                 "action": "DESCEND_PLACE",
-                "target": (dst_x, dst_y + 0.010, dst_z),
+                "target": (dst_x, effective_place_y, dst_z),
                 "gripper": 1.0,
-                "desc": f"Soft descent to placement altitude {dst_y:.3f}m",
+                "desc": f"Soft descent to placement altitude {effective_place_y:.3f}m",
                 "dwell_ticks": 15 + extra_dwell,
             },
             # 7. Zero-impulse release: hold stationary while opening jaws
             {
                 "action": "SOFT_RELEASE",
-                "target": (dst_x, dst_y + 0.010, dst_z),
+                "target": (dst_x, effective_place_y, dst_z),
                 "gripper": 0.0,
                 "desc": "Zero-impulse jaw release (prevent tower topple)",
                 "dwell_ticks": 20 + extra_dwell,

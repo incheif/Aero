@@ -20,6 +20,7 @@ from simulation.constants import (
     TABLE_TOP_Y,
     TABLE_HALF_EXTENTS,
     CUBE_SIZE,
+    CUBE_HALF,
     GRASP_CLOSE_THRESHOLD,
     GRASP_OPEN_THRESHOLD,
     get_pyramid_slots,
