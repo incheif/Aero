@@ -85,7 +85,7 @@ DEFAULT_JOINTS: Dict[str, float] = {
     "gripper": 0.0,
 }
 
-# Initial Spawns for 7 Tabletop Cubes (Ultra-vivid, high-contrast, distinct primary & secondary colors)
+# Initial Spawns for 6 Tabletop Cubes (Ultra-vivid, high-contrast, distinct primary & secondary colors)
 BLOCK_SPAWNS = [
     {
         "id": "block_magenta",
@@ -128,13 +128,6 @@ BLOCK_SPAWNS = [
         "color": "#9333EA",
         "color_rgb": (147, 51, 234),
         "position": [0.20, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.27],
-    },
-    {
-        "id": "block_pink",
-        "name": "Pink Cube",
-        "color": "#FF2E93",
-        "color_rgb": (255, 46, 147),
-        "position": [0.32, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.22],
     },
 ]
 
@@ -247,7 +240,7 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
         ]
 
 def get_train_slots(
-    num_blocks: int = 7,
+    num_blocks: int = 6,
     origin: Tuple[float, float, float] = (0.38, TABLE_TOP_Y, 0.0),
     spacing: float = CUBE_SIZE + 0.005
 ) -> List[Tuple[float, float, float]]:
@@ -324,7 +317,7 @@ def get_letter_slots(
     else:
         return get_train_slots(5, origin, spacing)
 
-# Target coordinates for multi-layer tower (up to 7 layers)
+# Target coordinates for multi-layer tower (up to 6 layers)
 BLOCK_TARGETS = {
     "block_cyan": (STACK_ORIGIN[0], stack_slot_y(0), STACK_ORIGIN[2]),
     "block_orange": (STACK_ORIGIN[0], stack_slot_y(1), STACK_ORIGIN[2]),
@@ -332,7 +325,6 @@ BLOCK_TARGETS = {
     "block_yellow": (STACK_ORIGIN[0], stack_slot_y(3), STACK_ORIGIN[2]),
     "block_emerald": (STACK_ORIGIN[0], stack_slot_y(4), STACK_ORIGIN[2]),
     "block_purple": (STACK_ORIGIN[0], stack_slot_y(5), STACK_ORIGIN[2]),
-    "block_pink": (STACK_ORIGIN[0], stack_slot_y(6), STACK_ORIGIN[2]),
 }
 
 # 128x128 Orthographic Work-Cell Camera Coordinates
@@ -344,7 +336,7 @@ VLA_Z_MAX: float = 0.50
 
 def generate_random_block_spawns(seed: Optional[int] = None) -> List[Dict[str, Any]]:
     """
-    Generates collision-free, reach-validated tabletop spawn coordinates for all 7 blocks.
+    Generates collision-free, reach-validated tabletop spawn coordinates for all 6 blocks.
     - Ensures each block is within 5-DOF arm reach envelope (0.42m - 0.68m from arm mount).
     - Guarantees >= 0.078m clearance between all cubes to prevent overlap and collisions.
     - Preserves >= 0.100m clearance from the target stacking zones.
