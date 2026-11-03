@@ -106,14 +106,14 @@ BLOCK_SPAWNS = [
         "name": "Yellow Cube",
         "color": "#FFC300",
         "color_rgb": (255, 195, 0),
-        "position": [0.15, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.06],
+        "position": [0.21, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.05],
     },
     {
         "id": "block_emerald",
         "name": "Green Cube",
         "color": "#00B341",
         "color_rgb": (0, 179, 65),
-        "position": [0.18, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.24],
+        "position": [0.22, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.24],
     },
     {
         "id": "block_orange",
@@ -127,7 +127,7 @@ BLOCK_SPAWNS = [
         "name": "Purple Cube",
         "color": "#9333EA",
         "color_rgb": (147, 51, 234),
-        "position": [0.16, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.25],
+        "position": [0.20, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.27],
     },
     {
         "id": "block_pink",
@@ -359,12 +359,12 @@ def generate_random_block_spawns(seed: Optional[int] = None) -> List[Dict[str, A
     max_attempts = 1500
     while len(positions) < len(BLOCK_SPAWNS) and attempts < max_attempts:
         attempts += 1
-        x = rng.uniform(0.12, 0.36)
+        x = rng.uniform(0.20, 0.36)
         z = rng.uniform(-0.28, 0.28)
 
         # Check arm reach bounds
         arm_d = math.hypot(x - arm_mount[0], z - arm_mount[1])
-        if arm_d < 0.42 or arm_d > 0.68:
+        if arm_d < 0.46 or arm_d > 0.68:
             continue
 
         # Clearance from stack pad

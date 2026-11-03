@@ -4,7 +4,7 @@ Implements the exact chain and analytical geometric IK from new_project_1.
 """
 
 import math
-from typing import Dict, Tuple, List, Any
+from typing import Dict, Tuple, List, Any, Optional
 from .constants import (
     ARM_MOUNT,
     PEDESTAL_H,
@@ -119,9 +119,31 @@ def forward_kinematics(joints: Dict[str, float], mount: Tuple[float, float, floa
         "tcp": {"position": tcp_pos, "rotation": tcp_rot},
     }
 
-def inverse_kinematics(target: Tuple[float, float, float], gripper: float = 0.0) -> Dict[str, float]:
+def compute_adaptive_pitch(local_x: float) -> float:
+    """
+    Computes optimal world pitch angle for the end-effector.
+    - Close targets (local_x <= 0.44m from shoulder): pitches downward (-1.25 rad / -71.6 deg)
+      to execute clean, vertical top-down grasps without folding elbow into singularity.
+    - Distant targets (local_x >= 0.56m from shoulder): pitches forward (-0.12 rad / -6.9 deg)
+      to maximize forward horizontal reach.
+    - Smooth linear transition between 0.44m and 0.56m.
+    """
+    if local_x <= 0.44:
+        return -1.25
+    elif local_x >= 0.56:
+        return WRIST_WORLD_PITCH
+    else:
+        alpha = (local_x - 0.44) / (0.56 - 0.44)
+        return -1.25 + alpha * (WRIST_WORLD_PITCH - (-1.25))
+
+def inverse_kinematics(
+    target: Tuple[float, float, float],
+    gripper: float = 0.0,
+    world_pitch: Optional[float] = None,
+) -> Dict[str, float]:
     """
     Analytical geometric IK for aiming the mid-finger TCP at world target coordinate (tx, ty, tz).
+    Supports adaptive top-down vertical picking for close targets and forward reach for distant targets.
     Enforces tabletop altitude safety, workspace boundaries, and reach clamping.
     """
     tx, ty, tz = target
@@ -146,10 +168,13 @@ def inverse_kinematics(target: Tuple[float, float, float], gripper: float = 0.0)
     yaw_q = quat_from_axis_angle(0.0, 1.0, 0.0, base_yaw)
     local = quat_rotate_vec(quat_conjugate(yaw_q), (dx, dy, dz))
 
+    # Adaptive pitch: vertical top-down grasp for close objects, horizontal reach for far objects
+    pitch = world_pitch if world_pitch is not None else compute_adaptive_pitch(local[0])
+
     # Offset for wrist reach to TCP
     wrist_reach = L_WRIST + GRASP_DEPTH
-    px = local[0] - wrist_reach * math.cos(WRIST_WORLD_PITCH)
-    py = local[1] - wrist_reach * math.sin(WRIST_WORLD_PITCH)
+    px = local[0] - wrist_reach * math.cos(pitch)
+    py = local[1] - wrist_reach * math.sin(pitch)
 
     # 2-link planar kinematics for upper arm (L_UPPER) and forearm (L_FOREARM)
     l1 = L_UPPER
@@ -186,7 +211,7 @@ def inverse_kinematics(target: Tuple[float, float, float], gripper: float = 0.0)
 
     # Wrist pitch keeping world orientation consistent
     wrist_pitch_lim = JOINT_LIMITS["wristPitch"]
-    wrist_pitch = clamp(WRIST_WORLD_PITCH - shoulder_pitch - elbow_pitch, wrist_pitch_lim[0], wrist_pitch_lim[1])
+    wrist_pitch = clamp(pitch - shoulder_pitch - elbow_pitch, wrist_pitch_lim[0], wrist_pitch_lim[1])
 
     return {
         "baseYaw": base_yaw,
