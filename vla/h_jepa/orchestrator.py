@@ -500,21 +500,17 @@ class HierarchicalVLJEPAOrchestrator:
             horiz_d = math.hypot(current_tcp[0] - eff_slot[0], current_tcp[2] - eff_slot[2])
             vert_err = abs(current_tcp[1] - transit_y)
 
-            # Ensure safe transit altitude is strictly maintained
-            if current_tcp[1] < transit_y - 0.015:
-                micro_target = [current_tcp[0], transit_y, current_tcp[2]]
+            detour = self._find_corridor_detour(
+                start=(current_tcp[0], current_tcp[2]),
+                goal=(eff_slot[0], eff_slot[2]),
+                blocks=blocks,
+                ignore_ids={b_id},
+                clearance=0.090,
+            )
+            if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.018:
+                micro_target = [detour[0], transit_y, detour[1]]
             else:
-                detour = self._find_corridor_detour(
-                    start=(current_tcp[0], current_tcp[2]),
-                    goal=(eff_slot[0], eff_slot[2]),
-                    blocks=blocks,
-                    ignore_ids={b_id},
-                    clearance=0.090,
-                )
-                if detour is not None and math.hypot(current_tcp[0] - detour[0], current_tcp[2] - detour[1]) > 0.018:
-                    micro_target = [detour[0], transit_y, detour[1]]
-                else:
-                    micro_target = [eff_slot[0], transit_y, eff_slot[2]]
+                micro_target = [eff_slot[0], transit_y, eff_slot[2]]
 
             if self.phase_ticks > 15 and not target_block.get("is_grasped", False):
                 self._retry_subgoal()
