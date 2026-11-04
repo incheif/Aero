@@ -79,7 +79,7 @@ def parse_tower_distribution(cmd: str, num_towers: int = 2) -> List[int]:
     """
     cmd = cmd.lower()
     # Check for composite 'X of Y' patterns (e.g. '2 of 2 blocks each and one of 1 block')
-    comp = re.findall(r"(\d+|one|two|three|four|five)\s+of\s+(\d+|one|two|three|four|five)\s*(?:blocks?|cubes?|layers?)?", cmd)
+    comp = re.findall(r"(\d+|one|two|three|four|five|six)\s+of\s+(\d+|one|two|three|four|five|six)\s*(?:blocks?|cubes?|layers?)?", cmd)
     if comp:
         dist = []
         for count_t, size_t in comp:
@@ -90,7 +90,7 @@ def parse_tower_distribution(cmd: str, num_towers: int = 2) -> List[int]:
             return dist
 
     # Check for 'N blocks each'
-    m_each = re.search(r"(\d+|one|two|three|four|five)\s*(?:blocks?|layers?|cubes?)?\s*(?:each|per tower)", cmd)
+    m_each = re.search(r"(\d+|one|two|three|four|five|six)\s*(?:blocks?|layers?|cubes?)?\s*(?:each|per tower)", cmd)
     if m_each:
         per = parse_num_token(m_each.group(1)) or 2
         return [per] * num_towers
