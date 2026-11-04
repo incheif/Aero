@@ -163,11 +163,11 @@ class InstructionInterpreter:
         """
         Comprehensive cognitive affordance and physical feasibility validator.
         Evaluates the requested command against rigid-body workcell constraints:
-          1. Multi-tower landing zone capacity (maximum 2 distinct towers).
-          2. Tower height / layer count limits (1 to 5 layers, vertical reach Y <= 1.12m).
-          3. Total block inventory capacity (maximum 5 blocks).
+          1. Multi-tower landing zone capacity (maximum 6 distinct towers, subject to total inventory).
+          2. Tower height / layer count limits (1 to 6 layers, vertical reach Y <= 1.12m).
+          3. Total block inventory capacity (maximum 6 blocks).
           4. Per-color uniqueness inventory (maximum 1 cube per color).
-          5. Pyramid geometry constraints (3-block stepped or 5-block square only).
+          5. Pyramid geometry constraints (3-block stepped, 5-block square, or 6-block stepped).
           6. Non-existent colors and objects.
           7. Destructive, ballistic, fluid, chemical, and locomotion actions.
           8. Out-of-workspace boundary violations.
@@ -176,7 +176,7 @@ class InstructionInterpreter:
         cmd = raw_cmd.lower().strip()
 
         # -------------------------------------------------------------
-        # A. MULTI-TOWER FEASIBILITY: Up to 5 Distinct Towers (Total Blocks <= 5)
+        # A. MULTI-TOWER FEASIBILITY: Up to 6 Distinct Towers (Total Blocks <= 6)
         # -------------------------------------------------------------
         tower_qty_matches = re.findall(
             r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|hundred)\s+"
