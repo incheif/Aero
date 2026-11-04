@@ -118,7 +118,7 @@ class MujocoSimulation:
             f'    <geom name="wall_w" type="box" size="{wall_t} {wall_h} {half_z}" pos="{-half_x + wall_t} {wall_y} 0"/>',
         ]
 
-        # Add 7 Tabletop Blocks with Freejoints
+        # Add the six configured tabletop blocks with freejoints
         for spawn in BLOCK_SPAWNS:
             b_id = spawn["id"]
             p = spawn["position"]
@@ -360,20 +360,8 @@ class MujocoSimulation:
                 # Impassability threshold: 3mm
                 if pen > 0.003:
                     blocked = True
-                    # If free tabletop block, repel away along normal without allowing arm to penetrate
-                    if not is_placed and is_over_table(bx, bz):
-                        sign_x = 1.0 if bx >= p_pos[0] else -1.0
-                        sign_z = 1.0 if bz >= p_pos[2] else -1.0
-                        block.position[0] += pen * sign_x * 0.4
-                        block.velocity[0] = sign_x * 0.12
-                        block.position[2] += pen * sign_z * 0.4
-                        block.velocity[2] = sign_z * 0.12
-                        if hasattr(self, "joint_indices") and b_id in self.joint_indices:
-                            adr = self.joint_indices[b_id]
-                            self.data.qpos[adr["qpos_adr"]] = block.position[0]
-                            self.data.qpos[adr["qpos_adr"] + 2] = block.position[2]
-                            self.data.qvel[adr["qvel_adr"]] = block.velocity[0]
-                            self.data.qvel[adr["qvel_adr"] + 2] = block.velocity[2]
+                    # Stop the arm at contact. Do not inject an artificial impulse into the block;
+                    # the previous velocity/pose remains governed by the simulation backend.
                     break
 
             if blocked:
