@@ -97,16 +97,16 @@ def parse_tower_distribution(cmd: str, num_towers: int = 2) -> List[int]:
 
     # Default distributions for N towers across 6 blocks
     if num_towers == 2:
-        return [4, 3]
+        return [3, 3]
     elif num_towers == 3:
-        return [3, 2, 2]
+        return [2, 2, 2]
     elif num_towers == 4:
-        return [2, 2, 2, 1]
+        return [2, 2, 1, 1]
     elif num_towers == 5:
-        return [2, 2, 1, 1, 1]
+        return [2, 1, 1, 1, 1]
     elif num_towers == 6:
         return [1, 1, 1, 1, 1, 1]
-        return [7]
+        return [6]
 
 # Common words for non-existent items
 NON_EXISTENT_OBJECTS = [
@@ -281,7 +281,7 @@ class InstructionInterpreter:
                     "action_type": "REJECTED",
                     "reason": (
                         f"❌ Not Possible: Requested {val} blocks, but the workcell only contains "
-                        f"{MAX_PHYSICAL_BLOCKS} physical blocks in total (Red, Blue, Yellow, Green, Orange, Purple, Pink)."
+                        f"{MAX_PHYSICAL_BLOCKS} physical blocks in total (Red, Blue, Yellow, Green, Orange, Purple)."
                     ),
                     "thought": f"Command rejected: Requested {val} blocks exceeds workcell inventory ({MAX_PHYSICAL_BLOCKS})."
                 }
@@ -289,7 +289,7 @@ class InstructionInterpreter:
         # -------------------------------------------------------------
         # D. DUPLICATE COLOR INVENTORY: Exactly 1 Cube per Color
         # -------------------------------------------------------------
-        color_qty_pattern = r"\b(\d+|two|three|four|five|six|seven)\s+(red|crimson|ruby|magenta|blue|cyan|yellow|green|emerald|orange|purple|violet|pink|rose)s?\s*(?:cubes?|blocks?)?\b"
+        color_qty_pattern = r"\b(\d+|two|three|four|five|six|seven)\s+(red|crimson|ruby|magenta|blue|cyan|yellow|green|emerald|orange|purple|violet)s?\s*(?:cubes?|blocks?)?\b"
         for match in re.finditer(color_qty_pattern, cmd):
             qty_str, color_str = match.groups()
             qty = parse_num_token(qty_str)
@@ -646,10 +646,10 @@ class InstructionInterpreter:
                 "4 towers", "four towers", "4 distinct towers",
                 "5 towers", "five towers", "5 distinct towers",
             ))
-            or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd))
+            or bool(re.search(r"\b(2|two|3|three|4|four|5|five|6|six)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd))
         )
         if is_multi_towers:
-            m_towers = re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd)
+            m_towers = re.search(r"\b(2|two|3|three|4|four|5|five|6|six)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd)
             num_towers = parse_num_token(m_towers.group(1)) if m_towers else 2
             distribution = parse_tower_distribution(cmd, num_towers)
 
@@ -921,11 +921,11 @@ class InstructionInterpreter:
                 layer_count = 5
             elif re.search(r"\b(6|six)\s*(layer|block|tier|level|cube)\b", cmd) or "6 layer" in cmd or "6-layer" in cmd or "six layer" in cmd or "stack 6" in cmd:
                 layer_count = 6
-            elif re.search(r"\b(7|seven|all)\s*(layer|block|tier|level|cube)\b", cmd) or "6 layer" in cmd or "6-layer" in cmd or "all 6" in cmd or "all blocks" in cmd or "all cubes" in cmd:
+            elif re.search(r"\b(6|six|all)\s*(layer|block|tier|level|cube)\b", cmd) or "6 layer" in cmd or "6-layer" in cmd or "all 6" in cmd or "all blocks" in cmd or "all cubes" in cmd:
                 layer_count = 6
 
             # If user explicitly asked for single pick without stacking words
-            if layer_count == 6 and not any(w in cmd for w in ("tower", "twer", "towr", "stack", "build", "all", "7")) and any(c in cmd for c in ("pick", "move", "place", "grab", "transfer")):
+            if layer_count == 6 and not any(w in cmd for w in ("tower", "twer", "towr", "stack", "build", "all")) and any(c in cmd for c in ("pick", "move", "place", "grab", "transfer")):
                 layer_count = 1
 
             # Extract color sequence mentioned by user
@@ -1002,7 +1002,7 @@ class InstructionInterpreter:
         # Check if user explicitly requested full 7-block assembly
         is_explicit_full_stack = any(w in cmd for w in (
             "stack all", "build all", "assemble all", "stack everything", "all blocks",
-            "all 7", "6 blocks", "6-block", "7 layer", "7-layer", "6 cubes", "six blocks"
+            "all 6", "6 blocks", "6-block", "6 layer", "6-layer", "6 cubes", "six blocks"
         ))
         if is_explicit_full_stack:
             return {
@@ -1011,7 +1011,7 @@ class InstructionInterpreter:
                 "action_type": "STACK_TOWER",
                 "layer_count": 6,
                 "target_blocks": ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple"],
-                "thought": f"Interpreted full assembly instruction: '{raw_cmd}'. Planning full 7-block assembly on target pad.",
+                "thought": f"Interpreted full assembly instruction: '{raw_cmd}'. Planning full 6-block assembly on target pad.",
             }
 
         # Otherwise reject unrecognized / ambiguous commands cleanly
@@ -1057,7 +1057,7 @@ Workcell Constraints:
   - Stationary, rigidly table-mounted (CANNOT fly, drive, roll, leave the table)
   - Non-destructive parallel-jaw gripper (CANNOT break, crush, cut, melt, destroy blocks)
   - Controlled speed (CANNOT throw or launch objects)
-  - Maximum 6 blocks total (towers > 7 layers, or requests for > 7 blocks, are physically IMPOSSIBLE)
+  - Maximum 6 blocks total (towers > 6 layers, or requests for > 6 blocks, are physically IMPOSSIBLE)
   - Maximum 1 cube per color (requests for 2 red cubes, etc. are physically IMPOSSIBLE)
 - Structural primitives supported:
   - "BUILD_PYRAMID": 3-block stepped, 5-block square, or 6-block stepped pyramid.
@@ -1143,7 +1143,7 @@ Respond with ONLY a JSON object with this format:
                 "4 towers", "four towers", "4 distinct towers",
                 "5 towers", "five towers", "5 distinct towers",
             ))
-            or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", prompt_lower))
+            or bool(re.search(r"\b(2|two|3|three|4|four|5|five|6|six)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", prompt_lower))
         )
         if is_multi_towers:
             return "SYSTEM_1_FAST_PATH"
