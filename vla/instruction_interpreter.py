@@ -16,9 +16,9 @@ import json
 from typing import Dict, List, Any, Optional, Tuple
 
 # Physical constants for validation
-MAX_PHYSICAL_BLOCKS = 7
-MAX_LAYER_HEIGHT = 7
-MAX_DISTINCT_TOWERS = 7
+MAX_PHYSICAL_BLOCKS = 6
+MAX_LAYER_HEIGHT = 6
+MAX_DISTINCT_TOWERS = 6
 
 AVAILABLE_BLOCKS = {
     "block_magenta": {"name": "Red Cube", "color": "#FF1E27", "aliases": ["red", "crimson", "ruby", "scarlet", "magenta"]},
@@ -27,7 +27,6 @@ AVAILABLE_BLOCKS = {
     "block_emerald": {"name": "Green Cube", "color": "#00B341", "aliases": ["green", "emerald", "lime", "mint"]},
     "block_orange": {"name": "Orange Cube", "color": "#FF5500", "aliases": ["orange", "amber", "tangerine"]},
     "block_purple": {"name": "Purple Cube", "color": "#9333EA", "aliases": ["purple", "violet", "indigo", "lavender", "grape"]},
-    "block_pink": {"name": "Pink Cube", "color": "#FF2E93", "aliases": ["pink", "rose", "fuchsia", "coral", "hot pink"]},
 }
 
 COLOR_ALIAS_MAP = {}
@@ -96,7 +95,7 @@ def parse_tower_distribution(cmd: str, num_towers: int = 2) -> List[int]:
         per = parse_num_token(m_each.group(1)) or 2
         return [per] * num_towers
 
-    # Default distributions for N towers across 7 blocks
+    # Default distributions for N towers across 6 blocks
     if num_towers == 2:
         return [4, 3]
     elif num_towers == 3:
@@ -106,10 +105,8 @@ def parse_tower_distribution(cmd: str, num_towers: int = 2) -> List[int]:
     elif num_towers == 5:
         return [2, 2, 1, 1, 1]
     elif num_towers == 6:
-        return [2, 1, 1, 1, 1, 1]
-    elif num_towers == 7:
-        return [1, 1, 1, 1, 1, 1, 1]
-    return [7]
+        return [1, 1, 1, 1, 1, 1]
+        return [7]
 
 # Common words for non-existent items
 NON_EXISTENT_OBJECTS = [
@@ -257,7 +254,7 @@ class InstructionInterpreter:
                             "action_type": "REJECTED",
                             "reason": (
                                 f"❌ Not Possible: Requested a {val}-layer tower, but the workcell only contains "
-                                f"{MAX_PHYSICAL_BLOCKS} physical blocks (Red, Blue, Yellow, Green, Orange, Purple, Pink). "
+                                f"{MAX_PHYSICAL_BLOCKS} physical blocks (Red, Blue, Yellow, Green, Orange, Purple). "
                                 f"A tower of {val} layers also exceeds the robot's vertical reach limit (Y ≤ 1.12m)."
                             ),
                             "thought": f"Command rejected: Requested {val}-layer tower exceeds inventory ({MAX_PHYSICAL_BLOCKS}) and vertical kinematic limit."
@@ -272,7 +269,7 @@ class InstructionInterpreter:
                         }
 
         # -------------------------------------------------------------
-        # C. TOTAL BLOCKS INVENTORY: Maximum 7 Blocks
+        # C. TOTAL BLOCKS INVENTORY: Maximum 6 Blocks
         # -------------------------------------------------------------
         total_block_matches = re.findall(r"\b(?:use|stack|pick|place|move|with)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:cubes?|blocks?)\b", cmd)
         for tbm in total_block_matches:
@@ -304,7 +301,7 @@ class InstructionInterpreter:
                     "action_type": "REJECTED",
                     "reason": (
                         f"❌ Not Possible: Requested {qty} {color_name}s, but there is only ONE {color_name} "
-                        f"in the workcell (1 Red, 1 Blue, 1 Yellow, 1 Green, 1 Orange, 1 Purple, 1 Pink)."
+                        f"in the workcell (1 Red, 1 Blue, 1 Yellow, 1 Green, 1 Orange, 1 Purple)."
                     ),
                     "thought": f"Command rejected: Requested {qty} {color_name}s exceeds single-instance inventory."
                 }
@@ -321,7 +318,7 @@ class InstructionInterpreter:
                     "action_type": "REJECTED",
                     "reason": (
                         f"❌ Not Possible: Color '{ic}' does not exist in the workcell. "
-                        f"The table contains only 7 cubes: Red (#FF1E27), Blue (#1E60FF), Yellow (#FFC300), Green (#00B341), Orange (#FF5500), Purple (#9333EA), and Pink (#FF2E93)."
+                        f"The table contains only 6 cubes: Red (#FF1E27), Blue (#1E60FF), Yellow (#FFC300), Green (#00B341), Orange (#FF5500), and Purple (#9333EA)."
                     ),
                     "thought": f"Command rejected: Color '{ic}' not found in tabletop perception."
                 }
@@ -342,7 +339,7 @@ class InstructionInterpreter:
                             f"❌ Not Possible: A pyramid can only be constructed as either a 3-block stepped pyramid "
                             f"(2 base cubes + 1 apex), a 5-block square pyramid (4 base cubes in 2x2 + 1 apex), "
                             f"or a 6-block stepped pyramid (3 base cubes in a row + 2 mid cubes + 1 apex). "
-                            f"A {pyr_val}-block pyramid is not geometrically feasible with the available 7 cubes."
+                            f"A {pyr_val}-block pyramid is not geometrically feasible with the available 6 cubes."
                         ),
                         "thought": f"Command rejected: {pyr_val}-block pyramid is geometrically infeasible."
                     }
@@ -656,7 +653,7 @@ class InstructionInterpreter:
             num_towers = parse_num_token(m_towers.group(1)) if m_towers else 2
             distribution = parse_tower_distribution(cmd, num_towers)
 
-            all_blocks = ["block_magenta", "block_cyan", "block_yellow", "block_emerald", "block_orange", "block_purple", "block_pink"]
+            all_blocks = ["block_magenta", "block_cyan", "block_yellow", "block_emerald", "block_orange", "block_purple"]
             
             # Check for per-tower clause transitions (e.g. "one tower with X next tower with Y")
             split_pattern = r"\b(?:next\s+tower|second\s+tower|2nd\s+tower|other\s+tower|tower\s+2|tower\s+two|third\s+tower|3rd\s+tower|tower\s+3|tower\s+three|fourth\s+tower|tower\s+4|fifth\s+tower|tower\s+5|and\s+then\s+(?:another\s+)?tower)\b"
@@ -740,8 +737,6 @@ class InstructionInterpreter:
                 ("orange", "block_orange", "Orange Cube"),
                 ("purple", "block_purple", "Purple Cube"),
                 ("violet", "block_purple", "Purple Cube"),
-                ("pink", "block_pink", "Pink Cube"),
-                ("rose", "block_pink", "Pink Cube"),
                 ("cyan", "block_cyan", "Blue Cube"),
                 ("magenta", "block_magenta", "Red Cube"),
                 ("emerald", "block_emerald", "Green Cube"),
@@ -757,7 +752,7 @@ class InstructionInterpreter:
                 if b_id not in mentioned_b_ids:
                     mentioned_b_ids.append(b_id)
 
-            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple"]
             pool = list(mentioned_b_ids)
             for b in all_blocks:
                 if b not in pool:
@@ -818,8 +813,6 @@ class InstructionInterpreter:
                 ("orange", "block_orange", "Orange Cube"),
                 ("purple", "block_purple", "Purple Cube"),
                 ("violet", "block_purple", "Purple Cube"),
-                ("pink", "block_pink", "Pink Cube"),
-                ("rose", "block_pink", "Pink Cube"),
                 ("cyan", "block_cyan", "Blue Cube"),
                 ("magenta", "block_magenta", "Red Cube"),
                 ("emerald", "block_emerald", "Green Cube"),
@@ -835,7 +828,7 @@ class InstructionInterpreter:
                 if b_id not in mentioned_b_ids:
                     mentioned_b_ids.append(b_id)
 
-            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple"]
             pool = list(mentioned_b_ids)
             for b in all_blocks:
                 if b not in pool:
@@ -885,7 +878,7 @@ class InstructionInterpreter:
                 break
 
         if is_letter_placement:
-            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple"]
             block_names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in all_blocks[:6]]
             thought = (
                 f"Interpreted request for letter '{is_letter_placement}' placement with blocks. "
@@ -906,9 +899,9 @@ class InstructionInterpreter:
         # -------------------------------------------------------------
         # Typo tolerance: "twer", "towr", "stack", "build", "layer"
         is_tower_request = any(w in cmd for w in ("tower", "twer", "towr", "stack", "build", "layer", "tier", "pad"))
-        if is_tower_request or any(c in cmd for c in ("cyan", "orange", "magenta", "yellow", "emerald", "blue", "red", "green", "purple", "violet", "pink", "rose")):
-            # Parse requested layer count (1 to 7)
-            layer_count = 7
+        if is_tower_request or any(c in cmd for c in ("cyan", "orange", "magenta", "yellow", "emerald", "blue", "red", "green", "purple", "violet")):
+            # Parse requested layer count (1 to 6)
+            layer_count = 6
             for lm in re.findall(r"\b(\d+|one|two|three|four|five|six|seven)[-\s]*(?:blocks?|layers?|cubes?|tiers?|levels?)?\b", cmd):
                 parsed_val = parse_num_token(lm)
                 if parsed_val is not None and 1 <= parsed_val <= MAX_PHYSICAL_BLOCKS:
@@ -928,11 +921,11 @@ class InstructionInterpreter:
                 layer_count = 5
             elif re.search(r"\b(6|six)\s*(layer|block|tier|level|cube)\b", cmd) or "6 layer" in cmd or "6-layer" in cmd or "six layer" in cmd or "stack 6" in cmd:
                 layer_count = 6
-            elif re.search(r"\b(7|seven|all)\s*(layer|block|tier|level|cube)\b", cmd) or "7 layer" in cmd or "7-layer" in cmd or "all 7" in cmd or "all blocks" in cmd or "all cubes" in cmd:
-                layer_count = 7
+            elif re.search(r"\b(7|seven|all)\s*(layer|block|tier|level|cube)\b", cmd) or "6 layer" in cmd or "6-layer" in cmd or "all 6" in cmd or "all blocks" in cmd or "all cubes" in cmd:
+                layer_count = 6
 
             # If user explicitly asked for single pick without stacking words
-            if layer_count == 7 and not any(w in cmd for w in ("tower", "twer", "towr", "stack", "build", "all", "7")) and any(c in cmd for c in ("pick", "move", "place", "grab", "transfer")):
+            if layer_count == 6 and not any(w in cmd for w in ("tower", "twer", "towr", "stack", "build", "all", "7")) and any(c in cmd for c in ("pick", "move", "place", "grab", "transfer")):
                 layer_count = 1
 
             # Extract color sequence mentioned by user
@@ -955,8 +948,6 @@ class InstructionInterpreter:
                 ("orange", "block_orange", "Orange Cube"),
                 ("purple", "block_purple", "Purple Cube"),
                 ("violet", "block_purple", "Purple Cube"),
-                ("pink", "block_pink", "Pink Cube"),
-                ("rose", "block_pink", "Pink Cube"),
             ]
 
             found_items = []
@@ -980,7 +971,7 @@ class InstructionInterpreter:
                         notes.append(label)
 
             # Fill in remaining blocks up to layer_count
-            default_priority = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            default_priority = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple"]
             for def_id in default_priority:
                 if len(target_blocks) >= layer_count:
                     break
@@ -1011,15 +1002,15 @@ class InstructionInterpreter:
         # Check if user explicitly requested full 7-block assembly
         is_explicit_full_stack = any(w in cmd for w in (
             "stack all", "build all", "assemble all", "stack everything", "all blocks",
-            "all 7", "7 blocks", "7-block", "7 layer", "7-layer", "7 cubes", "seven blocks"
+            "all 7", "6 blocks", "6-block", "7 layer", "7-layer", "6 cubes", "six blocks"
         ))
         if is_explicit_full_stack:
             return {
                 "is_possible": True,
                 "status": "OK",
                 "action_type": "STACK_TOWER",
-                "layer_count": 7,
-                "target_blocks": ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"],
+                "layer_count": 6,
+                "target_blocks": ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple"],
                 "thought": f"Interpreted full assembly instruction: '{raw_cmd}'. Planning full 7-block assembly on target pad.",
             }
 
@@ -1051,14 +1042,14 @@ class InstructionInterpreter:
 
         prompt = f"""You are the cognitive natural-language instruction pre-processor for an autonomous 5-DOF table-mounted robot arm workcell.
 Workcell Constraints:
-- Available Blocks: Exactly 7 rigid cubes (1 of each color):
+- Available Blocks: Exactly 6 rigid cubes (1 of each color):
   1. Red Cube (#FF1E27; aliases: red, crimson, ruby, magenta)
   2. Blue Cube (#1E60FF; aliases: blue, cyan, cobalt)
   3. Yellow Cube (#FFC300; aliases: yellow, gold)
   4. Green Cube (#00B341; aliases: green, emerald)
   5. Orange Cube (#FF5500; aliases: orange)
   6. Purple Cube (#9333EA; aliases: purple, violet)
-  7. Pink Cube (#FF2E93; aliases: pink, rose, fuchsia)
+  
 - Available Landing Zones:
   - 1 Central Target Pad (for 1 single tower or pyramid)
   - Dedicated Isolated Landing Zones for distinct multi-towers
@@ -1066,7 +1057,7 @@ Workcell Constraints:
   - Stationary, rigidly table-mounted (CANNOT fly, drive, roll, leave the table)
   - Non-destructive parallel-jaw gripper (CANNOT break, crush, cut, melt, destroy blocks)
   - Controlled speed (CANNOT throw or launch objects)
-  - Maximum 7 blocks total (towers > 7 layers, or requests for > 7 blocks, are physically IMPOSSIBLE)
+  - Maximum 6 blocks total (towers > 7 layers, or requests for > 7 blocks, are physically IMPOSSIBLE)
   - Maximum 1 cube per color (requests for 2 red cubes, etc. are physically IMPOSSIBLE)
 - Structural primitives supported:
   - "BUILD_PYRAMID": 3-block stepped, 5-block square, or 6-block stepped pyramid.
