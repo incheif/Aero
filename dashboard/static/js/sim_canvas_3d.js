@@ -338,35 +338,35 @@ class SimCanvas3D {
     this.arm.palm = palm;
 
     // 5. Parallel Gripper Sliding Jaws
-    const jawGeo = new THREE.BoxGeometry(0.08, 0.024, 0.012);
+    const jawGeo = new THREE.BoxGeometry(0.095, 0.024, 0.012);
 
     // Left Jaw
     const jawLeft = new THREE.Mesh(jawGeo, whiteMat);
-    jawLeft.position.set(0.075, 0.0, 0.045);
+    jawLeft.position.set(0.05, 0.0, 0.045);
     jawLeft.castShadow = true;
     wristGroup.add(jawLeft);
     this.arm.jawLeft = jawLeft;
 
     // Left Jaw Rubber Gripper Pad
     const padLeft = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.02, 0.004), rubberMat);
-    padLeft.position.set(0.02, 0.0, -0.008);
+    padLeft.position.set(0.0, 0.0, -0.008);
     jawLeft.add(padLeft);
 
     // Right Jaw
     const jawRight = new THREE.Mesh(jawGeo, whiteMat);
-    jawRight.position.set(0.075, 0.0, -0.045);
+    jawRight.position.set(0.05, 0.0, -0.045);
     jawRight.castShadow = true;
     wristGroup.add(jawRight);
     this.arm.jawRight = jawRight;
 
     // Right Jaw Rubber Gripper Pad
     const padRight = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.02, 0.004), rubberMat);
-    padRight.position.set(0.02, 0.0, 0.008);
+    padRight.position.set(0.0, 0.0, 0.008);
     jawRight.add(padRight);
 
     // 6. TCP Glowing Indicator (mid-finger pinch point)
     const tcpGroup = new THREE.Group();
-    tcpGroup.position.set(0.18, 0.0, 0.0);
+    tcpGroup.position.set(0.05, 0.0, 0.0);
 
     const tcpSphere = new THREE.Mesh(
       new THREE.SphereGeometry(0.006, 16, 16),
