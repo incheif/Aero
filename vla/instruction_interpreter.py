@@ -106,7 +106,6 @@ def parse_tower_distribution(cmd: str, num_towers: int = 2) -> List[int]:
         return [2, 1, 1, 1, 1]
     elif num_towers == 6:
         return [1, 1, 1, 1, 1, 1]
-        return [6]
 
 # Common words for non-existent items
 NON_EXISTENT_OBJECTS = [
@@ -234,7 +233,7 @@ class InstructionInterpreter:
                         }
 
         # -------------------------------------------------------------
-        # B. TOWER HEIGHT / LAYER COUNT FEASIBILITY: Maximum 5 Layers
+        # B. TOWER HEIGHT / LAYER COUNT FEASIBILITY: Maximum 6 Layers
         # -------------------------------------------------------------
         if not any(w in cmd for w in ("pyramid", "pyramind", "distinct tower", "distinct towers", "separate tower", "separate towers", "different tower", "different towers")):
             layer_matches = re.findall(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|hundred)\s*(?:blocks?|layers?|cubes?|tiers?|levels?)\s*(?:high|tall)?\b", cmd)
@@ -908,7 +907,7 @@ class InstructionInterpreter:
                     layer_count = parsed_val
                     break
 
-            # Word regex checks for 1 to 7
+            # Word regex checks for 1 to 6
             if re.search(r"\b(1|one|single)\s*(layer|block|tier|level|cube)\b", cmd) or "1 layer" in cmd or "1-layer" in cmd or "one layer" in cmd:
                 layer_count = 1
             elif re.search(r"\b(2|two|double)\s*(layer|block|tier|level|cube)\b", cmd) or "2 layer" in cmd or "2-layer" in cmd or "two layer" in cmd or "stack 2" in cmd:
@@ -999,7 +998,7 @@ class InstructionInterpreter:
                 "thought": thought,
             }
 
-        # Check if user explicitly requested full 7-block assembly
+        # Check if user explicitly requested full 6-block assembly
         is_explicit_full_stack = any(w in cmd for w in (
             "stack all", "build all", "assemble all", "stack everything", "all blocks",
             "all 6", "6 blocks", "6-block", "6 layer", "6-layer", "6 cubes", "six blocks"
@@ -1068,7 +1067,7 @@ User Instruction: "{raw_cmd}"
 
 Determine:
 1. Is this command physically possible and safe?
-   - If user asks for tower > 7 layers, duplicate colors, break/destroy blocks, throw objects, fly, or items not on table -> "is_possible": false with a clear explanation in "reason".
+   - If user asks for tower > 6 layers, duplicate colors, break/destroy blocks, throw objects, fly, or items not on table -> "is_possible": false with a clear explanation in "reason".
    - If user asks for gestures ("wave high", "nod", "say hi", etc.) -> "is_possible": true, "action_type": "GESTURE", "gesture_name": "wave_high" (or appropriate gesture).
    - If user asks for pyramid -> "is_possible": true, "action_type": "BUILD_PYRAMID".
    - If user asks for block train or line of boxes -> "is_possible": true, "action_type": "BLOCK_TRAIN".
