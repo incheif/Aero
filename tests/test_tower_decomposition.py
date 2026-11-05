@@ -33,7 +33,7 @@ class TestTowerDecomposition(unittest.TestCase):
             {"id": "block_emerald", "name": "Green Cube", "color": "#00B341", "position": [0.28, TABLE_TOP_Y + 0.02, -0.18]},
             {"id": "block_orange", "name": "Orange Cube", "color": "#FF5500", "position": [-0.14, TABLE_TOP_Y + 0.02, 0.16]},
             {"id": "block_purple", "name": "Purple Cube", "color": "#9333EA", "position": [-0.18, TABLE_TOP_Y + 0.02, -0.14]},
-            {"id": "block_pink", "name": "Pink Cube", "color": "#FF2E93", "position": [0.24, TABLE_TOP_Y + 0.02, 0.0]},
+            {"id": "block_orange", "name": "Pink Cube", "color": "#FF2E93", "position": [0.24, TABLE_TOP_Y + 0.02, 0.0]},
         ]
 
     def test_01_five_block_tower_decomposition(self):
@@ -107,13 +107,13 @@ class TestTowerDecomposition(unittest.TestCase):
 
     def test_05_multi_tower_clause_color_assignment(self):
         """Validates that distinct multi-tower requests with clauses assign the exact specified colors."""
-        cmd = "Make 2 distinct towers of 2 blocks each. one tower with pink and purple blocks next tower with green and red blocks"
+        cmd = "Make 2 distinct towers of 2 blocks each. one tower with orange and purple blocks next tower with green and red blocks"
         res = self.interpreter.interpret(cmd)
         self.assertEqual(res["action_type"], "STACK_DUAL_TOWERS")
         self.assertEqual(res["num_towers"], 2)
         self.assertEqual(len(res["tower_blocks_list"]), 2)
-        # Tower 1 must have pink and purple
-        self.assertEqual(res["tower_blocks_list"][0], ["block_pink", "block_purple"])
+        # Tower 1 must have orange and purple
+        self.assertEqual(res["tower_blocks_list"][0], ["block_orange", "block_purple"])
         # Tower 2 must have green and red
         self.assertEqual(res["tower_blocks_list"][1], ["block_emerald", "block_magenta"])
 

@@ -42,12 +42,14 @@ WRIST_WORLD_PITCH: float = -0.12 # Slight downward tilt for tabletop manipulatio
 # Manipulated Objects (Cubes)
 CUBE_SIZE: float = 0.055
 CUBE_HALF: float = CUBE_SIZE / 2.0
+BLOCK_MASS: float = 0.35  # Heavy rigid block (350g)
+BLOCK_FRICTION: Tuple[float, float, float] = (1.8, 0.05, 0.005)  # High friction
 
 # Grasping Thresholds
 GRASP_RADIUS: float = 0.04
 GRASP_BOX = {"x": 0.028, "y": 0.02, "z": 0.03}
 GRASP_CLOSE_THRESHOLD: float = 0.82
-GRASP_OPEN_THRESHOLD: float = 0.38
+GRASP_OPEN_THRESHOLD: float = 0.75
 
 # Motion & Velocities
 JOINT_SPEED: float = 3.4
@@ -205,17 +207,20 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
     half = CUBE_HALF
     size = CUBE_SIZE
     if style in ("6_block_stepped", "6_block_pyramid", "6_block"):
+        ox = min(ox, 0.45)
         base_y = stack_slot_y(0)
         mid_y = stack_slot_y(1)
         apex_y = stack_slot_y(2)
+        pitch = 0.088
+        half_pitch = pitch * 0.5
         return [
-            # Layer 0: 3 base cubes in a row along Z
-            (ox, base_y, oz - size),
+            # Layer 0: 3 base cubes in a row along X (far to near, parallel jaws straddle cleanly)
+            (ox + pitch, base_y, oz),
             (ox, base_y, oz),
-            (ox, base_y, oz + size),
-            # Layer 1: 2 mid cubes bridging base seams
-            (ox, mid_y, oz - half),
-            (ox, mid_y, oz + half),
+            (ox - pitch, base_y, oz),
+            # Layer 1: 2 mid cubes bridging base seams along X
+            (ox + half_pitch, mid_y, oz),
+            (ox - half_pitch, mid_y, oz),
             # Layer 2: 1 apex cube centered on top
             (ox, apex_y, oz),
         ]
@@ -231,11 +236,15 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
         ]
     else:
         # Default: 3-block 2D stepped pyramid
+        # Far base block first, near base block second to eliminate reach-over collisions,
+        # with parallel jaws straddling the seam cleanly.
         base_y = stack_slot_y(0)
         apex_y = stack_slot_y(1)
+        pitch = 0.088
+        half_pitch = pitch * 0.5
         return [
-            (ox, base_y, oz - half),
-            (ox, base_y, oz + half),
+            (ox + half_pitch, base_y, oz),
+            (ox - half_pitch, base_y, oz),
             (ox, apex_y, oz),
         ]
 

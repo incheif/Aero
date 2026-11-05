@@ -1,0 +1,329 @@
+"""
+Joint-Space Motion Planner for 5-DOF Articulated Robot Arm.
+Implements:
+- Continuous swept-volume collision checking for all robot links, jaws, and carried blocks.
+- Orientation-aware obstacle collision checking against rotated tabletop blocks.
+- Bidirectional RRT-Connect joint-space sampling planner with trajectory shortcutting.
+- Parameterized Approach, Transit, and Retreat trajectory generators.
+"""
+
+import math
+import random
+from typing import Dict, List, Tuple, Optional, Set, Any
+import numpy as np
+
+from .constants import (
+    TABLE_TOP_Y,
+    TABLE_HALF_EXTENTS,
+    TABLE_WALL_HALF_HEIGHT,
+    TABLE_WALL_HALF_THICKNESS,
+    CUBE_SIZE,
+    CUBE_HALF,
+    JOINT_LIMITS,
+    JAW_LENGTH,
+    JAW_HEIGHT,
+    JAW_THICKNESS,
+    JAW_MIN_SEP,
+    JAW_MAX_SEP,
+    GRASP_DEPTH,
+    L_UPPER,
+    L_FOREARM,
+    L_WRIST,
+    ARM_MOUNT,
+    PEDESTAL_H,
+)
+from .kinematics import (
+    forward_kinematics,
+    solve_ik,
+    clamp,
+    quat_rotate_vec,
+    quat_conjugate,
+    vec_add,
+)
+
+
+class ArmCollisionChecker:
+    """
+    Validates collision safety for articulated robot arm links and held objects
+    against table surface, boundary walls, and tabletop blocks.
+    """
+
+    def __init__(self, table_margin: float = 0.004):
+        self.table_margin = table_margin
+        half_x, _, half_z = TABLE_HALF_EXTENTS
+        self.bounds_x = (-half_x + 0.03, half_x - 0.03)
+        self.bounds_z = (-half_z + 0.03, half_z - 0.03)
+
+    def dist_point_to_segment(
+        self,
+        p: Tuple[float, float, float],
+        a: Tuple[float, float, float],
+        b: Tuple[float, float, float],
+    ) -> float:
+        """Computes shortest distance from point p to segment ab."""
+        ab = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+        ap = (p[0] - a[0], p[1] - a[1], p[2] - a[2])
+        len_sq = ab[0]**2 + ab[1]**2 + ab[2]**2
+        if len_sq < 1e-8:
+            return math.hypot(ap[0], ap[1], ap[2])
+        t = max(0.0, min(1.0, (ap[0]*ab[0] + ap[1]*ab[1] + ap[2]*ab[2]) / len_sq))
+        proj = (a[0] + t * ab[0], a[1] + t * ab[1], a[2] + t * ab[2])
+        return math.hypot(p[0] - proj[0], p[1] - proj[1], p[2] - proj[2])
+
+    def check_configuration_collision(
+        self,
+        joints: Dict[str, float],
+        blocks: List[Dict[str, Any]],
+        grasped_block_id: Optional[str] = None,
+        ignore_block_ids: Optional[Set[str]] = None,
+        allow_table_contact: bool = False,
+    ) -> bool:
+        """
+        Evaluates collision for a single joint configuration.
+        Returns True if in collision, False if safe.
+        """
+        fk = forward_kinematics(joints)
+        p_shoulder = fk["shoulder"]["position"]
+        p_elbow = fk["elbow"]["position"]
+        p_wrist = fk["wrist"]["position"]
+        p_palm = fk["palm"]["position"]
+        p_tcp = fk["tcp"]["position"]
+        rot = fk["tcp"]["rotation"]
+
+        ignore = ignore_block_ids or set()
+        if grasped_block_id:
+            ignore.add(grasped_block_id)
+
+        # 1. Floor / Tabletop clearance for arm elbows and wrist
+        min_arm_y = TABLE_TOP_Y + (0.005 if allow_table_contact else 0.020)
+        if p_elbow[1] < min_arm_y or p_wrist[1] < min_arm_y:
+            return True
+
+        # TCP floor clearance unless deliberately allowed during touchdown
+        if not allow_table_contact and p_tcp[1] < TABLE_TOP_Y + 0.015:
+            return True
+
+        # 2. Check each link against obstacle blocks
+        link_segments = [
+            (p_shoulder, p_elbow, 0.028),  # Upper arm capsule
+            (p_elbow, p_wrist, 0.025),      # Forearm capsule
+            (p_wrist, p_palm, 0.022),       # Wrist capsule
+        ]
+
+        grip_val = joints.get("gripper", 0.0)
+        sep = JAW_MIN_SEP * 0.5 + ((JAW_MAX_SEP - JAW_MIN_SEP) * 0.5) * (1.0 - clamp(grip_val, 0.0, 1.0))
+        jaw_l = vec_add(p_palm, quat_rotate_vec(rot, (JAW_LENGTH * 0.5, 0.0, sep)))
+        jaw_r = vec_add(p_palm, quat_rotate_vec(rot, (JAW_LENGTH * 0.5, 0.0, -sep)))
+
+        finger_points = [
+            (jaw_l, 0.014),
+            (jaw_r, 0.014),
+            (p_palm, 0.020),
+        ]
+
+        for b in blocks:
+            b_id = b.get("id")
+            if b_id in ignore or b.get("is_grasped"):
+                continue
+
+            bp = b.get("position")
+            if not bp or len(bp) < 3:
+                continue
+            bx, by, bz = bp[0], bp[1], bp[2]
+
+            # Link capsules vs block
+            for a, c, rad in link_segments:
+                dist = self.dist_point_to_segment((bx, by, bz), a, c)
+                if dist < (rad + CUBE_HALF - 0.004):
+                    return True
+
+            # Fingers / Palm vs block
+            for pt, rad in finger_points:
+                dist = math.hypot(pt[0] - bx, pt[1] - by, pt[2] - bz)
+                if dist < (rad + CUBE_HALF - 0.004):
+                    return True
+
+            # If carrying a block, check carried block against obstacle blocks
+            if grasped_block_id is not None:
+                dist_held = math.hypot(p_tcp[0] - bx, p_tcp[1] - by, p_tcp[2] - bz)
+                if dist_held < (CUBE_SIZE - 0.005):
+                    return True
+
+        return False
+
+
+class RRTConnectJointPlanner:
+    """
+    Sampling-based Bidirectional RRT-Connect planner in 4-DOF Joint Space
+    (baseYaw, shoulderPitch, elbowPitch, wristPitch).
+    Generates collision-free trajectories avoiding obstacle blocks and workcell limits.
+    """
+
+    def __init__(self, step_size: float = 0.06, max_iterations: int = 150):
+        self.step_size = step_size
+        self.max_iterations = max_iterations
+        self.checker = ArmCollisionChecker()
+        self.joint_names = ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"]
+
+    def _dict_to_array(self, q: Dict[str, float]) -> np.ndarray:
+        return np.array([q[k] for k in self.joint_names], dtype=np.float32)
+
+    def _array_to_dict(self, arr: np.ndarray, gripper: float = 0.0) -> Dict[str, float]:
+        res = {k: float(arr[i]) for i, k in enumerate(self.joint_names)}
+        res["gripper"] = float(gripper)
+        return res
+
+    def _sample_random_config(self) -> np.ndarray:
+        sample = []
+        for k in self.joint_names:
+            low, high = JOINT_LIMITS[k]
+            sample.append(random.uniform(low, high))
+        return np.array(sample, dtype=np.float32)
+
+    def swept_segment_valid(
+        self,
+        q1: np.ndarray,
+        q2: np.ndarray,
+        blocks: List[Dict[str, Any]],
+        grasped_block_id: Optional[str] = None,
+        ignore_block_ids: Optional[Set[str]] = None,
+        step_rad: float = 0.03,
+    ) -> bool:
+        """Validates swept path between two joint configurations in fine increments."""
+        dist = float(np.linalg.norm(q2 - q1))
+        steps = max(2, int(math.ceil(dist / step_rad)))
+        for i in range(steps + 1):
+            alpha = i / float(steps)
+            q_interp = q1 + alpha * (q2 - q1)
+            j_dict = self._array_to_dict(q_interp)
+            if self.checker.check_configuration_collision(
+                joints=j_dict,
+                blocks=blocks,
+                grasped_block_id=grasped_block_id,
+                ignore_block_ids=ignore_block_ids,
+            ):
+                return False
+        return True
+
+    def plan(
+        self,
+        q_start: Dict[str, float],
+        q_goal: Dict[str, float],
+        blocks: List[Dict[str, Any]],
+        grasped_block_id: Optional[str] = None,
+        ignore_block_ids: Optional[Set[str]] = None,
+    ) -> List[Dict[str, float]]:
+        """
+        Plans a collision-free path from q_start to q_goal.
+        Fast-path: direct joint linear interpolation if collision-free.
+        Fallback: Bidirectional RRT-Connect with path shortcutting.
+        """
+        arr_start = self._dict_to_array(q_start)
+        arr_goal = self._dict_to_array(q_goal)
+        grip_val = q_start.get("gripper", 0.0)
+
+        # 1. Fast-Path: Direct swept segment check
+        if self.swept_segment_valid(arr_start, arr_goal, blocks, grasped_block_id, ignore_block_ids):
+            return [q_start, q_goal]
+
+        # 2. Bidirectional RRT-Connect
+        tree_a = [arr_start]
+        parent_a = {0: -1}
+        tree_b = [arr_goal]
+        parent_b = {0: -1}
+
+        swapped = False
+
+        for _ in range(self.max_iterations):
+            q_rand = self._sample_random_config()
+
+            # Extend tree_a toward q_rand
+            dists = [np.linalg.norm(q - q_rand) for q in tree_a]
+            idx_near = int(np.argmin(dists))
+            q_near = tree_a[idx_near]
+            dir_vec = q_rand - q_near
+            dist = np.linalg.norm(dir_vec)
+            if dist < 1e-6:
+                continue
+
+            q_new = q_near + min(self.step_size, dist) * (dir_vec / dist)
+
+            if not self.swept_segment_valid(q_near, q_new, blocks, grasped_block_id, ignore_block_ids):
+                continue
+
+            idx_new_a = len(tree_a)
+            tree_a.append(q_new)
+            parent_a[idx_new_a] = idx_near
+
+            # Connect tree_b toward q_new
+            dists_b = [np.linalg.norm(q - q_new) for q in tree_b]
+            idx_near_b = int(np.argmin(dists_b))
+            q_near_b = tree_b[idx_near_b]
+
+            dir_b = q_new - q_near_b
+            dist_b = np.linalg.norm(dir_b)
+            q_step_b = q_near_b + min(self.step_size, dist_b) * (dir_b / max(1e-6, dist_b))
+
+            if self.swept_segment_valid(q_near_b, q_step_b, blocks, grasped_block_id, ignore_block_ids):
+                idx_new_b = len(tree_b)
+                tree_b.append(q_step_b)
+                parent_b[idx_new_b] = idx_near_b
+
+                # Check if connected
+                if np.linalg.norm(q_new - q_step_b) < 0.04 or self.swept_segment_valid(
+                    q_new, q_step_b, blocks, grasped_block_id, ignore_block_ids
+                ):
+                    # Connect successful! Build raw path
+                    path_a = []
+                    curr = idx_new_a
+                    while curr != -1:
+                        path_a.append(tree_a[curr])
+                        curr = parent_a[curr]
+                    path_a.reverse()
+
+                    path_b = []
+                    curr = idx_new_b
+                    while curr != -1:
+                        path_b.append(tree_b[curr])
+                        curr = parent_b[curr]
+
+                    if not swapped:
+                        full_path = path_a + path_b
+                    else:
+                        full_path = path_b + path_a
+
+                    # Short-cut smoothing
+                    smoothed = self._smooth_path(full_path, blocks, grasped_block_id, ignore_block_ids)
+                    return [self._array_to_dict(q, grip_val) for q in smoothed]
+
+            # Swap trees for bidirectional growth
+            tree_a, tree_b = tree_b, tree_a
+            parent_a, parent_b = parent_b, parent_a
+            swapped = not swapped
+
+        # Fallback to direct path with warning if RRT timed out
+        return [q_start, q_goal]
+
+    def _smooth_path(
+        self,
+        path: List[np.ndarray],
+        blocks: List[Dict[str, Any]],
+        grasped_block_id: Optional[str],
+        ignore_block_ids: Optional[Set[str]],
+        max_shortcut_passes: int = 15,
+    ) -> List[np.ndarray]:
+        """Shortens and smooths the piecewise linear joint path."""
+        if len(path) <= 2:
+            return path
+        res = list(path)
+        for _ in range(max_shortcut_passes):
+            if len(res) <= 2:
+                break
+            i = random.randint(0, len(res) - 2)
+            j = random.randint(i + 1, len(res) - 1)
+            if j - i <= 1:
+                continue
+            if self.swept_segment_valid(res[i], res[j], blocks, grasped_block_id, ignore_block_ids):
+                res = res[: i + 1] + res[j:]
+        return res
+

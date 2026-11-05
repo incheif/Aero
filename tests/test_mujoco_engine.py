@@ -6,7 +6,7 @@ Verifies contact manifolds, rigid-body equilibrium, grasp dynamics, and snapshot
 import pytest
 import math
 from simulation.mujoco_engine import MujocoSimulation, MUJOCO_AVAILABLE
-from simulation.constants import CUBE_SIZE, TABLE_TOP_Y, STACK_ORIGIN, FIXED_DT
+from simulation.constants import CUBE_SIZE, TABLE_TOP_Y, STACK_ORIGIN, FIXED_DT, BLOCK_SPAWNS
 from vla.h_jepa.orchestrator import HierarchicalVLJEPAOrchestrator
 
 
@@ -18,7 +18,7 @@ class TestMujocoEngine:
         snap = sim.get_snapshot()
 
         assert snap["tick"] == 0
-        assert len(snap["blocks"]) == 7
+        assert len(snap["blocks"]) == len(BLOCK_SPAWNS)
         assert "tcp" in snap
         assert "joints" in snap
         assert "scores" in snap

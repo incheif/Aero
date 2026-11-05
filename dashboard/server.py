@@ -678,7 +678,8 @@ class UserSession:
                         s_cat = "vla"
                         s_badge = "H-JEPA"
                         s_what = f"Step {sub_idx}/{tot_subs}: Executing {cur_phase}"
-                        s_how = f"{step_cmd.get('subgoal_desc', '')} · CEM Latency: {step_cmd.get('cem_latency_ms', 0):.1f}ms · Latent Dist: {step_cmd.get('latent_distance', 0):.3f}"
+                        pred_res = step_cmd.get("prediction_residual", step_cmd.get("latent_distance", 0.0))
+                        s_how = f"{step_cmd.get('subgoal_desc', '')} · State: {cur_phase} · Prediction Residual: {pred_res:.4f}"
                         self.vla_agent.latest_thought = f"Step {sub_idx}/{tot_subs}: {cur_phase}"
 
                     self.log_event(s_cat, s_badge, s_what, s_how)
@@ -775,7 +776,8 @@ class UserSession:
                     "phase": getattr(self.vla_agent.h_jepa, "micro_phase", "IDLE"),
                     "subgoal_index": getattr(self.vla_agent.h_jepa, "current_subgoal_idx", 0),
                     "total_subgoals": len(getattr(self.vla_agent.h_jepa, "subgoals", [])),
-                    "latest_cem": getattr(self.vla_agent.h_jepa, "latest_cem_telemetry", {}),
+                    "prediction_residual": getattr(self.vla_agent.h_jepa, "latest_prediction_residual", 0.0),
+                    "state_machine": getattr(self.vla_agent.h_jepa, "micro_phase", "IDLE"),
                 },
             },
             "cost": self.vla_agent.get_cost_summary(),

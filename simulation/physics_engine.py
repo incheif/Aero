@@ -16,6 +16,8 @@ from .constants import (
     TABLE_WALL_HALF_HEIGHT,
     CUBE_SIZE,
     CUBE_HALF,
+    BLOCK_MASS,
+    BLOCK_FRICTION,
     BLOCK_SPAWNS,
     generate_random_block_spawns,
     STACK_ORIGIN,
@@ -53,6 +55,7 @@ class PhysicsBlock:
         self.rotation = [0.0, 0.0, 0.0, 1.0]
         self.is_placed: bool = False
         self.velocity = [0.0, 0.0, 0.0]
+        self.mass: float = BLOCK_MASS
         self.is_grasped = False
         self.stacked_layer: Optional[int] = None
         self.supported_by: Optional[str] = None
@@ -395,10 +398,21 @@ class RobotArmSimulation:
 
             # Gravity
             block.velocity[1] += GRAVITY_Y * dt
-            # Velocity damping
-            block.velocity[0] *= 0.92
-            block.velocity[1] *= 0.98
-            block.velocity[2] *= 0.92
+            # Heavy tabletop sliding friction damping (350g block, non-flying)
+            block.velocity[0] *= 0.88
+            block.velocity[1] *= 0.95
+            block.velocity[2] *= 0.88
+
+            # Prevent upward pop for grounded blocks
+            if block.position[1] <= min_table_y + 0.010:
+                if block.velocity[1] > 0.0:
+                    block.velocity[1] = 0.0
+
+            # Clamp maximum velocity
+            spd = math.hypot(block.velocity[0], block.velocity[1], block.velocity[2])
+            if spd > 0.35:
+                scale = 0.35 / spd
+                block.velocity = [v * scale for v in block.velocity]
 
             # Integrate position
             block.position[0] += block.velocity[0] * dt
