@@ -111,18 +111,26 @@ class ArmCollisionChecker:
             (p_shoulder, p_elbow, 0.028),  # Upper arm capsule
             (p_elbow, p_wrist, 0.025),      # Forearm capsule
             (p_wrist, p_palm, 0.022),       # Wrist capsule
+            (p_palm, p_tcp, 0.020),         # Palm-to-TCP gripper core
         ]
 
         grip_val = joints.get("gripper", 0.0)
         sep = JAW_MIN_SEP * 0.5 + ((JAW_MAX_SEP - JAW_MIN_SEP) * 0.5) * (1.0 - clamp(grip_val, 0.0, 1.0))
         jaw_l = vec_add(p_palm, quat_rotate_vec(rot, (JAW_LENGTH * 0.5, 0.0, sep)))
         jaw_r = vec_add(p_palm, quat_rotate_vec(rot, (JAW_LENGTH * 0.5, 0.0, -sep)))
+        jaw_l_tip = vec_add(p_palm, quat_rotate_vec(rot, (JAW_LENGTH, 0.0, sep)))
+        jaw_r_tip = vec_add(p_palm, quat_rotate_vec(rot, (JAW_LENGTH, 0.0, -sep)))
 
         finger_points = [
-            (jaw_l, 0.014),
-            (jaw_r, 0.014),
-            (p_palm, 0.020),
+            (jaw_l, 0.024),
+            (jaw_r, 0.024),
+            (jaw_l_tip, 0.024),
+            (jaw_r_tip, 0.024),
+            (p_palm, 0.024),
+            (p_tcp, 0.020),
         ]
+
+        safety_margin = 0.008
 
         for b in blocks:
             b_id = b.get("id")
@@ -134,22 +142,35 @@ class ArmCollisionChecker:
                 continue
             bx, by, bz = bp[0], bp[1], bp[2]
 
-            # Link capsules vs block
+            # 1. Link capsules vs actual clamped box volume (samples along segment)
             for a, c, rad in link_segments:
-                dist = self.dist_point_to_segment((bx, by, bz), a, c)
-                if dist < (rad + CUBE_HALF - 0.004):
-                    return True
+                for t in (0.0, 0.25, 0.5, 0.75, 1.0):
+                    px = a[0] + t * (c[0] - a[0])
+                    py = a[1] + t * (c[1] - a[1])
+                    pz = a[2] + t * (c[2] - a[2])
+                    cx = min(max(px, bx - CUBE_HALF), bx + CUBE_HALF)
+                    cy = min(max(py, by - CUBE_HALF), by + CUBE_HALF)
+                    cz = min(max(pz, bz - CUBE_HALF), bz + CUBE_HALF)
+                    dist = math.sqrt((px - cx)**2 + (py - cy)**2 + (pz - cz)**2)
+                    if dist < (rad + safety_margin):
+                        return True
 
-            # Fingers / Palm vs block
+            # 2. Fingers / Palm / TCP vs actual clamped box volume
             for pt, rad in finger_points:
-                dist = math.hypot(pt[0] - bx, pt[1] - by, pt[2] - bz)
-                if dist < (rad + CUBE_HALF - 0.004):
+                cx = min(max(pt[0], bx - CUBE_HALF), bx + CUBE_HALF)
+                cy = min(max(pt[1], by - CUBE_HALF), by + CUBE_HALF)
+                cz = min(max(pt[2], bz - CUBE_HALF), bz + CUBE_HALF)
+                dist = math.sqrt((pt[0] - cx)**2 + (pt[1] - cy)**2 + (pt[2] - cz)**2)
+                if dist < (rad + safety_margin):
                     return True
 
-            # If carrying a block, check carried block against obstacle blocks
+            # 3. Carried block vs obstacle blocks
             if grasped_block_id is not None:
-                dist_held = math.hypot(p_tcp[0] - bx, p_tcp[1] - by, p_tcp[2] - bz)
-                if dist_held < (CUBE_SIZE - 0.005):
+                cx = min(max(p_tcp[0], bx - CUBE_HALF), bx + CUBE_HALF)
+                cy = min(max(p_tcp[1], by - CUBE_HALF), by + CUBE_HALF)
+                cz = min(max(p_tcp[2], bz - CUBE_HALF), bz + CUBE_HALF)
+                dist_held = math.sqrt((p_tcp[0] - cx)**2 + (p_tcp[1] - cy)**2 + (p_tcp[2] - cz)**2)
+                if dist_held < (CUBE_HALF + safety_margin):
                     return True
 
         return False
@@ -162,7 +183,7 @@ class RRTConnectJointPlanner:
     Generates collision-free trajectories avoiding obstacle blocks and workcell limits.
     """
 
-    def __init__(self, step_size: float = 0.06, max_iterations: int = 150):
+    def __init__(self, step_size: float = 0.10, max_iterations: int = 250):
         self.step_size = step_size
         self.max_iterations = max_iterations
         self.checker = ArmCollisionChecker()
@@ -229,82 +250,108 @@ class RRTConnectJointPlanner:
         if self.swept_segment_valid(arr_start, arr_goal, blocks, grasped_block_id, ignore_block_ids):
             return [q_start, q_goal]
 
-        # 2. Bidirectional RRT-Connect
-        tree_a = [arr_start]
-        parent_a = {0: -1}
-        tree_b = [arr_goal]
-        parent_b = {0: -1}
+        # 2. Bidirectional RRT-Connect with explicit start and goal trees
+        tree_start = [arr_start]
+        parent_start = {0: -1}
+        tree_goal = [arr_goal]
+        parent_goal = {0: -1}
 
+        # Reference pointers for alternating tree expansion
+        t_a, p_a = tree_start, parent_start
+        t_b, p_b = tree_goal, parent_goal
         swapped = False
 
         for _ in range(self.max_iterations):
-            q_rand = self._sample_random_config()
+            # Goal biasing: 15% probability of sampling the target configuration directly
+            if random.random() < 0.15:
+                q_rand = arr_goal if not swapped else arr_start
+            else:
+                q_rand = self._sample_random_config()
 
-            # Extend tree_a toward q_rand
-            dists = [np.linalg.norm(q - q_rand) for q in tree_a]
-            idx_near = int(np.argmin(dists))
-            q_near = tree_a[idx_near]
-            dir_vec = q_rand - q_near
-            dist = np.linalg.norm(dir_vec)
-            if dist < 1e-6:
+            # Extend tree A toward q_rand
+            dists = [np.linalg.norm(q - q_rand) for q in t_a]
+            idx_near_a = int(np.argmin(dists))
+            q_near_a = t_a[idx_near_a]
+            dir_a = q_rand - q_near_a
+            dist_a = np.linalg.norm(dir_a)
+            if dist_a < 1e-6:
                 continue
 
-            q_new = q_near + min(self.step_size, dist) * (dir_vec / dist)
+            q_new_a = q_near_a + min(self.step_size, dist_a) * (dir_a / dist_a)
 
-            if not self.swept_segment_valid(q_near, q_new, blocks, grasped_block_id, ignore_block_ids):
+            if not self.swept_segment_valid(q_near_a, q_new_a, blocks, grasped_block_id, ignore_block_ids):
                 continue
 
-            idx_new_a = len(tree_a)
-            tree_a.append(q_new)
-            parent_a[idx_new_a] = idx_near
+            idx_new_a = len(t_a)
+            t_a.append(q_new_a)
+            p_a[idx_new_a] = idx_near_a
 
-            # Connect tree_b toward q_new
-            dists_b = [np.linalg.norm(q - q_new) for q in tree_b]
-            idx_near_b = int(np.argmin(dists_b))
-            q_near_b = tree_b[idx_near_b]
+            # Greedily connect tree B toward q_new_a until reached or collision
+            dists_b = [np.linalg.norm(q - q_new_a) for q in t_b]
+            idx_curr_b = int(np.argmin(dists_b))
+            q_curr_b = t_b[idx_curr_b]
+            connected = False
 
-            dir_b = q_new - q_near_b
-            dist_b = np.linalg.norm(dir_b)
-            q_step_b = q_near_b + min(self.step_size, dist_b) * (dir_b / max(1e-6, dist_b))
+            while True:
+                dir_b = q_new_a - q_curr_b
+                dist_b = np.linalg.norm(dir_b)
+                if dist_b < 1e-5:
+                    break
+                step_b = min(self.step_size, dist_b)
+                q_step_b = q_curr_b + step_b * (dir_b / dist_b)
 
-            if self.swept_segment_valid(q_near_b, q_step_b, blocks, grasped_block_id, ignore_block_ids):
-                idx_new_b = len(tree_b)
-                tree_b.append(q_step_b)
-                parent_b[idx_new_b] = idx_near_b
+                if not self.swept_segment_valid(q_curr_b, q_step_b, blocks, grasped_block_id, ignore_block_ids):
+                    break
 
-                # Check if connected
-                if np.linalg.norm(q_new - q_step_b) < 0.04 or self.swept_segment_valid(
-                    q_new, q_step_b, blocks, grasped_block_id, ignore_block_ids
+                idx_new_b = len(t_b)
+                t_b.append(q_step_b)
+                p_b[idx_new_b] = idx_curr_b
+                q_curr_b = q_step_b
+                idx_curr_b = idx_new_b
+
+                if np.linalg.norm(q_new_a - q_step_b) < 0.04 or self.swept_segment_valid(
+                    q_new_a, q_step_b, blocks, grasped_block_id, ignore_block_ids
                 ):
-                    # Connect successful! Build raw path
-                    path_a = []
-                    curr = idx_new_a
-                    while curr != -1:
-                        path_a.append(tree_a[curr])
-                        curr = parent_a[curr]
-                    path_a.reverse()
+                    connected = True
+                    break
 
-                    path_b = []
-                    curr = idx_new_b
-                    while curr != -1:
-                        path_b.append(tree_b[curr])
-                        curr = parent_b[curr]
+            if connected:
+                # Connection successful! Build path from start to goal
+                if not swapped:
+                    idx_start_junction = idx_new_a
+                    idx_goal_junction = idx_curr_b
+                else:
+                    idx_start_junction = idx_curr_b
+                    idx_goal_junction = idx_new_a
 
-                    if not swapped:
-                        full_path = path_a + path_b
-                    else:
-                        full_path = path_b + path_a
+                    # Path from start to junction
+                    path_from_start = []
+                    curr = idx_start_junction
+                    while curr != -1:
+                        path_from_start.append(tree_start[curr])
+                        curr = parent_start[curr]
+                    path_from_start.reverse()  # now [arr_start, ..., junction]
+
+                    # Path from junction to goal
+                    path_to_goal = []
+                    curr = idx_goal_junction
+                    while curr != -1:
+                        path_to_goal.append(tree_goal[curr])
+                        curr = parent_goal[curr]
+                    # path_to_goal is already [junction, ..., arr_goal]
+
+                    full_path = path_from_start + path_to_goal
 
                     # Short-cut smoothing
                     smoothed = self._smooth_path(full_path, blocks, grasped_block_id, ignore_block_ids)
                     return [self._array_to_dict(q, grip_val) for q in smoothed]
 
-            # Swap trees for bidirectional growth
-            tree_a, tree_b = tree_b, tree_a
-            parent_a, parent_b = parent_b, parent_a
+            # Alternate tree roles for symmetric bidirectional growth
+            t_a, t_b = t_b, t_a
+            p_a, p_b = p_b, p_a
             swapped = not swapped
 
-        # Fallback to direct path with warning if RRT timed out
+        # Fallback to direct path if RRT reached max iterations
         return [q_start, q_goal]
 
     def _smooth_path(
@@ -329,6 +376,62 @@ class RRTConnectJointPlanner:
             if self.swept_segment_valid(res[i], res[j], blocks, grasped_block_id, ignore_block_ids):
                 res = res[: i + 1] + res[j:]
         return res
+
+    def interpolate_trajectory(
+        self,
+        path: List[Dict[str, float]],
+        max_step_rad: float = 0.04,
+    ) -> List[Dict[str, float]]:
+        """Densely interpolates a joint waypoint path into fine-grained motion steps."""
+        if len(path) <= 1:
+            return path
+        dense: List[Dict[str, float]] = [path[0]]
+        for i in range(len(path) - 1):
+            q_a = path[i]
+            q_b = path[i + 1]
+            grip = q_b.get("gripper", q_a.get("gripper", 0.0))
+            max_d = max(abs(q_b[k] - q_a[k]) for k in self.joint_names)
+            steps = max(1, int(math.ceil(max_d / max_step_rad)))
+            for s in range(1, steps + 1):
+                alpha = s / float(steps)
+                interp = {k: q_a[k] + alpha * (q_b[k] - q_a[k]) for k in self.joint_names}
+                interp["gripper"] = float(grip)
+                dense.append(interp)
+        return dense
+
+
+def interpolate_joint_trajectory(
+    path: List[Dict[str, float]],
+    max_step_rad: float = 0.04,
+) -> List[Dict[str, float]]:
+    """Top-level helper to densely interpolate a joint waypoint trajectory."""
+    planner = RRTConnectJointPlanner()
+    return planner.interpolate_trajectory(path, max_step_rad=max_step_rad)
+
+
+def plan_collision_free_transit(
+    start_joints: Dict[str, float],
+    goal_joints: Dict[str, float],
+    blocks: List[Dict[str, Any]],
+    grasped_block_id: Optional[str] = None,
+    ignore_block_ids: Optional[Set[str]] = None,
+    max_step_rad: float = 0.04,
+) -> List[Dict[str, float]]:
+    """
+    Plans a collision-free transit trajectory between two joint configurations.
+    Uses fast-path linear swept segment if unobstructed, or RRT-Connect obstacle detour if blocked.
+    Densely interpolates the resulting trajectory for continuous kinematic tracking.
+    """
+    planner = RRTConnectJointPlanner()
+    raw_path = planner.plan(
+        start_joints,
+        goal_joints,
+        blocks=blocks,
+        grasped_block_id=grasped_block_id,
+        ignore_block_ids=ignore_block_ids,
+    )
+    return interpolate_joint_trajectory(raw_path, max_step_rad=max_step_rad)
+
 
 
 def plan_cartesian_transit(
