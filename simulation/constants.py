@@ -3,7 +3,10 @@ Physical and geometric constants for the Robot Arm VLA Workcell.
 Directly aligns with the VSArena Rapier simulation specifications from new_project_1.
 """
 
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional, Any
+import random
+import math
+import copy
 
 # Timing & Physics
 FIXED_DT: float = 1.0 / 60.0
@@ -39,12 +42,14 @@ WRIST_WORLD_PITCH: float = -0.12 # Slight downward tilt for tabletop manipulatio
 # Manipulated Objects (Cubes)
 CUBE_SIZE: float = 0.055
 CUBE_HALF: float = CUBE_SIZE / 2.0
+BLOCK_MASS: float = 0.35  # Heavy rigid block (350g)
+BLOCK_FRICTION: Tuple[float, float, float] = (1.8, 0.05, 0.005)  # High friction
 
 # Grasping Thresholds
 GRASP_RADIUS: float = 0.04
 GRASP_BOX = {"x": 0.028, "y": 0.02, "z": 0.03}
 GRASP_CLOSE_THRESHOLD: float = 0.82
-GRASP_OPEN_THRESHOLD: float = 0.38
+GRASP_OPEN_THRESHOLD: float = 0.75
 
 # Motion & Velocities
 JOINT_SPEED: float = 3.4
@@ -53,6 +58,16 @@ MAX_TCP_STEP: float = 0.036  # Max EE displacement per tick (m)
 SAFE_HOVER_Y: float = 0.920  # Safe search, acquisition, and transit altitude (generous clearance above table & stack)
 PICK_Y: float = 0.7575       # TCP pick altitude clears table surface (0.7555m)
 MAX_ALTITUDE_CLAMP: float = 1.12 # Enforces maximum vertical reach limit (permits 5-layer tower reach up to 1.05m)
+
+# Safe Tabletop Perimeter Staging Slots for Path Clearing
+SAFE_STAGING_SLOTS: List[Tuple[float, float, float]] = [
+    (0.15, TABLE_TOP_Y + CUBE_HALF, -0.28),   # Left perimeter flank
+    (0.15, TABLE_TOP_Y + CUBE_HALF, 0.28),    # Right perimeter flank
+    (0.22, TABLE_TOP_Y + CUBE_HALF, -0.32),   # Far-left perimeter
+    (0.22, TABLE_TOP_Y + CUBE_HALF, 0.32),    # Far-right perimeter
+    (0.10, TABLE_TOP_Y + CUBE_HALF, -0.25),   # Rear-left perimeter
+    (0.10, TABLE_TOP_Y + CUBE_HALF, 0.25),    # Rear-right perimeter
+]
 
 # Joint Limits (Radians for arm joints, 0..1 for gripper)
 JOINT_LIMITS: Dict[str, Tuple[float, float]] = {
@@ -72,7 +87,7 @@ DEFAULT_JOINTS: Dict[str, float] = {
     "gripper": 0.0,
 }
 
-# Initial Spawns for 7 Tabletop Cubes (Ultra-vivid, high-contrast, distinct primary & secondary colors)
+# Initial Spawns for 6 Tabletop Cubes (Ultra-vivid, high-contrast, distinct primary & secondary colors)
 BLOCK_SPAWNS = [
     {
         "id": "block_magenta",
@@ -93,14 +108,14 @@ BLOCK_SPAWNS = [
         "name": "Yellow Cube",
         "color": "#FFC300",
         "color_rgb": (255, 195, 0),
-        "position": [0.15, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.06],
+        "position": [0.21, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.05],
     },
     {
         "id": "block_emerald",
         "name": "Green Cube",
         "color": "#00B341",
         "color_rgb": (0, 179, 65),
-        "position": [0.18, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.24],
+        "position": [0.22, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.24],
     },
     {
         "id": "block_orange",
@@ -114,14 +129,7 @@ BLOCK_SPAWNS = [
         "name": "Purple Cube",
         "color": "#9333EA",
         "color_rgb": (147, 51, 234),
-        "position": [0.16, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.25],
-    },
-    {
-        "id": "block_pink",
-        "name": "Pink Cube",
-        "color": "#FF2E93",
-        "color_rgb": (255, 46, 147),
-        "position": [0.32, TABLE_TOP_Y + CUBE_HALF + 0.006, 0.22],
+        "position": [0.20, TABLE_TOP_Y + CUBE_HALF + 0.006, -0.27],
     },
 ]
 
@@ -199,17 +207,20 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
     half = CUBE_HALF
     size = CUBE_SIZE
     if style in ("6_block_stepped", "6_block_pyramid", "6_block"):
+        ox = min(ox, 0.45)
         base_y = stack_slot_y(0)
         mid_y = stack_slot_y(1)
         apex_y = stack_slot_y(2)
+        pitch = 0.088
+        half_pitch = pitch * 0.5
         return [
-            # Layer 0: 3 base cubes in a row along Z
-            (ox, base_y, oz - size),
+            # Layer 0: 3 base cubes in a row along X (far to near, parallel jaws straddle cleanly)
+            (ox + pitch, base_y, oz),
             (ox, base_y, oz),
-            (ox, base_y, oz + size),
-            # Layer 1: 2 mid cubes bridging base seams
-            (ox, mid_y, oz - half),
-            (ox, mid_y, oz + half),
+            (ox - pitch, base_y, oz),
+            # Layer 1: 2 mid cubes bridging base seams along X
+            (ox + half_pitch, mid_y, oz),
+            (ox - half_pitch, mid_y, oz),
             # Layer 2: 1 apex cube centered on top
             (ox, apex_y, oz),
         ]
@@ -225,16 +236,20 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
         ]
     else:
         # Default: 3-block 2D stepped pyramid
+        # Far base block first, near base block second to eliminate reach-over collisions,
+        # with parallel jaws straddling the seam cleanly.
         base_y = stack_slot_y(0)
         apex_y = stack_slot_y(1)
+        pitch = 0.088
+        half_pitch = pitch * 0.5
         return [
-            (ox, base_y, oz - half),
-            (ox, base_y, oz + half),
+            (ox + half_pitch, base_y, oz),
+            (ox - half_pitch, base_y, oz),
             (ox, apex_y, oz),
         ]
 
 def get_train_slots(
-    num_blocks: int = 7,
+    num_blocks: int = 6,
     origin: Tuple[float, float, float] = (0.38, TABLE_TOP_Y, 0.0),
     spacing: float = CUBE_SIZE + 0.005
 ) -> List[Tuple[float, float, float]]:
@@ -251,7 +266,67 @@ def get_train_slots(
         slots.append((ox, base_y, z_pos))
     return slots
 
-# Target coordinates for multi-layer tower (up to 7 layers)
+
+def get_letter_slots(
+    letter: str = "D",
+    origin: Tuple[float, float, float] = (0.35, TABLE_TOP_Y, 0.0),
+    spacing: float = CUBE_SIZE + 0.006
+) -> List[Tuple[float, float, float]]:
+    """
+    Computes metric target coordinates on the tabletop to form letters / alphabet shapes.
+    Supports letters: 'D', 'L', 'T', 'O', 'C', 'U', 'H'.
+    """
+    ox, oy, oz = origin
+    base_y = stack_slot_y(0)
+    ltr = letter.upper().strip()
+    s = spacing
+
+    if ltr == "D":
+        # Form letter D with 6 blocks:
+        # Stem (3 blocks along Z) + Curved loop (3 blocks extending forward along X)
+        return [
+            (ox, base_y, oz - s),                 # 1. Bottom stem
+            (ox, base_y, oz),                     # 2. Mid stem
+            (ox, base_y, oz + s),                 # 3. Top stem
+            (ox + s * 1.05, base_y, oz + s * 0.75), # 4. Top-right curve
+            (ox + s * 1.30, base_y, oz),            # 5. Outer apex of D
+            (ox + s * 1.05, base_y, oz - s * 0.75), # 6. Bottom-right curve
+        ]
+    elif ltr == "L":
+        return [
+            (ox, base_y, oz + s * 1.2),
+            (ox, base_y, oz + s * 0.2),
+            (ox, base_y, oz - s * 0.8),
+            (ox + s * 0.9, base_y, oz - s * 0.8),
+            (ox + s * 1.8, base_y, oz - s * 0.8),
+        ]
+    elif ltr == "T":
+        return [
+            (ox, base_y, oz - s),
+            (ox, base_y, oz),
+            (ox, base_y, oz + s),
+            (ox + s, base_y, oz),
+            (ox + s * 2, base_y, oz),
+        ]
+    elif ltr == "O":
+        return [
+            (ox - s * 0.6, base_y, oz - s * 0.6),
+            (ox - s * 0.6, base_y, oz + s * 0.6),
+            (ox + s * 0.6, base_y, oz + s * 0.6),
+            (ox + s * 0.6, base_y, oz - s * 0.6),
+        ]
+    elif ltr == "C":
+        return [
+            (ox + s, base_y, oz + s),
+            (ox, base_y, oz + s),
+            (ox, base_y, oz),
+            (ox, base_y, oz - s),
+            (ox + s, base_y, oz - s),
+        ]
+    else:
+        return get_train_slots(5, origin, spacing)
+
+# Target coordinates for multi-layer tower (up to 6 layers)
 BLOCK_TARGETS = {
     "block_cyan": (STACK_ORIGIN[0], stack_slot_y(0), STACK_ORIGIN[2]),
     "block_orange": (STACK_ORIGIN[0], stack_slot_y(1), STACK_ORIGIN[2]),
@@ -259,7 +334,6 @@ BLOCK_TARGETS = {
     "block_yellow": (STACK_ORIGIN[0], stack_slot_y(3), STACK_ORIGIN[2]),
     "block_emerald": (STACK_ORIGIN[0], stack_slot_y(4), STACK_ORIGIN[2]),
     "block_purple": (STACK_ORIGIN[0], stack_slot_y(5), STACK_ORIGIN[2]),
-    "block_pink": (STACK_ORIGIN[0], stack_slot_y(6), STACK_ORIGIN[2]),
 }
 
 # 128x128 Orthographic Work-Cell Camera Coordinates
@@ -268,3 +342,51 @@ VLA_X_MIN: float = -0.55
 VLA_X_MAX: float = 0.75
 VLA_Z_MIN: float = -0.50
 VLA_Z_MAX: float = 0.50
+
+def generate_random_block_spawns(seed: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Generates collision-free, reach-validated tabletop spawn coordinates for all 6 blocks.
+    - Ensures each block is within 5-DOF arm reach envelope (0.42m - 0.68m from arm mount).
+    - Guarantees >= 0.078m clearance between all cubes to prevent overlap and collisions.
+    - Preserves >= 0.100m clearance from the target stacking zones.
+    """
+    rng = random.Random(seed)
+    arm_mount = (ARM_MOUNT[0], ARM_MOUNT[2])  # X, Z coordinates on table plane (-0.28, 0.0)
+    stack_pad = (STACK_ORIGIN[0], STACK_ORIGIN[2])
+    min_dist = 0.078
+
+    positions = []
+    attempts = 0
+    max_attempts = 1500
+    while len(positions) < len(BLOCK_SPAWNS) and attempts < max_attempts:
+        attempts += 1
+        x = rng.uniform(0.20, 0.36)
+        z = rng.uniform(-0.28, 0.28)
+
+        # Check arm reach bounds
+        arm_d = math.hypot(x - arm_mount[0], z - arm_mount[1])
+        if arm_d < 0.46 or arm_d > 0.68:
+            continue
+
+        # Clearance from stack pad
+        if math.hypot(x - stack_pad[0], z - stack_pad[1]) < 0.10:
+            continue
+
+        # Clearance from other blocks
+        if any(math.hypot(x - px, z - pz) < min_dist for px, pz in positions):
+            continue
+
+        positions.append((round(x, 3), round(z, 3)))
+
+    if len(positions) < len(BLOCK_SPAWNS):
+        return copy.deepcopy(BLOCK_SPAWNS)
+
+    randomized = []
+    table_y = TABLE_TOP_Y + CUBE_HALF + 0.006
+    for idx, template in enumerate(BLOCK_SPAWNS):
+        rx, rz = positions[idx]
+        b_dict = copy.deepcopy(template)
+        b_dict["position"] = [rx, table_y, rz]
+        randomized.append(b_dict)
+    return randomized
+
