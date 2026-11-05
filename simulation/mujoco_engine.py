@@ -358,6 +358,18 @@ class MujocoSimulation:
 
         mujoco.mj_forward(self.model, self.data)
 
+    def get_block_pose(self, block_id: str) -> Dict[str, Any]:
+        """Returns the position [x, y, z] and rotation quaternion [qx, qy, qz, qw] of a block in MuJoCo."""
+        if block_id not in self.joint_indices:
+            raise KeyError(f"Block '{block_id}' not found in simulation")
+        adr = self.joint_indices[block_id]
+        qp = adr["qpos_adr"]
+        pos = [float(p) for p in self.data.qpos[qp : qp + 3]]
+        # MuJoCo internal order is [qw, qx, qy, qz]; convert to standard [qx, qy, qz, qw]
+        w, x, y, z = self.data.qpos[qp + 3 : qp + 7]
+        rot = [float(x), float(y), float(z), float(w)]
+        return {"position": pos, "rotation": rot}
+
     def reset(self, randomize: bool = False):
         self.tick = 0
         self.joints = copy.deepcopy(DEFAULT_JOINTS)
