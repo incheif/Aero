@@ -107,9 +107,12 @@ class TrajectoryController:
         step_pitches = current_step.get("candidate_pitches")
         if step_pitches is None and current_step.get("world_pitch") is not None:
             step_pitches = [current_step["world_pitch"]]
+        cur_pitch = current_joints.get("shoulderPitch", 0.0) + current_joints.get("elbowPitch", 0.0) + current_joints.get("wristPitch", 0.0)
         if step_pitches is None:
-            cur_pitch = current_joints.get("shoulderPitch", 0.0) + current_joints.get("elbowPitch", 0.0) + current_joints.get("wristPitch", 0.0)
             step_pitches = [cur_pitch, -1.25, -1.0, -1.45, -0.60, -0.12]
+        else:
+            # Preserve pitch continuity across ticks to avoid mid-trajectory joint branch flipping
+            step_pitches = sorted(step_pitches, key=lambda p: abs(p - cur_pitch))
 
         # Compute IK targets for the interpolated setpoint along the 3D line segment
         joint_targets = inverse_kinematics(tuple(self.current_setpoint), gripper=desired_gripper, candidate_pitches=step_pitches)

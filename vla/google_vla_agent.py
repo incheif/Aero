@@ -19,6 +19,8 @@ from simulation.constants import (
     SAFE_HOVER_Y,
     PICK_Y,
     TABLE_TOP_Y,
+    CUBE_SIZE,
+    CUBE_HALF,
     stack_slot_y,
     get_pyramid_slots,
     get_train_slots,
@@ -580,6 +582,7 @@ Output a JSON object ONLY with the following schema:
                         "color": b["color"],
                         "source_coords": [bx, by, bz],
                         "target_zone": f"Tower {t_idx+1} [Z={t_origin[2]:.2f}]",
+                        "target_coords": [t_origin[0], target_y, t_origin[2]],
                         "target_layer": layer_idx,
                     })
                     steps = self._generate_pick_and_place(
@@ -808,7 +811,13 @@ Output a JSON object ONLY with the following schema:
         # Calculate safe transit hover altitude above any existing stack layers or clearance planes
         transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, min_transit_y or 0.0)
 
-        place_y = dst_y + 0.002
+        # Place altitude corresponds to PICK_Y plus vertical layer offset above table.
+        # For stacked layers (layer_offset > 0), add a 4mm lift buffer so parallel jaw tips
+        # cleanly clear the top surface of the underlying base cube (+5.8mm margin),
+        # completely eliminating jaw wedging and block deflection.
+        layer_offset = max(0.0, dst_y - (TABLE_TOP_Y + CUBE_HALF))
+        stack_clearance_pad = 0.008 if layer_offset > 0.01 else 0.000
+        place_y = PICK_Y + layer_offset + stack_clearance_pad
         return [
             # 1. Safe Hover over source object
             {
@@ -862,7 +871,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Soft descent to placement altitude {dst_y:.3f}m",
                 "dwell_ticks": 15 + extra_dwell,
-                "candidate_pitches": [-1.25, -1.0, -0.60, -0.12],
+                "candidate_pitches": [-1.25, -1.0, -1.45, -0.60, -0.12],
             },
             # 7. Zero-impulse release: hold stationary while opening jaws
             {
@@ -871,7 +880,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 0.60,
                 "desc": "Zero-impulse jaw release (prevent tower topple)",
                 "dwell_ticks": 20 + extra_dwell,
-                "candidate_pitches": [-1.25, -1.0, -0.60, -0.12],
+                "candidate_pitches": [-1.25, -1.0, -1.45, -0.60, -0.12],
             },
             # 8. Vertical ascend to safe hover
             {

@@ -48,15 +48,15 @@ BLOCK_FRICTION: Tuple[float, float, float] = (1.8, 0.05, 0.005)  # High friction
 # Grasping Thresholds
 GRASP_RADIUS: float = 0.04
 GRASP_BOX = {"x": 0.028, "y": 0.02, "z": 0.03}
-GRASP_CLOSE_THRESHOLD: float = 0.82
-GRASP_OPEN_THRESHOLD: float = 0.75
+GRASP_CLOSE_THRESHOLD: float = 0.72
+GRASP_OPEN_THRESHOLD: float = 0.65
 
 # Motion & Velocities
 JOINT_SPEED: float = 3.4
 GRIPPER_SPEED: float = 3.6
 MAX_TCP_STEP: float = 0.036  # Max EE displacement per tick (m)
 SAFE_HOVER_Y: float = 0.920  # Safe search, acquisition, and transit altitude (generous clearance above table & stack)
-PICK_Y: float = 0.7575       # TCP pick altitude clears table surface (0.7555m)
+PICK_Y: float = 0.772        # TCP pick altitude clears table surface (lowest jaw corner stays > 1.7mm above table surface)
 MAX_ALTITUDE_CLAMP: float = 1.12 # Enforces maximum vertical reach limit (permits 5-layer tower reach up to 1.05m)
 
 # Safe Tabletop Perimeter Staging Slots for Path Clearing
@@ -134,10 +134,10 @@ BLOCK_SPAWNS = [
 ]
 
 # Target Landing Zones
-STACK_ORIGIN: Tuple[float, float, float] = (0.48, TABLE_TOP_Y, 0.22)
-# Distinct Dual Tower Landing Zones (separated along Z to eliminate workspace collision)
-STACK_ORIGIN_A: Tuple[float, float, float] = (0.46, TABLE_TOP_Y, 0.10)
-STACK_ORIGIN_B: Tuple[float, float, float] = (0.46, TABLE_TOP_Y, 0.32)
+STACK_ORIGIN: Tuple[float, float, float] = (0.45, TABLE_TOP_Y, 0.20)
+# Distinct Dual Tower Landing Zones (optimally positioned within vertical top-down reach envelope)
+STACK_ORIGIN_A: Tuple[float, float, float] = (0.40, TABLE_TOP_Y, 0.10)
+STACK_ORIGIN_B: Tuple[float, float, float] = (0.40, TABLE_TOP_Y, 0.26)
 
 TARGET_ZONE_RADIUS: float = 0.048
 STACK_TOLERANCE: float = 0.038  # Tolerance in meters to verify stacked placement
@@ -145,7 +145,7 @@ STACK_TOLERANCE: float = 0.038  # Tolerance in meters to verify stacked placemen
 def get_distinct_tower_origins(num_towers: int) -> List[Tuple[float, float, float]]:
     """
     Computes distinct, reachable tabletop origin coordinates for N towers (1 to 7).
-    Maintains clean spatial clearance between towers along the Z axis.
+    Maintains clean spatial clearance between towers along the Z axis within the vertical grasp envelope.
     """
     if num_towers <= 1:
         return [STACK_ORIGIN]
@@ -153,43 +153,43 @@ def get_distinct_tower_origins(num_towers: int) -> List[Tuple[float, float, floa
         return [STACK_ORIGIN_A, STACK_ORIGIN_B]
     elif num_towers == 3:
         return [
-            (0.46, TABLE_TOP_Y, 0.08),  # Tower 1 (North)
-            (0.48, TABLE_TOP_Y, 0.22),  # Tower 2 (Center)
-            (0.46, TABLE_TOP_Y, 0.34),  # Tower 3 (South)
+            (0.40, TABLE_TOP_Y, 0.08),  # Tower 1 (North)
+            (0.42, TABLE_TOP_Y, 0.18),  # Tower 2 (Center)
+            (0.40, TABLE_TOP_Y, 0.28),  # Tower 3 (South)
         ]
     elif num_towers == 4:
         return [
-            (0.45, TABLE_TOP_Y, 0.06),
-            (0.47, TABLE_TOP_Y, 0.16),
-            (0.47, TABLE_TOP_Y, 0.26),
-            (0.45, TABLE_TOP_Y, 0.36),
+            (0.40, TABLE_TOP_Y, 0.06),
+            (0.42, TABLE_TOP_Y, 0.14),
+            (0.42, TABLE_TOP_Y, 0.22),
+            (0.40, TABLE_TOP_Y, 0.30),
         ]
     elif num_towers == 5:
         return [
-            (0.45, TABLE_TOP_Y, 0.05),
-            (0.46, TABLE_TOP_Y, 0.13),
-            (0.48, TABLE_TOP_Y, 0.21),
-            (0.46, TABLE_TOP_Y, 0.29),
-            (0.45, TABLE_TOP_Y, 0.37),
+            (0.40, TABLE_TOP_Y, 0.05),
+            (0.41, TABLE_TOP_Y, 0.11),
+            (0.42, TABLE_TOP_Y, 0.18),
+            (0.41, TABLE_TOP_Y, 0.24),
+            (0.40, TABLE_TOP_Y, 0.30),
         ]
     elif num_towers == 6:
         return [
-            (0.44, TABLE_TOP_Y, 0.04),
-            (0.46, TABLE_TOP_Y, 0.11),
-            (0.48, TABLE_TOP_Y, 0.18),
-            (0.48, TABLE_TOP_Y, 0.25),
-            (0.46, TABLE_TOP_Y, 0.32),
-            (0.44, TABLE_TOP_Y, 0.38),
+            (0.40, TABLE_TOP_Y, 0.04),
+            (0.41, TABLE_TOP_Y, 0.09),
+            (0.42, TABLE_TOP_Y, 0.15),
+            (0.42, TABLE_TOP_Y, 0.21),
+            (0.41, TABLE_TOP_Y, 0.26),
+            (0.40, TABLE_TOP_Y, 0.31),
         ]
     else:  # 7 towers
         return [
-            (0.43, TABLE_TOP_Y, 0.03),
-            (0.45, TABLE_TOP_Y, 0.09),
-            (0.47, TABLE_TOP_Y, 0.15),
-            (0.48, TABLE_TOP_Y, 0.21),
-            (0.47, TABLE_TOP_Y, 0.27),
-            (0.45, TABLE_TOP_Y, 0.33),
-            (0.43, TABLE_TOP_Y, 0.39),
+            (0.40, TABLE_TOP_Y, 0.03),
+            (0.41, TABLE_TOP_Y, 0.08),
+            (0.42, TABLE_TOP_Y, 0.13),
+            (0.42, TABLE_TOP_Y, 0.18),
+            (0.42, TABLE_TOP_Y, 0.23),
+            (0.41, TABLE_TOP_Y, 0.28),
+            (0.40, TABLE_TOP_Y, 0.33),
         ]
 
 def stack_slot_y(layer: int) -> float:

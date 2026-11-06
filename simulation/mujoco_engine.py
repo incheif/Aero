@@ -715,13 +715,15 @@ class MujocoSimulation:
                     grasped_block.is_grasped = False
                     grasped_block.is_placed = True
                     self.last_released_id = self.grasped_block_id
+                    adr = self.joint_indices[grasped_block.id]
+                    qp = adr["qpos_adr"]
+                    self.last_released_pos = (float(self.data.qpos[qp]), float(self.data.qpos[qp + 2]))
                     self.grasped_block_id = None
                     self.grasp_relative_pos = None
                     self.grasp_relative_rot = None
                     self.release_cooldown_ticks = 20
 
                     # Give physical settling velocity in MuJoCo
-                    adr = self.joint_indices[grasped_block.id]
                     self.data.qvel[adr["qvel_adr"] : adr["qvel_adr"] + 3] = [0.0, -0.05, 0.0]
                 else:
                     # Maintain exact invariant relative SE(3) transform during motion
@@ -737,7 +739,7 @@ class MujocoSimulation:
                         r_rel = quat_rotate_vec(tcp_quat_conj, (bp[0] - tcp_pos[0], bp[1] - tcp_pos[1], bp[2] - tcp_pos[2]))
                         q_rel = quat_mul(tcp_quat_conj, b_quat)
                         q_rel = snap_cube_rotation(q_rel)
-                        r_rel = (r_rel[0], r_rel[1], 0.0)
+                        r_rel = (r_rel[0], 0.0, 0.0)
                         self.grasp_relative_pos = r_rel
                         self.grasp_relative_rot = q_rel
 
@@ -780,7 +782,7 @@ class MujocoSimulation:
                 r_rel = quat_rotate_vec(tcp_quat_conj, (bp[0] - tcp_pos[0], bp[1] - tcp_pos[1], bp[2] - tcp_pos[2]))
                 q_rel = quat_mul(tcp_quat_conj, b_quat)
                 q_rel = snap_cube_rotation(q_rel)
-                r_rel = (0.0, r_rel[1], 0.0)
+                r_rel = (r_rel[0], 0.0, 0.0)
 
                 self.grasp_relative_pos = r_rel
                 self.grasp_relative_rot = q_rel
@@ -809,8 +811,11 @@ class MujocoSimulation:
             qp_chk = adr_chk["qpos_adr"]
             qv_chk = adr_chk["qvel_adr"]
 
-            # During release cooldown, ensure opening fingers do not kick the placed block
+            # During release cooldown, ensure opening fingers do not kick or drift the placed block
             if self.release_cooldown_ticks > 0 and b_id_chk == getattr(self, "last_released_id", None):
+                if getattr(self, "last_released_pos", None) is not None:
+                    self.data.qpos[qp_chk] = self.last_released_pos[0]
+                    self.data.qpos[qp_chk + 2] = self.last_released_pos[1]
                 self.data.qvel[qv_chk] = 0.0
                 self.data.qvel[qv_chk + 2] = 0.0
                 self.data.qvel[qv_chk + 3 : qv_chk + 6] = 0.0

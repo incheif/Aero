@@ -172,3 +172,75 @@ class TestPyramidAssembly:
         assert math.hypot(yellow["position"][0] - 0.21, yellow["position"][2] - (-0.05)) < 0.015, (
             "Flanking Yellow block disturbed during Blue Cube pick"
         )
+
+    @pytest.mark.skipif(not MUJOCO_AVAILABLE, reason="MuJoCo not installed")
+    def test_04_distinct_towers_zero_table_penetration(self):
+        """
+        Verify autonomous multi-tower construction: 'Make 2 distinct towers of 2 blocks each.'
+        Validates:
+        1. GoogleVLAAgent synthesizes complete multi-tower plan (33 steps).
+        2. Closed-loop physics execution achieves 100% stable dual tower stacking.
+        3. Zero table penetration: All blocks maintain Y >= 0.7425m throughout execution.
+        4. Tower 1: block_yellow stacked on block_cyan (upright=True, supported_by=block_cyan).
+        5. Tower 2: block_emerald stacked on block_magenta (upright=True, supported_by=block_magenta).
+        6. Spatial separation: Towers maintain clean clearance (delta_Z >= 0.14m).
+        """
+        sim = MujocoSimulation()
+        agent = GoogleVLAAgent()
+        agent.api_key = ""
+        agent.interpreter.api_key = ""
+        agent.execution_mode = "deterministic"
+        snapshot = sim.get_snapshot()
+
+        res = agent.parse_instruction("Make 2 distinct towers of 2 blocks each.", None, snapshot, {})
+        plan = res.get("plan", [])
+        assert len(plan) == 33, f"Expected 33 plan steps for 2 dual towers, got {len(plan)}"
+
+        controller = TrajectoryController()
+        controller.load_plan(plan)
+
+        min_altitudes = {b["id"]: 99.0 for b in snapshot["blocks"]}
+
+        for tick in range(1100):
+            if not controller.is_active:
+                break
+            fk = forward_kinematics(sim.joints)
+            tcp = fk["tcp"]["position"]
+            cmd = controller.step(tcp, sim.joints)
+            if cmd is not None:
+                sim.set_joint_targets(cmd["joints"], cmd.get("gripper"))
+            sim.step(FIXED_DT)
+            for b_chk in sim.get_snapshot()["blocks"]:
+                min_altitudes[b_chk["id"]] = min(min_altitudes[b_chk["id"]], b_chk["position"][1])
+
+        snap = sim.get_snapshot()
+        blocks = {b["id"]: b for b in snap["blocks"]}
+
+        # 1. Zero table penetration validation: Table top is 0.720m, cube center is 0.7475m
+        for b_id, min_y in min_altitudes.items():
+            assert min_y >= TABLE_TOP_Y + CUBE_HALF - 0.005, (
+                f"Block {b_id} penetrated table surface! min_Y = {min_y:.4f}m (table surface is {TABLE_TOP_Y}m)"
+            )
+
+        # 2. Tower 1 validation (block_cyan + block_yellow)
+        cyan = blocks["block_cyan"]
+        yellow = blocks["block_yellow"]
+        assert cyan.get("supported_by") == "table", f"Tower 1 base block_cyan not supported by table: {cyan.get('supported_by')}"
+        assert yellow.get("supported_by") == "block_cyan", f"Tower 1 top block_yellow not supported by block_cyan: {yellow.get('supported_by')}"
+        assert cyan.get("orientation_score", 1.0) >= 0.88, "Tower 1 base block_cyan toppled"
+        assert yellow.get("orientation_score", 1.0) >= 0.88, "Tower 1 top block_yellow toppled"
+        assert yellow["position"][1] >= 0.795, f"Tower 1 height {yellow['position'][1]:.3f}m below expected Layer 1 altitude"
+
+        # 3. Tower 2 validation (block_magenta + block_emerald)
+        magenta = blocks["block_magenta"]
+        emerald = blocks["block_emerald"]
+        assert magenta.get("supported_by") == "table", f"Tower 2 base block_magenta not supported by table: {magenta.get('supported_by')}"
+        assert emerald.get("supported_by") == "block_magenta", f"Tower 2 top block_emerald not supported by block_magenta: {emerald.get('supported_by')}"
+        assert magenta.get("orientation_score", 1.0) >= 0.88, "Tower 2 base block_magenta toppled"
+        assert emerald.get("orientation_score", 1.0) >= 0.88, "Tower 2 top block_emerald toppled"
+        assert emerald["position"][1] >= 0.795, f"Tower 2 height {emerald['position'][1]:.3f}m below expected Layer 1 altitude"
+
+        # 4. Clean spatial clearance between distinct towers
+        tower_sep = abs(magenta["position"][2] - cyan["position"][2])
+        assert tower_sep >= 0.14, f"Towers too close together: {tower_sep:.3f}m < 0.14m"
+
