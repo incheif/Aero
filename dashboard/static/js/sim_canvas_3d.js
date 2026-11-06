@@ -611,6 +611,7 @@ class SimCanvas3D {
           mesh.position.x += (target.pos[0] - mesh.position.x) * 0.55;
           mesh.position.y += (target.pos[1] - mesh.position.y) * 0.55;
           mesh.position.z += (target.pos[2] - mesh.position.z) * 0.55;
+          mesh.position.y = Math.max(0.7475, mesh.position.y);
           if (target.rot) {
             mesh.quaternion.slerp(new THREE.Quaternion(target.rot[0], target.rot[1], target.rot[2], target.rot[3]), 0.55);
           }

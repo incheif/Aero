@@ -45,6 +45,17 @@ from .scoring import (
     task_completion_score,
 )
 
+def make_upright_quaternion(q: Tuple[float, float, float, float] | List[float]) -> List[float]:
+    """Projects an arbitrary orientation quaternion to a stable upright pose (pure yaw around Y)."""
+    x, y, z, w = q
+    yaw = math.atan2(2.0 * (w * y + x * z), 1.0 - 2.0 * (y * y + z * z))
+    half_pi = math.pi * 0.5
+    snapped_yaw = round(yaw / half_pi) * half_pi
+    if abs(yaw - snapped_yaw) < 0.20:
+        yaw = snapped_yaw
+    half = yaw * 0.5
+    return [0.0, float(math.sin(half)), 0.0, float(math.cos(half))]
+
 class PhysicsBlock:
     def __init__(self, block_id: str, name: str, color: str, color_rgb: Tuple[int, int, int], pos: List[float]):
         self.id = block_id
@@ -341,13 +352,14 @@ class RobotArmSimulation:
                     grasped_block.is_grasped = False
                     grasped_block.is_placed = True
                     grasped_block.velocity = [0.0, -0.05, 0.0]
+                    grasped_block.rotation = make_upright_quaternion(grasped_block.rotation)
                     self.last_released_id = self.grasped_block_id
                     self.grasped_block_id = None
                     self.release_cooldown_ticks = 30
                 else:
                     # Move block to lock onto TCP mid-finger pinch point
                     # Physical clamp: carried block can never penetrate table surface OR any underlying blocks
-                    min_support_y = TABLE_TOP_Y + CUBE_HALF + 0.002
+                    min_support_y = TABLE_TOP_Y + CUBE_HALF
                     for other_id, other in self.blocks.items():
                         if other_id == self.grasped_block_id or other.is_grasped:
                             continue
@@ -361,7 +373,7 @@ class RobotArmSimulation:
                                     min_support_y = cand_y
 
                     grasped_block.position = [tcp_pos[0], max(min_support_y, tcp_pos[1]), tcp_pos[2]]
-                    grasped_block.rotation = list(tcp_rot)
+                    grasped_block.rotation = make_upright_quaternion(tcp_rot)
                     grasped_block.velocity = [0.0, 0.0, 0.0]
 
         elif self.release_cooldown_ticks > 0:
@@ -386,7 +398,7 @@ class RobotArmSimulation:
                 self.grasped_block_id = best_candidate
                 self.blocks[best_candidate].is_grasped = True
                 self.blocks[best_candidate].position = list(tcp_pos)
-                self.blocks[best_candidate].rotation = list(tcp_rot)
+                self.blocks[best_candidate].rotation = make_upright_quaternion(tcp_rot)
 
         # 4. Step Un-grasped Block Dynamics & Stacking Physics
         half_x, _, half_z = TABLE_HALF_EXTENTS
@@ -453,6 +465,7 @@ class RobotArmSimulation:
             if block.position[1] <= support_y:
                 block.position[1] = support_y
                 block.velocity[1] = 0.0
+                block.rotation = make_upright_quaternion(block.rotation)
 
         # 5. Full 3D Solid-Body Collision Resolution between Blocks (Multi-Pass Constraint Solver)
         block_keys = list(self.blocks.keys())

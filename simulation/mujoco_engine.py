@@ -745,6 +745,7 @@ class MujocoSimulation:
 
                     # Propagate TCP movement to held block using invariant relative transform
                     new_pos = vec_add(tcp_pos, quat_rotate_vec(tcp_rot, self.grasp_relative_pos))
+                    new_pos = (new_pos[0], max(TABLE_TOP_Y + CUBE_HALF, new_pos[1]), new_pos[2])
                     new_rot = quat_mul(tcp_rot, self.grasp_relative_rot)
 
                     # Update MuJoCo rigid-body qpos directly
