@@ -330,8 +330,9 @@ class UserSession:
                 b_id = g.get("entity")
                 if b_id:
                     clean_id = b_id if b_id.startswith("block_") else f"block_{b_id}"
-                    if clean_id in self.sim.blocks and clean_id not in task_blocks:
-                        task_blocks.append(clean_id)
+                    if clean_id in self.sim.blocks:
+                        if clean_id not in task_blocks:
+                            task_blocks.append(clean_id)
                         t_layer = g.get("target_layer", l_idx)
                         t_coords = g.get("target_coords") or [STACK_ORIGIN[0], stack_slot_y(t_layer), STACK_ORIGIN[2]]
                         task_targets[clean_id] = list(t_coords)

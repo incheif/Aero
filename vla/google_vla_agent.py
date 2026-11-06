@@ -677,7 +677,7 @@ Output a JSON object ONLY with the following schema:
             if not train_targets:
                 train_targets = [b for b in all_block_ids if b in blocks]
 
-            slots = get_train_slots(len(train_targets), origin=(0.40, TABLE_TOP_Y, 0.0), spacing=0.062)
+            slots = get_train_slots(len(train_targets), origin=(0.40, TABLE_TOP_Y, 0.0), spacing=0.076)
 
             # Stage 2: Path Clearance Detection
             # Any block that lies within the placement corridor or directly conflicts with upcoming carriage slots
@@ -946,7 +946,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Soft descent to placement altitude {dst_y:.3f}m",
                 "dwell_ticks": 15 + extra_dwell,
-                "candidate_pitches": [-1.25, -1.0, -1.45, -0.60, -0.12],
+                "candidate_pitches": [-1.35, -1.25, -1.45, -1.0, -0.60, -0.12],
             },
             # 7. Zero-impulse release: hold stationary while opening jaws
             {
@@ -955,7 +955,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 0.60,
                 "desc": "Zero-impulse jaw release (prevent tower topple)",
                 "dwell_ticks": 20 + extra_dwell,
-                "candidate_pitches": [-1.25, -1.0, -1.45, -0.60, -0.12],
+                "candidate_pitches": [-1.35, -1.25, -1.45, -1.0, -0.60, -0.12],
             },
             # 8. Vertical ascend to safe hover
             {

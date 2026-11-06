@@ -254,9 +254,9 @@ class TestPyramidAssembly:
         Validates:
         1. Cognitive interpreter parses command as BLOCK_TRAIN with 6 target blocks.
         2. Orange Cube (block_orange at [0.34, 0.7535, -0.06]) is detected as obstructing
-           train carriage slots (Slot 1 at Z=-0.093, Slot 2 at Z=-0.031).
+           train carriage slots.
         3. Path clearance staging pick-and-place sub-plan is scheduled first, moving
-           block_orange to safe perimeter slot [0.40, 0.7475, 0.28].
+           block_orange to safe perimeter slot [0.40, 0.7475, 0.30].
         4. Staged block_orange coordinates are updated in spatial memory so carriage 4
            picks it up from the safe staging slot.
         5. In dynamic MuJoCo physics, block_orange is safely staged out of the corridor
@@ -315,5 +315,48 @@ class TestPyramidAssembly:
         )
         assert staging_err < 0.035, f"Orange staging error {staging_err*1000:.1f}mm exceeds 35mm"
         assert orange["position"][1] >= TABLE_TOP_Y + CUBE_HALF - 0.005, "Table penetration detected"
+
+    def test_06_block_train_full_execution_no_freeze(self):
+        """
+        Verify that executing the block train plan in RobotArmSimulation (dashboard simulation backend)
+        advances through carriages without freezing or proxy collision lockups.
+        Validates:
+        1. All 57 steps complete without stalls or infinite dwells.
+        2. All 6 blocks are arranged along the tabletop Z-axis at X=0.40m with zero table penetration.
+        """
+        from simulation.physics_engine import RobotArmSimulation
+        sim = RobotArmSimulation()
+        agent = GoogleVLAAgent()
+        agent.execution_mode = "deterministic"
+        snapshot = sim.get_snapshot()
+
+        res = agent.parse_instruction("Make a block train with all boxes in one line.", None, snapshot, {})
+        plan = res.get("plan", [])
+        assert len(plan) == 57
+
+        controller = TrajectoryController()
+        controller.load_plan(plan)
+
+        for tick in range(1800):
+            if not controller.is_active:
+                break
+            snap = sim.get_snapshot()
+            tcp = snap["tcp"]["position"]
+            cmd = controller.step(tcp, sim.joints)
+            if not cmd:
+                break
+            sim.set_joint_targets(cmd["joints"], cmd.get("gripper"))
+            sim.step(FIXED_DT)
+
+        assert not controller.is_active, f"Arm froze at step {controller.step_idx + 1}: {controller.current_action_desc}"
+
+        snap = sim.get_snapshot()
+        blocks = {b["id"]: b for b in snap["blocks"]}
+
+        # All 6 blocks should be on the table surface (Y >= 0.7425) and aligned near X=0.40
+        for b_id, b in blocks.items():
+            assert abs(b["position"][0] - 0.40) < 0.035, f"Block {b_id} X position {b['position'][0]} not aligned at X=0.40m"
+            assert b["position"][1] >= TABLE_TOP_Y + CUBE_HALF - 0.005, f"Block {b_id} penetrated table"
+
 
 
