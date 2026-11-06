@@ -60,7 +60,9 @@ PICK_Y: float = 0.772        # TCP pick altitude clears table surface (lowest ja
 MAX_ALTITUDE_CLAMP: float = 1.12 # Enforces maximum vertical reach limit (permits 5-layer tower reach up to 1.05m)
 
 # Safe Tabletop Perimeter Staging Slots for Path Clearing
+SAFE_CORRIDOR_STAGING_SLOT: Tuple[float, float, float] = (0.40, TABLE_TOP_Y + CUBE_HALF, 0.28)
 SAFE_STAGING_SLOTS: List[Tuple[float, float, float]] = [
+    (0.40, TABLE_TOP_Y + CUBE_HALF, 0.28),    # Optimal perimeter reach flank (outside train & pyramid zones)
     (0.15, TABLE_TOP_Y + CUBE_HALF, -0.28),   # Left perimeter flank
     (0.15, TABLE_TOP_Y + CUBE_HALF, 0.28),    # Right perimeter flank
     (0.22, TABLE_TOP_Y + CUBE_HALF, -0.32),   # Far-left perimeter
@@ -250,12 +252,12 @@ def get_pyramid_slots(style: str = "3_block_stepped", origin: Tuple[float, float
 
 def get_train_slots(
     num_blocks: int = 6,
-    origin: Tuple[float, float, float] = (0.38, TABLE_TOP_Y, 0.0),
-    spacing: float = CUBE_SIZE + 0.005
+    origin: Tuple[float, float, float] = (0.40, TABLE_TOP_Y, 0.0),
+    spacing: float = 0.062
 ) -> List[Tuple[float, float, float]]:
     """
     Computes metric target coordinates for block train assembly (all boxes in one line).
-    Aligns cubes along the tabletop Z axis with stable clearance.
+    Aligns cubes along the tabletop Z axis with stable clearance and optimal IK reachability at X=0.40.
     """
     ox, oy, oz = origin
     base_y = stack_slot_y(0)

@@ -599,7 +599,11 @@ class InstructionInterpreter:
         # -------------------------------------------------------------
         # 8. CLEAR / RESET / REST
         # -------------------------------------------------------------
-        if any(w in cmd for w in ("clear", "empty pad", "clear pad", "displace pad")):
+        is_clear = (
+            any(w in cmd for w in ("empty pad", "clear pad", "displace pad", "clear the pad", "clear the table", "reset table", "clear workspace"))
+            or (re.search(r"\bclear\b", cmd) and not any(w in cmd for w in ("path clearance", "clearance", "train", "pyramid", "tower", "stack", "letter", "line")))
+        )
+        if is_clear:
             return {
                 "is_possible": True,
                 "status": "OK",
@@ -813,21 +817,34 @@ class InstructionInterpreter:
                 if b_id not in mentioned_b_ids:
                     mentioned_b_ids.append(b_id)
 
-            all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple", "block_pink"]
-            pool = list(mentioned_b_ids)
-            for b in all_blocks:
-                if b not in pool:
-                    pool.append(b)
+            has_all_blocks = any(w in cmd for w in ("all boxes", "all blocks", "all cubes", "all 6", "all six"))
+            if has_all_blocks:
+                pool = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple"]
+                needed_count = 6
+            else:
+                all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple"]
+                # Filter out color mentions that are purely part of obstruction/clearance explanations
+                filtered_b_ids = []
+                for _, b_id, _ in found_colors:
+                    alias = [a for a, i, _ in known_colors if i == b_id][0]
+                    if not re.search(rf"\b{alias}\s+(?:obstructs?|blocks?|clear|remov)", cmd):
+                        if b_id not in filtered_b_ids:
+                            filtered_b_ids.append(b_id)
 
-            train_cnt_match = re.search(r"\b(\d+|one|two|three|four|five|six|seven)[-\s]*(?:blocks?|cubes?|boxes?)", cmd)
-            if train_cnt_match:
-                t_cnt = parse_num_token(train_cnt_match.group(1))
-                if t_cnt and 1 <= t_cnt <= MAX_PHYSICAL_BLOCKS:
-                    needed_count = t_cnt
+                pool = list(filtered_b_ids)
+                for b in all_blocks:
+                    if b not in pool:
+                        pool.append(b)
+
+                train_cnt_match = re.search(r"\b(\d+|one|two|three|four|five|six|seven)[-\s]*(?:blocks?|cubes?|boxes?)", cmd)
+                if train_cnt_match:
+                    t_cnt = parse_num_token(train_cnt_match.group(1))
+                    if t_cnt and 1 <= t_cnt <= MAX_PHYSICAL_BLOCKS:
+                        needed_count = t_cnt
+                    else:
+                        needed_count = len(pool)
                 else:
                     needed_count = len(pool)
-            else:
-                needed_count = len(pool)
 
             train_blocks = pool[:needed_count]
             block_names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in train_blocks]

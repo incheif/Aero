@@ -24,6 +24,8 @@ from simulation.constants import (
     CUBE_HALF,
     stack_slot_y,
     get_pyramid_slots,
+    get_train_slots,
+    SAFE_CORRIDOR_STAGING_SLOT,
     STACK_ORIGIN,
     DEFAULT_JOINTS,
 )
@@ -243,4 +245,75 @@ class TestPyramidAssembly:
         # 4. Clean spatial clearance between distinct towers
         tower_sep = abs(magenta["position"][2] - cyan["position"][2])
         assert tower_sep >= 0.14, f"Towers too close together: {tower_sep:.3f}m < 0.14m"
+
+    @pytest.mark.skipif(not MUJOCO_AVAILABLE, reason="MuJoCo not installed")
+    def test_05_block_train_path_clearance_staging(self):
+        """
+        Verify block train assembly with Stage 2 Path Clearance:
+        Command: "Make a block train with all boxes in one line."
+        Validates:
+        1. Cognitive interpreter parses command as BLOCK_TRAIN with 6 target blocks.
+        2. Orange Cube (block_orange at [0.34, 0.7535, -0.06]) is detected as obstructing
+           train carriage slots (Slot 1 at Z=-0.093, Slot 2 at Z=-0.031).
+        3. Path clearance staging pick-and-place sub-plan is scheduled first, moving
+           block_orange to safe perimeter slot [0.40, 0.7475, 0.28].
+        4. Staged block_orange coordinates are updated in spatial memory so carriage 4
+           picks it up from the safe staging slot.
+        5. In dynamic MuJoCo physics, block_orange is safely staged out of the corridor
+           with zero table penetration and error < 35mm.
+        """
+        sim = MujocoSimulation()
+        agent = GoogleVLAAgent()
+        agent.execution_mode = "deterministic"
+        snapshot = sim.get_snapshot()
+
+        instruction = "Make a block train with all boxes in one line. this has issue with path clearance as orange obstructs placing the next train block so it should be removed."
+        interp = agent.interpreter.interpret(instruction)
+        assert interp["is_possible"] is True
+        assert interp.get("action_type") == "BLOCK_TRAIN"
+        assert len(interp.get("target_blocks", [])) == 6
+
+        res = agent.parse_instruction(instruction, None, snapshot, {})
+        plan = res.get("plan", [])
+        assert len(plan) == 57, f"Expected 57 plan steps (8 staging + 48 carriages + 1 home), got {len(plan)}"
+
+        # Grounding checks: Verify block_orange has Path Clearance Staging role
+        grounding = res.get("grounding", [])
+        staged_grounding = [g for g in grounding if g.get("role") == "Path Clearance Staging"]
+        assert len(staged_grounding) == 1, "Expected 1 path clearance staging grounding entry"
+        assert staged_grounding[0]["entity"] == "block_orange"
+        assert staged_grounding[0]["target_coords"] == list(SAFE_CORRIDOR_STAGING_SLOT)
+
+        # Verify Orange Cube is picked up from staging coordinates for Carriage 4
+        car4_grounding = [g for g in grounding if g.get("role") == "Carriage 4"]
+        assert len(car4_grounding) == 1
+        assert car4_grounding[0]["entity"] == "block_orange"
+        assert car4_grounding[0]["source_coords"] == list(SAFE_CORRIDOR_STAGING_SLOT)
+
+        # Dynamic physics verification of staging maneuver (first 8 steps)
+        controller = TrajectoryController()
+        controller.load_plan(plan[:8])
+
+        for tick in range(400):
+            if not controller.is_active:
+                break
+            fk = forward_kinematics(sim.joints)
+            tcp = fk["tcp"]["position"]
+            cmd = controller.step(tcp, sim.joints)
+            if cmd is not None:
+                sim.set_joint_targets(cmd["joints"], cmd.get("gripper"))
+            sim.step(FIXED_DT)
+
+        snap = sim.get_snapshot()
+        blocks = {b["id"]: b for b in snap["blocks"]}
+        orange = blocks["block_orange"]
+
+        # Verify Orange Cube safely reached perimeter staging zone with zero table penetration
+        staging_err = math.hypot(
+            orange["position"][0] - SAFE_CORRIDOR_STAGING_SLOT[0],
+            orange["position"][2] - SAFE_CORRIDOR_STAGING_SLOT[2],
+        )
+        assert staging_err < 0.035, f"Orange staging error {staging_err*1000:.1f}mm exceeds 35mm"
+        assert orange["position"][1] >= TABLE_TOP_Y + CUBE_HALF - 0.005, "Table penetration detected"
+
 

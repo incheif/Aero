@@ -17,6 +17,7 @@ from simulation.constants import (
     STACK_ORIGIN_A,
     STACK_ORIGIN_B,
     SAFE_HOVER_Y,
+    SAFE_CORRIDOR_STAGING_SLOT,
     PICK_Y,
     TABLE_TOP_Y,
     CUBE_SIZE,
@@ -668,20 +669,87 @@ Output a JSON object ONLY with the following schema:
                     f"Sequence: {' | '.join(pyr_strs)}. Applying zero-impulse vertical descent holding to maintain contact stability."
                 )
 
-        # 5B. Block Train Assembly (All Boxes In One Line)
+        # 5B. Block Train Assembly (All Boxes In One Line) with Path Clearance Staging
         elif action_type == "BLOCK_TRAIN":
             train_targets = interpretation.get("target_blocks", all_block_ids)
-            slots = get_train_slots(len(train_targets), origin=(0.38, TABLE_TOP_Y, 0.0))
+            # Filter to blocks actually present in the workcell
+            train_targets = [b for b in train_targets if b in blocks]
+            if not train_targets:
+                train_targets = [b for b in all_block_ids if b in blocks]
 
+            slots = get_train_slots(len(train_targets), origin=(0.40, TABLE_TOP_Y, 0.0), spacing=0.062)
+
+            # Stage 2: Path Clearance Detection
+            # Any block that lies within the placement corridor or directly conflicts with upcoming carriage slots
+            # must be safely staged out of the corridor before placing conflicting carriages.
+            min_slot_x = min(s[0] for s in slots)
+            max_slot_x = max(s[0] for s in slots)
+            min_slot_z = min(s[2] for s in slots)
+            max_slot_z = max(s[2] for s in slots)
+
+            staging_target = SAFE_CORRIDOR_STAGING_SLOT
+            staged_blocks: List[str] = []
+
+            for idx, b_id in enumerate(train_targets):
+                if idx == 0:
+                    continue  # The very first block to be placed clears itself immediately
+                b_info = blocks.get(b_id)
+                if not b_info:
+                    continue
+                bx, by, bz = b_info["position"]
+
+                # Collision criteria: Inside the carriage transit corridor or within 85mm of any carriage slot
+                in_corridor = (
+                    (min_slot_x - 0.09 <= bx <= max_slot_x + 0.09)
+                    and (min_slot_z - 0.05 <= bz <= max_slot_z + 0.05)
+                )
+                conflicts_with_slots = any(
+                    math.hypot(bx - s[0], bz - s[2]) < 0.085
+                    for s in slots
+                )
+
+                if in_corridor or conflicts_with_slots:
+                    staged_blocks.append(b_id)
+
+            # Generate Stage 2 path clearance sub-plans for obstructing blocks
+            for b_id in staged_blocks:
+                b_info = blocks[b_id]
+                bx, by, bz = b_info["position"]
+                sx, sy, sz = staging_target
+
+                grounding.append({
+                    "entity": b_id,
+                    "color": b_info["color"],
+                    "source_coords": [bx, by, bz],
+                    "role": "Path Clearance Staging",
+                    "target_coords": [sx, sy, sz],
+                })
+
+                stage_steps = self._generate_pick_and_place(
+                    bx, bz, sx, sz, sy,
+                    f"{b_info['name']} (Path Clearance Staging)",
+                    min_transit_y=SAFE_HOVER_Y,
+                )
+                plan.extend(stage_steps)
+                # Update block's spatial memory to staging slot so subsequent carriage placement picks from here
+                blocks[b_id]["position"] = [sx, sy, sz]
+
+            # Place train carriages sequentially into their aligned slots
             train_strs = []
             for idx, (b_id, slot_target) in enumerate(zip(train_targets, slots)):
                 b = blocks.get(b_id)
                 if not b:
                     continue
-                bx, by, bz = b["position"]
+                bx, by, bz = b["position"]  # Uses staging coords if previously staged!
                 tx, ty, tz = slot_target
                 car_label = "Engine (Lead)" if idx == 0 else f"Carriage {idx}"
-                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "role": car_label, "target_coords": [tx, ty, tz]})
+                grounding.append({
+                    "entity": b_id,
+                    "color": b["color"],
+                    "source_coords": [bx, by, bz],
+                    "role": car_label,
+                    "target_coords": [tx, ty, tz]
+                })
                 steps = self._generate_pick_and_place(bx, bz, tx, tz, ty, b["name"])
                 plan.extend(steps)
                 train_strs.append(f"{car_label}:{b['name']}")
@@ -695,9 +763,16 @@ Output a JSON object ONLY with the following schema:
             })
 
             thought = interpretation.get("thought", "")
-            if not thought:
+            if staged_blocks or not thought:
+                staged_names = [blocks[b_id]["name"] for b_id in staged_blocks]
+                clearance_str = (
+                    f"Path clearance active: Detected {', '.join(staged_names)} obstructing train corridor. "
+                    f"Safely staged to perimeter [{staging_target[0]:.2f}, {staging_target[2]:.2f}] before carriage assembly. "
+                    if staged_blocks else ""
+                )
                 thought = (
                     f"Google VLA Block Train Assembly: Arranging {len(train_targets)} boxes in a single line. "
+                    f"{clearance_str}"
                     f"Sequence: {' | '.join(train_strs)}. "
                     "Aligning linearly along tabletop Z-axis with collision-safe pick-and-place trajectories."
                 )
