@@ -75,35 +75,44 @@ class TrajectoryController:
         if self.current_setpoint is None:
             self.current_setpoint = [float(current_tcp_pos[0]), float(current_tcp_pos[1]), float(current_tcp_pos[2])]
 
-        # Advance Cartesian setpoint linearly toward target_pos
+        # Advance Cartesian setpoint linearly toward target_pos only when tracking lag is bounded.
+        # If joints lag behind (e.g. accelerating under load), hold setpoint stationary to let arm catch up,
+        # rather than destructively dragging the setpoint backward or down into table blocks.
         dx = target_pos[0] - self.current_setpoint[0]
         dy = target_pos[1] - self.current_setpoint[1]
         dz = target_pos[2] - self.current_setpoint[2]
         dist_setpoint = math.hypot(dx, dy, dz)
 
-        max_step = 0.012  # 12mm per tick at 60Hz (~0.72 m/s smooth Cartesian velocity)
-        if dist_setpoint <= max_step:
-            self.current_setpoint = [float(target_pos[0]), float(target_pos[1]), float(target_pos[2])]
-        else:
-            scale = max_step / dist_setpoint
-            self.current_setpoint[0] += dx * scale
-            self.current_setpoint[1] += dy * scale
-            self.current_setpoint[2] += dz * scale
-
-        # Prevent setpoint from drifting excessively ahead of physical TCP if joints lag
         lag = math.hypot(
             self.current_setpoint[0] - current_tcp_pos[0],
             self.current_setpoint[1] - current_tcp_pos[1],
             self.current_setpoint[2] - current_tcp_pos[2]
         )
-        if lag > 0.035:
-            corr = 0.035 / lag
-            self.current_setpoint[0] = current_tcp_pos[0] + (self.current_setpoint[0] - current_tcp_pos[0]) * corr
-            self.current_setpoint[1] = current_tcp_pos[1] + (self.current_setpoint[1] - current_tcp_pos[1]) * corr
-            self.current_setpoint[2] = current_tcp_pos[2] + (self.current_setpoint[2] - current_tcp_pos[2]) * corr
+
+        max_step = 0.010  # 10mm per tick at 60Hz (~0.60 m/s, matches physical joint actuator speed limit)
+        if lag <= 0.050:
+            if dist_setpoint <= max_step:
+                self.current_setpoint = [float(target_pos[0]), float(target_pos[1]), float(target_pos[2])]
+            else:
+                scale = max_step / dist_setpoint
+                self.current_setpoint[0] += dx * scale
+                self.current_setpoint[1] += dy * scale
+                self.current_setpoint[2] += dz * scale
+
+        # Safe altitude floor: never allow setpoint altitude below clearance plane during transit/hover
+        if target_pos[1] >= SAFE_HOVER_Y - 0.01:
+            self.current_setpoint[1] = max(self.current_setpoint[1], SAFE_HOVER_Y - 0.005)
+
+        # Candidate pitches for IK: step-specified candidates, or continuity from current pitch
+        step_pitches = current_step.get("candidate_pitches")
+        if step_pitches is None and current_step.get("world_pitch") is not None:
+            step_pitches = [current_step["world_pitch"]]
+        if step_pitches is None:
+            cur_pitch = current_joints.get("shoulderPitch", 0.0) + current_joints.get("elbowPitch", 0.0) + current_joints.get("wristPitch", 0.0)
+            step_pitches = [cur_pitch, -1.25, -1.0, -1.45, -0.60, -0.12]
 
         # Compute IK targets for the interpolated setpoint along the 3D line segment
-        joint_targets = inverse_kinematics(tuple(self.current_setpoint), gripper=desired_gripper)
+        joint_targets = inverse_kinematics(tuple(self.current_setpoint), gripper=desired_gripper, candidate_pitches=step_pitches)
 
         # Distance from actual current TCP to final step target
         actual_dx = target_pos[0] - current_tcp_pos[0]
@@ -119,7 +128,7 @@ class TrajectoryController:
             # Grasp step: jaws must physically close past threshold before advancing
             if current_grip < GRASP_CLOSE_THRESHOLD:
                 gripper_settled = False
-        elif desired_gripper <= 0.15 or "RELEASE" in action_name:
+        elif desired_gripper <= 0.65 or "RELEASE" in action_name:
             # Release step: jaws must physically open below threshold before advancing
             if current_grip > GRASP_OPEN_THRESHOLD:
                 gripper_settled = False
@@ -153,6 +162,7 @@ class TrajectoryController:
                 # Advance to next waypoint
                 self.dwell_counter = 0
                 self.step_idx += 1
+                self.current_setpoint = None
                 if self.step_idx >= len(self.current_plan):
                     self.is_active = False
                     self.current_action_desc = "Task Completed Successfully"

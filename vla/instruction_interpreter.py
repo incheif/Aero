@@ -659,7 +659,7 @@ class InstructionInterpreter:
                 if b_id not in mentioned_b_ids:
                     mentioned_b_ids.append(b_id)
 
-            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple", "block_pink"]
             pool = list(mentioned_b_ids)
             for b in all_blocks:
                 if b not in pool:
@@ -735,7 +735,7 @@ class InstructionInterpreter:
                 if b_id not in mentioned_b_ids:
                     mentioned_b_ids.append(b_id)
 
-            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple", "block_pink"]
             pool = list(mentioned_b_ids)
             for b in all_blocks:
                 if b not in pool:
@@ -813,7 +813,7 @@ class InstructionInterpreter:
                 if b_id not in mentioned_b_ids:
                     mentioned_b_ids.append(b_id)
 
-            all_blocks = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+            all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple", "block_pink"]
             pool = list(mentioned_b_ids)
             for b in all_blocks:
                 if b not in pool:

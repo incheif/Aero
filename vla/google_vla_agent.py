@@ -508,7 +508,7 @@ Output a JSON object ONLY with the following schema:
         thought: str = ""
         grounding: List[Dict[str, Any]] = []
 
-        all_block_ids = ["block_cyan", "block_orange", "block_magenta", "block_yellow", "block_emerald", "block_purple", "block_pink"]
+        all_block_ids = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple", "block_pink"]
         action_type = interpretation.get("action_type", "STACK_TOWER")
 
         # 1. Autonomous Exploration Command
@@ -808,22 +808,25 @@ Output a JSON object ONLY with the following schema:
         # Calculate safe transit hover altitude above any existing stack layers or clearance planes
         transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, min_transit_y or 0.0)
 
+        place_y = dst_y + 0.002
         return [
             # 1. Safe Hover over source object
             {
                 "action": "HOVER_ACQUIRE",
                 "target": (src_x, transit_y, src_z),
-                "gripper": 0.0,
+                "gripper": 0.60,
                 "desc": f"Hover over {obj_name} at [{src_x:.3f}, {src_z:.3f}]",
                 "dwell_ticks": 10,
+                "candidate_pitches": [-1.25, -1.0, -1.45],
             },
             # 2. Descend to pick height (clearing table surface)
             {
                 "action": "DESCEND_PICK",
                 "target": (src_x, PICK_Y, src_z),
-                "gripper": 0.0,
+                "gripper": 0.60,
                 "desc": f"Descend to grip {obj_name}",
                 "dwell_ticks": 12,
+                "candidate_pitches": [-1.25, -1.0, -1.45],
             },
             # 3. Grip closure
             {
@@ -832,6 +835,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Close parallel jaws around {obj_name}",
                 "dwell_ticks": 18,
+                "candidate_pitches": [-1.25, -1.0, -1.45],
             },
             # 4. Clean vertical lift to safe transit altitude
             {
@@ -840,6 +844,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Vertical lift of {obj_name} to transit height {transit_y:.3f}m",
                 "dwell_ticks": 12,
+                "candidate_pitches": [-1.25, -1.0, -1.45],
             },
             # 5. Horizontal transit to destination
             {
@@ -848,29 +853,33 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Transit {obj_name} to [{dst_x:.3f}, {dst_z:.3f}]",
                 "dwell_ticks": 15,
+                "candidate_pitches": [-1.25, -1.0, -0.60, -0.12],
             },
             # 6. Gentle descent to destination layer slot
             {
                 "action": "DESCEND_PLACE",
-                "target": (dst_x, dst_y + 0.010, dst_z),
+                "target": (dst_x, place_y, dst_z),
                 "gripper": 1.0,
                 "desc": f"Soft descent to placement altitude {dst_y:.3f}m",
                 "dwell_ticks": 15 + extra_dwell,
+                "candidate_pitches": [-1.25, -1.0, -0.60, -0.12],
             },
             # 7. Zero-impulse release: hold stationary while opening jaws
             {
                 "action": "SOFT_RELEASE",
-                "target": (dst_x, dst_y + 0.010, dst_z),
-                "gripper": 0.0,
+                "target": (dst_x, place_y, dst_z),
+                "gripper": 0.60,
                 "desc": "Zero-impulse jaw release (prevent tower topple)",
                 "dwell_ticks": 20 + extra_dwell,
+                "candidate_pitches": [-1.25, -1.0, -0.60, -0.12],
             },
             # 8. Vertical ascend to safe hover
             {
                 "action": "ASCEND_CLEAR",
                 "target": (dst_x, transit_y, dst_z),
-                "gripper": 0.0,
+                "gripper": 0.60,
                 "desc": "Ascend cleanly above placed cube",
                 "dwell_ticks": 12,
+                "candidate_pitches": [-1.25, -1.0, -0.60, -0.12],
             },
         ]

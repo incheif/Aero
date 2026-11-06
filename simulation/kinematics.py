@@ -158,18 +158,18 @@ def forward_kinematics(joints: Dict[str, float], mount: Tuple[float, float, floa
 def compute_adaptive_pitch(local_x: float) -> float:
     """
     Computes optimal world pitch angle for the end-effector.
-    - Close targets (local_x <= 0.44m from shoulder): pitches downward (-1.25 rad / -71.6 deg)
+    - Close targets (local_x <= 0.72m from shoulder / world_x <= 0.44m): pitches downward (-1.25 rad / -71.6 deg)
       to execute clean, vertical top-down grasps without folding elbow into singularity.
-    - Distant targets (local_x >= 0.56m from shoulder): pitches forward (-0.12 rad / -6.9 deg)
+    - Distant targets (local_x >= 0.84m from shoulder / world_x >= 0.56m): pitches forward (-0.12 rad / -6.9 deg)
       to maximize forward horizontal reach.
-    - Smooth linear transition between 0.44m and 0.56m.
+    - Smooth linear transition between 0.72m and 0.84m.
     """
-    if local_x <= 0.44:
+    if local_x <= 0.72:
         return -1.25
-    elif local_x >= 0.56:
+    elif local_x >= 0.84:
         return WRIST_WORLD_PITCH
     else:
-        alpha = (local_x - 0.44) / (0.56 - 0.44)
+        alpha = (local_x - 0.72) / (0.84 - 0.72)
         return -1.25 + alpha * (WRIST_WORLD_PITCH - (-1.25))
 
 def compute_manipulability(joints: Dict[str, float]) -> float:
@@ -328,10 +328,11 @@ def inverse_kinematics(
     target: Tuple[float, float, float],
     gripper: float = 0.0,
     world_pitch: Optional[float] = None,
+    candidate_pitches: Optional[List[float]] = None,
 ) -> JointDictionary:
     """
     Inverse Kinematics interface.
     Returns JointDictionary that behaves as Dict[str, float] with full IKResult metadata.
     """
-    res = solve_ik(target=target, gripper=gripper, world_pitch=world_pitch)
+    res = solve_ik(target=target, gripper=gripper, world_pitch=world_pitch, candidate_pitches=candidate_pitches)
     return JointDictionary(res.joints, result=res)
