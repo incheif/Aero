@@ -330,41 +330,48 @@ class SimCanvas3D {
     wristCan.rotation.x = Math.PI / 2;
     wristGroup.add(wristCan);
 
-    // Palm / Gripper Body (length 0.13m to pinch point)
-    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.042, 0.065), baseMat);
-    palm.position.set(0.035, 0.0, 0.0);
+    // Wrist Link Extension (L_WRIST = 0.13m from wrist joint axis to palm)
+    const wristLink = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.115, 24), metalMat);
+    wristLink.rotation.z = Math.PI / 2;
+    wristLink.position.set(0.065, 0.0, 0.0);
+    wristLink.castShadow = true;
+    wristGroup.add(wristLink);
+
+    // Palm / Gripper Base Plate (at X = 0.13m)
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.046, 0.072), baseMat);
+    palm.position.set(0.13, 0.0, 0.0);
     palm.castShadow = true;
     wristGroup.add(palm);
     this.arm.palm = palm;
 
-    // 5. Parallel Gripper Sliding Jaws
-    const jawGeo = new THREE.BoxGeometry(0.08, 0.024, 0.012);
+    // 5. Parallel Gripper Sliding Jaws (JAW_LENGTH = 0.095m, centered at X = 0.18m matching TCP)
+    const jawGeo = new THREE.BoxGeometry(0.095, 0.036, 0.012);
 
     // Left Jaw
     const jawLeft = new THREE.Mesh(jawGeo, whiteMat);
-    jawLeft.position.set(0.075, 0.0, 0.045);
+    jawLeft.position.set(0.18, 0.0, 0.045);
     jawLeft.castShadow = true;
     wristGroup.add(jawLeft);
     this.arm.jawLeft = jawLeft;
 
-    // Left Jaw Rubber Gripper Pad
-    const padLeft = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.02, 0.004), rubberMat);
-    padLeft.position.set(0.02, 0.0, -0.008);
+    // Left Jaw Rubber Gripper Pad (centered on inner face of left jaw at X = 0.18m)
+    const padLeft = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.028, 0.004), rubberMat);
+    padLeft.position.set(0.0, 0.0, -0.008);
     jawLeft.add(padLeft);
 
     // Right Jaw
     const jawRight = new THREE.Mesh(jawGeo, whiteMat);
-    jawRight.position.set(0.075, 0.0, -0.045);
+    jawRight.position.set(0.18, 0.0, -0.045);
     jawRight.castShadow = true;
     wristGroup.add(jawRight);
     this.arm.jawRight = jawRight;
 
-    // Right Jaw Rubber Gripper Pad
-    const padRight = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.02, 0.004), rubberMat);
-    padRight.position.set(0.02, 0.0, 0.008);
+    // Right Jaw Rubber Gripper Pad (centered on inner face of right jaw at X = 0.18m)
+    const padRight = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.028, 0.004), rubberMat);
+    padRight.position.set(0.0, 0.0, 0.008);
     jawRight.add(padRight);
 
-    // 6. TCP Glowing Indicator (mid-finger pinch point)
+    // 6. TCP Glowing Indicator (mid-finger pinch point: at X = 0.18m, exactly at pad center)
     const tcpGroup = new THREE.Group();
     tcpGroup.position.set(0.18, 0.0, 0.0);
 

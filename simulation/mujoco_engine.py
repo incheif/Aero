@@ -513,7 +513,7 @@ class MujocoSimulation:
                 self.grasped_block_id is None
                 and dx_tcp <= GRASP_BOX["x"] * 1.3
                 and dz_tcp <= GRASP_BOX["z"] * 1.3
-                and dy_tcp <= 0.032
+                and dy_tcp <= max(0.035, GRASP_BOX["y"])
             )
 
             # Check vertical retreat immediately after placing/releasing

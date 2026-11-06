@@ -46,8 +46,8 @@ BLOCK_MASS: float = 0.35  # Heavy rigid block (350g)
 BLOCK_FRICTION: Tuple[float, float, float] = (1.8, 0.05, 0.005)  # High friction
 
 # Grasping Thresholds
-GRASP_RADIUS: float = 0.04
-GRASP_BOX = {"x": 0.028, "y": 0.02, "z": 0.03}
+GRASP_RADIUS: float = 0.045
+GRASP_BOX = {"x": 0.028, "y": 0.035, "z": 0.03}
 GRASP_CLOSE_THRESHOLD: float = 0.72
 GRASP_OPEN_THRESHOLD: float = 0.65
 
