@@ -120,3 +120,4 @@ class MultiObjectTracker:
         self.tracks = {tid: t for tid, t in self.tracks.items() if t.state != "LOST"}
 
         return list(self.tracks.values())
+

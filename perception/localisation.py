@@ -65,3 +65,4 @@ class Object3DLocalizer:
             det.dimensions = (CUBE_SIZE, CUBE_SIZE, CUBE_SIZE)
 
         return detections
+

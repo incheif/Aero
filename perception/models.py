@@ -75,3 +75,4 @@ class TrackedObject:
             "time_since_update": self.time_since_update,
             "state": self.state,
         }
+

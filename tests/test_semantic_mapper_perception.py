@@ -123,3 +123,4 @@ class TestSemanticMapperAndTargetGrounding:
         res_none = grounder.ground("Pick the turquoise cylinder")
         assert res_none.success is False
         assert res_none.status == "NOT_FOUND"
+

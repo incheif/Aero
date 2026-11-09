@@ -132,3 +132,4 @@ flowchart TD
   - Expose estimated tracks and confidence in `dashboard/server.py`.
   - Add randomized tabletop placement integration test in `tests/test_perception_randomized.py`.
   - Verify all 19 baseline tests + new tests pass.
+

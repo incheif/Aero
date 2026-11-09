@@ -133,3 +133,4 @@ class TestObjectPerceptionAndTracking:
             tracker.update(dets3_occluded)
         tracks_lost = tracker.update(dets3_occluded)
         assert len([t for t in tracks_lost if t.color_name == "red"]) == 0, "Stale track must be pruned when lost"
+

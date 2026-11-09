@@ -112,3 +112,4 @@ class RobotStateInterface(Protocol):
     def get_state(self) -> RobotStateObservation:
         """Return latest joint and gripper measurements."""
         ...
+

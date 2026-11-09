@@ -144,3 +144,4 @@ class BlockColorDetector:
                         detections.append(detection)
 
         return detections
+
