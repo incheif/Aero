@@ -189,7 +189,8 @@ class GoogleVLAAgent:
         instruction: str,
         image: Optional[Image.Image] = None,
         snapshot: Optional[Dict[str, Any]] = None,
-        semantic_summary: str = ""
+        semantic_summary: str = "",
+        semantic_mapper: Optional[Any] = None
     ) -> Dict[str, Any]:
         """
         Processes natural-language command using Google VLA with cognitive pre-processing:
@@ -198,6 +199,7 @@ class GoogleVLAAgent:
         3. Supports communicative gestures (wave high, nod, snap, celebrate, point).
         4. Disambiguates tower layer counts (e.g. 3 layers strictly stacks 3 blocks) and maps colors.
         5. Supports ColorSeek closed-loop visual servoing mode.
+        6. Derives block positions from perception-driven semantic_mapper when provided.
         """
         if image is None:
             image = Image.new("RGB", (128, 128), (30, 30, 30))
@@ -266,7 +268,7 @@ class GoogleVLAAgent:
         # 2. Try live Google Gemini VLA API if configured
         if self.api_key and GOOGLE_GENAI_AVAILABLE:
             try:
-                live_result = self._call_gemini_vla(instruction, image, snapshot, semantic_summary, interpretation)
+                live_result = self._call_gemini_vla(instruction, image, snapshot, semantic_summary, interpretation, semantic_mapper=semantic_mapper)
                 if live_result:
                     return live_result
             except Exception as e:
@@ -277,7 +279,7 @@ class GoogleVLAAgent:
                 self.last_api_error = "No API key configured. Enter your Gemini API key in Settings to connect to Google Cloud VLA."
 
         # 3. Embedded Google VLA Runtime (High-Performance Deterministic Policy)
-        result = self._embedded_vla_policy(instruction, snapshot, interpretation)
+        result = self._embedded_vla_policy(instruction, snapshot, interpretation, semantic_mapper=semantic_mapper)
         if self.last_api_error:
             result["api_warning"] = self.last_api_error
         return result
@@ -289,6 +291,7 @@ class GoogleVLAAgent:
         snapshot: Dict[str, Any],
         semantic_summary: str,
         interpretation: Optional[Dict[str, Any]] = None,
+        semantic_mapper: Optional[Any] = None,
     ) -> Optional[Dict[str, Any]]:
         """Calls Google Gemini Vision API with structured multimodal robotics prompt."""
         if not self.api_key:
@@ -411,7 +414,7 @@ Output a JSON object ONLY with the following schema:
                         grounded_seq.append(color_to_id[clr])
 
             if interpretation and interpretation.get("action_type") in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "BUILD_PYRAMID", "BLOCK_TRAIN", "SWEEP_TRAJECTORY"):
-                embedded_res = self._embedded_vla_policy(instruction, snapshot, interpretation)
+                embedded_res = self._embedded_vla_policy(instruction, snapshot, interpretation, semantic_mapper=semantic_mapper)
                 self.active_plan = embedded_res.get("plan", [])
                 self.latest_thought = embedded_res.get("thought", "")
                 self.latest_grounding = embedded_res.get("grounding", [])
@@ -438,7 +441,7 @@ Output a JSON object ONLY with the following schema:
                 elif raw_plan:
                     self.active_plan = self._sanitize_raw_plan(raw_plan)
                 else:
-                    self.active_plan = self._embedded_vla_policy(instruction, snapshot, interpretation).get("plan", [])
+                    self.active_plan = self._embedded_vla_policy(instruction, snapshot, interpretation, semantic_mapper=semantic_mapper).get("plan", [])
 
             self.current_step_idx = 0
             self.execution_status = "EXECUTING" if self.active_plan else "COMPLETED"
@@ -490,23 +493,51 @@ Output a JSON object ONLY with the following schema:
         instruction: str,
         snapshot: Dict[str, Any],
         interpretation: Optional[Dict[str, Any]] = None,
+        semantic_mapper: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Embedded Google VLA Runtime.
-        Implements metric-locked stacking, exploration, and pick-and-place algorithms for 5 blocks.
-        Strictly enforces parsed layer counts (1 to 5 layers) and mapped block combinations.
+        Implements metric-locked stacking, exploration, and pick-and-place algorithms for blocks.
+        Derives block positions strictly from estimated semantic_mapper when provided.
         """
         if interpretation is None:
             interpretation = self.interpreter.interpret(instruction)
 
-        raw_blocks = snapshot.get("blocks", []) if snapshot else []
-        if isinstance(raw_blocks, dict):
-            blocks = raw_blocks
-        elif raw_blocks:
-            blocks = {b["id"]: b for b in raw_blocks if isinstance(b, dict) and "id" in b}
+        # 1. Resolve blocks from Estimated Semantic Memory (Perception) if available
+        if semantic_mapper is not None and getattr(semantic_mapper, "entities", None):
+            blocks = {}
+            for ent_id, ent in semantic_mapper.entities.items():
+                if ent.category == "block" and getattr(ent, "visibility", "") != "LOST":
+                    c_low = ent.name.lower()
+                    if "red" in c_low or "magenta" in c_low:
+                        bid = "block_magenta"
+                    elif "blue" in c_low or "cyan" in c_low:
+                        bid = "block_cyan"
+                    elif "yellow" in c_low:
+                        bid = "block_yellow"
+                    elif "green" in c_low or "emerald" in c_low:
+                        bid = "block_emerald"
+                    elif "orange" in c_low:
+                        bid = "block_orange"
+                    elif "purple" in c_low or "violet" in c_low:
+                        bid = "block_purple"
+                    else:
+                        bid = ent.id
+                    blocks[bid] = {
+                        "id": bid,
+                        "name": ent.name,
+                        "color": ent.color,
+                        "position": list(ent.position), # Estimated perceptual coordinates
+                    }
         else:
-            from simulation.constants import BLOCK_SPAWNS
-            blocks = {b["id"]: b for b in BLOCK_SPAWNS}
+            raw_blocks = snapshot.get("blocks", []) if snapshot else []
+            if isinstance(raw_blocks, dict):
+                blocks = raw_blocks
+            elif raw_blocks:
+                blocks = {b["id"]: b for b in raw_blocks if isinstance(b, dict) and "id" in b}
+            else:
+                from simulation.constants import BLOCK_SPAWNS
+                blocks = {b["id"]: b for b in BLOCK_SPAWNS}
         plan: List[Dict[str, Any]] = []
         thought: str = ""
         grounding: List[Dict[str, Any]] = []

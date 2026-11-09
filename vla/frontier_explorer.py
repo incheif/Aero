@@ -1,20 +1,68 @@
 """
-Tabletop Frontier Exploration Module.
-Autonomous active visual scanning and spatial coverage for the robot arm.
-Analogous to 2D/3D frontier exploration in autonomous mobile robot navigation.
+Frontier Explorer and Workspace Coverage Tracker for AERO Workcell.
+Maintains discrete occupancy and visibility grid across tabletop workspace.
+Calculates exploratory camera / arm inspection viewpoints when confidence is low or objects are occluded.
+Also preserves TabletopFrontierExplorer for existing dashboard compatibility.
 """
 
-import math
-from typing import List, Dict, Tuple, Any
-from simulation.constants import (
-    TABLE_HALF_EXTENTS,
-    SAFE_HOVER_Y,
-    STACK_ORIGIN,
-)
+from typing import Tuple, List, Optional, Dict, Any
+import numpy as np
+from simulation.constants import TABLE_HALF_EXTENTS, TABLE_TOP_Y, SAFE_HOVER_Y, STACK_ORIGIN
+
+
+class FrontierExplorer:
+    """
+    Tabletop 2D coverage grid tracker.
+    Represents explored vs unexplored spatial cells.
+    """
+    def __init__(
+        self,
+        grid_res: Tuple[int, int] = (10, 10),
+        table_half_x: float = TABLE_HALF_EXTENTS[0] * 0.8,
+        table_half_z: float = TABLE_HALF_EXTENTS[2] * 0.8,
+    ):
+        self.rows, self.cols = grid_res
+        self.x_bounds = (-table_half_x, table_half_x)
+        self.z_bounds = (-table_half_z, table_half_z)
+        # 0.0 = completely unknown, 1.0 = fully observed
+        self.coverage_grid = np.zeros(grid_res, dtype=np.float32)
+
+    def mark_observed_region(self, center_x: float, center_z: float, radius: float = 0.35):
+        """Mark cells within the observation footprint as observed."""
+        for r in range(self.rows):
+            for c in range(self.cols):
+                cx, cz = self._cell_to_metric(r, c)
+                dist = np.hypot(cx - center_x, cz - center_z)
+                if dist <= radius:
+                    weight = max(0.0, 1.0 - (dist / radius) * 0.5)
+                    self.coverage_grid[r, c] = min(1.0, self.coverage_grid[r, c] + weight)
+
+    def get_coverage_percentage(self) -> float:
+        """Percentage of tabletop workspace observed."""
+        return float(np.mean(self.coverage_grid) * 100.0)
+
+    def get_frontier_inspection_pose(self) -> Optional[Tuple[float, float, float]]:
+        """
+        Finds centroid of least observed region to recommend an inspection viewpoint.
+        """
+        min_idx = np.unravel_index(np.argmin(self.coverage_grid), self.coverage_grid.shape)
+        if self.coverage_grid[min_idx] > 0.85:
+            # Entire table is well-observed
+            return None
+        fx, fz = self._cell_to_metric(min_idx[0], min_idx[1])
+        return (float(fx), float(SAFE_HOVER_Y), float(fz))
+
+    def _cell_to_metric(self, r: int, c: int) -> Tuple[float, float]:
+        frac_x = (c + 0.5) / float(self.cols)
+        frac_z = (r + 0.5) / float(self.rows)
+        x = self.x_bounds[0] + frac_x * (self.x_bounds[1] - self.x_bounds[0])
+        z = self.z_bounds[0] + frac_z * (self.z_bounds[1] - self.z_bounds[0])
+        return x, z
+
 
 class TabletopFrontierExplorer:
     """
-    Manages active exploration of the table work-cell.
+    Manages active exploration of the table work-cell for dashboard studio.
     Plans multi-view scanning trajectories to inspect unmapped or occluded table zones.
     """
     def __init__(self):

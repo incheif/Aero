@@ -40,10 +40,23 @@ from simulation.constants import (
     stack_slot_y,
 )
 from simulation.physics_engine import RobotArmSimulation
-from simulation.camera import render_camera_frame, encode_image_base64, pixel_to_world, world_to_pixel
+from simulation.camera import (
+    render_camera_frame,
+    render_depth_frame,
+    encode_image_base64,
+    pixel_to_world,
+    world_to_pixel,
+    SimulationCamera,
+    SimulationRobotStateSensor,
+)
 from simulation.kinematics import inverse_kinematics
+from perception.detector import BlockColorDetector
+from perception.localisation import Object3DLocalizer
+from perception.tracker import MultiObjectTracker
 from vla.semantic_mapper import SemanticSpatialMapper
 from vla.frontier_explorer import TabletopFrontierExplorer
+from vla.target_grounding import TargetGrounder
+from vla.execution_monitor import ExecutionMonitor
 from vla.google_vla_agent import GoogleVLAAgent
 from vla.trajectory_controller import TrajectoryController
 from vla.color_seek_policy import ColorSeekPolicy, find_blobs
@@ -74,7 +87,14 @@ class UserSession:
     def __init__(self, session_id: str):
         self.session_id = session_id
         self.sim = RobotArmSimulation()
+        self.camera = SimulationCamera(self.sim)
+        self.robot_sensor = SimulationRobotStateSensor(self.sim)
+        self.detector = BlockColorDetector()
+        self.localizer = Object3DLocalizer()
+        self.tracker = MultiObjectTracker()
         self.mapper = SemanticSpatialMapper()
+        self.target_grounder = TargetGrounder(self.mapper)
+        self.execution_monitor = ExecutionMonitor()
         self.explorer = TabletopFrontierExplorer()
         self.vla_agent = GoogleVLAAgent()
         self.controller = TrajectoryController()
@@ -197,7 +217,11 @@ class UserSession:
         for k in self.explorer.explored_cells:
             self.explorer.explored_cells[k] = 0.25
         self.sim.reset()
-        self.mapper.update_from_simulation(self.sim.get_snapshot())
+        obs = self.camera.capture()
+        robot_obs = self.robot_sensor.get_state()
+        dets = self.localizer.localize(self.detector.detect(obs), obs)
+        tracks = self.tracker.update(dets)
+        self.mapper.update_from_perception(tracks, robot_obs)
         self.vla_agent.execution_status = "RESTING"
         self.vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
         self.log_event(
@@ -221,24 +245,28 @@ class UserSession:
         # Automatically reset the system before every new action
         self.handle_reset()
 
-        snapshot = self.sim.get_snapshot()
-        img = render_camera_frame(snapshot)
+        # Capture sensor observation through CameraInterface
+        obs = self.camera.capture()
+        robot_obs = self.robot_sensor.get_state()
+        dets = self.localizer.localize(self.detector.detect(obs), obs)
+        tracks = self.tracker.update(dets)
+        self.mapper.update_from_perception(tracks, robot_obs)
         semantic_summary = self.mapper.get_semantic_summary()
 
         # 1. Computer Vision Perception Acquisition
         self.log_event(
             "perception",
             "CAMERA ACQUIRED",
-            "128×128 overhead RGB frame captured from workcell camera.",
+            f"128×128 overhead RGB frame captured. Segmented {len(dets)} blocks, tracked {len(tracks)} active entities.",
             "Sensor: Orthographic top-down · Matrix: 128×128 RGB · Zero privileged ground-truth GPS cheating."
         )
 
-        blobs = find_blobs(img)
+        blobs = find_blobs(obs.rgb)
         detected_colors = [c for c, pt in blobs.items() if pt is not None and c not in ("tcp", "pad")]
         self.detected_blobs = {c: blobs[c] for c in detected_colors}
 
-        # Synthesize manipulation, gesture, or feasibility validation through Google VLA
-        result = self.vla_agent.parse_instruction(cmd, img, snapshot, semantic_summary)
+        # Synthesize manipulation, gesture, or feasibility validation through Google VLA using estimated perception
+        result = self.vla_agent.parse_instruction(cmd, obs.rgb, None, semantic_summary, semantic_mapper=self.mapper)
 
         # If rejected as impossible:
         if not result.get("is_possible", True) or result.get("status") == "IMPOSSIBLE":
@@ -485,8 +513,13 @@ class UserSession:
         # 3. Step physics simulation
         snapshot = self.sim.step(FIXED_DT)
 
-        # 4. Update 3D Semantic Spatial Mapper
-        self.mapper.update_from_simulation(snapshot)
+        # 4. Periodic Perception & Semantic Spatial Memory Update (12 Hz)
+        if self.sim.tick % 5 == 0:
+            obs = self.camera.capture()
+            robot_obs = self.robot_sensor.get_state()
+            dets = self.localizer.localize(self.detector.detect(obs), obs)
+            tracks = self.tracker.update(dets)
+            self.mapper.update_from_perception(tracks, robot_obs)
 
         # FPS calculations
         self.frame_count += 1
@@ -528,6 +561,14 @@ class UserSession:
             "scores": snapshot.get("scores", {}),
             "tcp_trail": self.controller.tcp_trail[-60:],
             "semantic_map": self.mapper.to_dict(),
+            "perception": {
+                "tracks": [t.to_dict() for t in self.tracker.tracks.values()],
+                "count": len(self.tracker.tracks),
+                "camera_model": "orthographic_128x128",
+                "calibrated": True,
+                "execution_phase": self.execution_monitor.current_phase,
+                "mode": "perception_estimated",
+            },
             "frontier": self.explorer.to_dict(),
             "vla": {
                 "model": "ColorSeek (Visual Servoing)" if self.color_seek_active else self.vla_agent.model_name,
