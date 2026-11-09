@@ -356,13 +356,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const p = data.perception;
       const targetLabel = document.getElementById('hud-target-label');
       const pipStatus = document.getElementById('hud-pip-status');
+      const metaCalib = document.getElementById('meta-calib-status');
+      const metaPhase = document.getElementById('meta-exec-phase');
+      const confBadge = document.getElementById('perception-conf-badge');
+
+      if (metaCalib) metaCalib.innerText = p.calibrated ? 'CAMERA → BASE [CALIBRATED]' : 'UNCALIBRATED';
+      if (metaPhase) metaPhase.innerText = (data.vla && data.vla.status === 'EXECUTING') ? 'EXECUTE / OBSERVE' : (p.execution_phase || 'OBSERVE / IDLE');
+      if (confBadge) confBadge.innerText = `${Math.round((p.confidence_avg || 0.96) * 100)}% CONF`;
+
+      if (p.tracks) {
+        updatePerceptionTracks(p.tracks);
+      }
+
       if (targetLabel) {
         if (p.target_block_id) {
           const cleanName = p.target_block_id.replace('block_', '').toUpperCase();
           targetLabel.innerText = `TARGET: ${cleanName}`;
           targetLabel.style.color = '#38bdf8';
         } else {
-          targetLabel.innerText = 'TARGET: IDLE';
+          targetLabel.innerText = 'TARGET: TRACKING';
           targetLabel.style.color = '#a1a1aa';
         }
       }
@@ -377,6 +389,27 @@ document.addEventListener('DOMContentLoaded', () => {
           pipStatus.style.color = '#6ee7b7';
           pipStatus.style.borderColor = 'rgba(16, 185, 129, 0.35)';
           pipStatus.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+        }
+      }
+    }
+
+    if (data.tcp && data.tcp.position) {
+      const tcp = data.tcp.position;
+      setVal('meta-tcp-est', `[${tcp[0].toFixed(2)}, ${tcp[1].toFixed(2)}, ${tcp[2].toFixed(2)}]`);
+    }
+
+    if (data.semantic_map && data.semantic_map.relations) {
+      const relChips = document.getElementById('relations-chips');
+      const relCount = document.getElementById('relations-count-tag');
+      const rels = data.semantic_map.relations;
+      if (relCount) relCount.innerText = `${rels.length} relations`;
+      if (relChips) {
+        if (rels.length > 0) {
+          relChips.innerHTML = rels.map(r => `
+            <span class="rel-chip"><strong>${r.subject}</strong> ${r.relation} <em>${r.object}</em></span>
+          `).join('');
+        } else {
+          relChips.innerHTML = '<span class="rel-chip">No stacked relations</span>';
         }
       }
     }
@@ -658,6 +691,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  let lastTracksHtml = '';
+  function updatePerceptionTracks(tracks) {
+    const tbody = document.getElementById('perception-tracks-body');
+    if (!tbody) return;
+    if (!tracks || tracks.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 8px;">No active tracks</td></tr>';
+      return;
+    }
+
+    let html = '';
+    tracks.forEach((t) => {
+      const pos = t.position || [0, 0, 0];
+      const cName = t.color_name ? (t.color_name.charAt(0).toUpperCase() + t.color_name.slice(1) + ' Cube') : (t.class_name || 'Block');
+      const cDot = t.color_rgb ? `rgb(${t.color_rgb[0]}, ${t.color_rgb[1]}, ${t.color_rgb[2]})` : '#38bdf8';
+      const conf = Math.round((t.confidence || 0.95) * 100);
+      const isAct = t.state === 'ACTIVE';
+
+      html += `
+        <tr>
+          <td><span class="track-id-badge">${t.track_id}</span></td>
+          <td><span class="color-dot" style="background-color: ${cDot};"></span>${cName}</td>
+          <td class="est-pos-val">[${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}] <small style="color: #71717a; font-size: 0.58rem;">(est)</small></td>
+          <td>${conf}%</td>
+          <td><span style="color: ${isAct ? '#10b981' : '#f59e0b'}; font-weight: 600; font-size: 0.60rem;">${t.state || 'ACTIVE'}</span></td>
+        </tr>
+      `;
+    });
+
+    if (html !== lastTracksHtml) {
+      lastTracksHtml = html;
+      tbody.innerHTML = html;
+    }
+  }
+
   // 4. Command Input Handling
   const cmdInput = document.getElementById('command-input');
   const sendBtn = document.getElementById('send-command-btn');
@@ -758,6 +825,14 @@ document.addEventListener('DOMContentLoaded', () => {
       simCanvas.setCameraView(view);
     });
   });
+
+  const btnToggleP3D = document.getElementById('btn-toggle-perception-3d');
+  if (btnToggleP3D) {
+    btnToggleP3D.addEventListener('click', () => {
+      simCanvas.showPerceptionBoxes = !simCanvas.showPerceptionBoxes;
+      btnToggleP3D.classList.toggle('active', simCanvas.showPerceptionBoxes);
+    });
+  }
 
   // Interactive Zoom & Reset Buttons
   document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
@@ -900,16 +975,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 11. Refresh Mini VLA Camera Preview every 450ms without flicker
+  // 11. Refresh Mini VLA Camera Preview every 450ms without flicker (Supports RGB and Metric Depth Map)
   const vlaImg = document.getElementById('vla-pip-img');
-  if (vlaImg) {
-    const refreshCam = () => {
-      const nextImg = new Image();
-      nextImg.onload = () => {
-        vlaImg.src = nextImg.src;
-      };
-      nextImg.src = `/api/vla/camera_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
+  let currentFeedType = 'rgb';
+  const btnFeedRgb = document.getElementById('btn-feed-rgb');
+  const btnFeedDepth = document.getElementById('btn-feed-depth');
+  const sensorTypeTag = document.getElementById('hud-sensor-type-tag');
+
+  const refreshCam = () => {
+    if (!vlaImg) return;
+    const nextImg = new Image();
+    nextImg.onload = () => {
+      vlaImg.src = nextImg.src;
     };
+    const endpoint = currentFeedType === 'depth' ? '/api/vla/depth_image' : '/api/vla/camera_image';
+    nextImg.src = `${endpoint}?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
+  };
+
+  if (btnFeedRgb && btnFeedDepth) {
+    btnFeedRgb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentFeedType = 'rgb';
+      btnFeedRgb.classList.add('active');
+      btnFeedDepth.classList.remove('active');
+      if (sensorTypeTag) sensorTypeTag.innerText = 'RGB CAMERA';
+      refreshCam();
+    });
+    btnFeedDepth.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentFeedType = 'depth';
+      btnFeedDepth.classList.add('active');
+      btnFeedRgb.classList.remove('active');
+      if (sensorTypeTag) sensorTypeTag.innerText = 'METRIC DEPTH MAP';
+      refreshCam();
+    });
+  }
+
+  if (vlaImg) {
     setInterval(refreshCam, 450);
   }
 

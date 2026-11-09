@@ -43,6 +43,8 @@ class SimCanvas3D {
     this.showTrails = true;
     this.showSemanticLabels = true;
     this.showColliders = false;
+    this.showPerceptionBoxes = true;
+    this.perceptionMeshes = {};
 
     // Performance Mode ('smooth' 60 FPS optimized for laptops, or 'hd' for high-end GPUs)
     this.perfMode = localStorage.getItem('AERO_PERF_MODE') || 'smooth';
@@ -477,7 +479,41 @@ class SimCanvas3D {
       };
     });
 
-    // 3. Update TCP Trail Line
+    // 3. Update 3D Perception Bounding Volumes (Estimated Track Positions)
+    if (this.showPerceptionBoxes && data.perception && data.perception.tracks) {
+      const activeTrackIds = new Set();
+      data.perception.tracks.forEach((track) => {
+        activeTrackIds.add(track.track_id);
+        let pMesh = this.perceptionMeshes[track.track_id];
+        if (!pMesh) {
+          const pGeo = new THREE.BoxGeometry(0.062, 0.062, 0.062);
+          const pEdges = new THREE.EdgesGeometry(pGeo);
+          const pMat = new THREE.LineBasicMaterial({
+            color: 0x38bdf8,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.9
+          });
+          pMesh = new THREE.LineSegments(pEdges, pMat);
+          this.scene.add(pMesh);
+          this.perceptionMeshes[track.track_id] = pMesh;
+        }
+        if (track.position) {
+          pMesh.visible = true;
+          pMesh.position.set(track.position[0], track.position[1], track.position[2]);
+        }
+      });
+      // Hide inactive
+      Object.keys(this.perceptionMeshes).forEach((tid) => {
+        if (!activeTrackIds.has(tid)) {
+          this.perceptionMeshes[tid].visible = false;
+        }
+      });
+    } else {
+      Object.values(this.perceptionMeshes).forEach((m) => { m.visible = false; });
+    }
+
+    // 4. Update TCP Trail Line
     if (this.showTrails && data.tcp_trail && data.tcp_trail.length > 1) {
       const pts = data.tcp_trail;
       const positions = this.tcpTrailLine.geometry.attributes.position.array;

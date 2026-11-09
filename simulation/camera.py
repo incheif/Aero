@@ -189,6 +189,42 @@ def render_depth_frame(
     return depth
 
 
+def render_depth_visual(
+    snapshot: Dict[str, Any],
+    size: int = VLA_IMAGE_SIZE,
+    camera_height: float = OVERHEAD_CAMERA_HEIGHT
+) -> Image.Image:
+    """
+    Renders metric depth buffer into an intuitive false-color image for frontend display:
+    - Bright amber/cyan for elevated blocks
+    - Deep blue for tabletop surface
+    - Dark studio charcoal for background
+    """
+    depth = render_depth_frame(snapshot, size, camera_height)
+    table_depth = camera_height - TABLE_TOP_Y
+    vis = np.zeros((size, size, 3), dtype=np.uint8)
+
+    # 1. Background pixels
+    vis[depth >= 1.8] = [12, 14, 18]
+
+    # 2. Table pixels
+    table_mask = (depth < 1.8) & (depth >= (table_depth - 0.008))
+    vis[table_mask] = [28, 48, 85]
+
+    # 3. Block pixels (elevated above table)
+    block_mask = depth < (table_depth - 0.008)
+    if np.any(block_mask):
+        elev = np.clip((table_depth - depth[block_mask]) / 0.22, 0.0, 1.0)
+        r = np.clip(elev * 240 + 20, 0, 255).astype(np.uint8)
+        g = np.clip(160 + elev * 85, 0, 255).astype(np.uint8)
+        b = np.clip((1.0 - elev) * 220, 0, 255).astype(np.uint8)
+        vis[block_mask, 0] = r
+        vis[block_mask, 1] = g
+        vis[block_mask, 2] = b
+
+    return Image.fromarray(vis)
+
+
 def encode_image_base64(img: Image.Image) -> str:
     """Encodes PIL image to Base64 PNG string for Gemini multimodal API."""
     buffered = io.BytesIO()

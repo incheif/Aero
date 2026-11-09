@@ -43,6 +43,7 @@ from simulation.physics_engine import RobotArmSimulation
 from simulation.camera import (
     render_camera_frame,
     render_depth_frame,
+    render_depth_visual,
     encode_image_base64,
     pixel_to_world,
     world_to_pixel,
@@ -902,6 +903,18 @@ async def api_camera_image(request: Request, annotated: bool = True):
     sess = session_manager.get_or_create(sid)
     snapshot = sess.sim.get_snapshot()
     img = render_camera_frame(snapshot, annotated=annotated, target_block_id=sess.active_target_block_id)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@app.get("/api/vla/depth_image")
+async def api_depth_image(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    snapshot = sess.sim.get_snapshot()
+    img = render_depth_visual(snapshot, size=128)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)

@@ -2085,4 +2085,201 @@ header {
   }
 }
 
+/* --------------------------------------------------------------------------
+   6. AI Perception & 3D Spatial Memory Observability Components
+   -------------------------------------------------------------------------- */
+.hud-stream-switcher {
+  display: flex;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 1px;
+}
+
+.hud-feed-btn {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  font-size: 0.56rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-mono);
+}
+
+.hud-feed-btn:hover {
+  color: #ffffff;
+}
+
+.hud-feed-btn.active {
+  background: #38bdf8;
+  color: #09090b;
+}
+
+.hud-sensor-tag {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  font-size: 0.52rem;
+  font-family: var(--font-mono);
+  color: #38bdf8;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 1px 4px;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.perception-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+  display: inline-block;
+  animation: pulse-dot 1.8s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(56, 189, 248, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+
+.badge-est {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  font-weight: 600;
+}
+
+.badge-conf {
+  color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  font-weight: 600;
+}
+
+.perception-meta-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+.meta-strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-strip-label {
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.meta-strip-val {
+  font-size: 0.68rem;
+  color: #f4f4f5;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tracks-table-wrapper {
+  max-height: 155px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.tracks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.67rem;
+  font-family: var(--font-mono);
+}
+
+.tracks-table th {
+  position: sticky;
+  top: 0;
+  background: rgba(24, 24, 27, 0.95);
+  color: var(--text-dim);
+  text-align: left;
+  padding: 4px 6px;
+  font-size: 0.58rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.04em;
+}
+
+.tracks-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #d4d4d8;
+  vertical-align: middle;
+}
+
+.track-id-badge {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-size: 0.60rem;
+  font-weight: 600;
+}
+
+.est-pos-val {
+  color: #f59e0b;
+  font-size: 0.65rem;
+}
+
+.relations-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
+.relations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.relations-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 70px;
+  overflow-y: auto;
+}
+
+.rel-chip {
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: #e4e4e7;
+}
+
 
