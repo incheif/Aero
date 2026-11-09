@@ -866,9 +866,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function triggerRandomizeLayout() {
+    try {
+      await sessionFetch('/api/sim/randomize', { method: 'POST' });
+      console.log('[System] Blocks randomized across tabletop.');
+    } catch (err) {
+      console.error('Error randomizing blocks:', err);
+    }
+  }
+
   document.getElementById('btn-rest-header')?.addEventListener('click', triggerRestArm);
   document.getElementById('btn-rest-inline')?.addEventListener('click', triggerRestArm);
   document.getElementById('btn-rest-main')?.addEventListener('click', triggerRestArm);
+  document.getElementById('btn-randomize-main')?.addEventListener('click', triggerRandomizeLayout);
   document.getElementById('btn-reset')?.addEventListener('click', triggerRestArm);
 
   document.getElementById('btn-reset-cost')?.addEventListener('click', async () => {

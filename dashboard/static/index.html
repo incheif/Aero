@@ -6,7 +6,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=2.4">
+  <link rel="stylesheet" href="/css/style.css?v=3.0">
 </head>
 <body>
   <div id="app-layout">
@@ -364,17 +364,24 @@
           </div>
         </div>
 
-        <!-- 3. Dedicated Rest Arm Button Card -->
+        <!-- 3. Dedicated Rest Arm & Randomize Spawns Card -->
         <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-rest-hero" id="btn-rest-main">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
             </svg>
-            Rest Arm / Reset Simulation
+            Rest Arm / Reset Baseline
+          </button>
+          <button class="btn-rest-hero" id="btn-randomize-main" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
+            </svg>
+            Randomize Layout (Test Perception)
           </button>
           <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
-            Returns arm to resting home pose and resets blocks
+            Scatters blocks to random tabletop positions within 5-DOF reach envelope
           </span>
         </div>
       </div>
@@ -444,7 +451,7 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=2.4"></script>
-  <script src="/js/app.js?v=2.4"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.0"></script>
+  <script src="/js/app.js?v=3.0"></script>
 </body>
 </html>

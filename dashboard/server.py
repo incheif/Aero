@@ -207,7 +207,7 @@ class UserSession:
             or self.explorer.is_exploring
         )
 
-    def handle_reset(self):
+    def handle_reset(self, randomize: bool = False, reset_blocks: bool = True):
         self.color_seek_active = False
         self.color_seek.reset()
         self.controller.stop()
@@ -217,7 +217,8 @@ class UserSession:
         self.explorer.exploration_pct = 25.0
         for k in self.explorer.explored_cells:
             self.explorer.explored_cells[k] = 0.25
-        self.sim.reset()
+        if reset_blocks:
+            self.sim.reset(randomize=randomize)
         obs = self.camera.capture()
         robot_obs = self.robot_sensor.get_state()
         dets = self.localizer.localize(self.detector.detect(obs), obs)
@@ -225,12 +226,13 @@ class UserSession:
         self.mapper.update_from_perception(tracks, robot_obs)
         self.vla_agent.execution_status = "RESTING"
         self.vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
-        self.log_event(
-            "system",
-            "RESET",
-            "Workspace and arm reset to canonical state.",
-            "Joint targets zeroed/rest pose. Blocks re-spawned at baseline coordinates. Trajectory queue stopped."
-        )
+        if reset_blocks:
+            self.log_event(
+                "system",
+                "RESET",
+                "Workspace and arm reset." if not randomize else "Workspace randomized with collision-free spawns.",
+                "Blocks spawned at baseline coordinates. Trajectory queue stopped." if not randomize else "Blocks randomized within 5-DOF reach envelope. Camera perception initialized."
+            )
 
     async def handle_vla_command(self, cmd: str) -> Dict[str, Any]:
         self.manual_mode = False
@@ -243,8 +245,8 @@ class UserSession:
             f"Dispatched to Google VLA reasoning pipeline (Model: {self.vla_agent.model_name}). Synthesizing spatial chain-of-thought."
         )
 
-        # Automatically reset the system before every new action
-        self.handle_reset()
+        # Halt prior trajectory and refresh perception without resetting block positions
+        self.handle_reset(reset_blocks=False)
 
         # Capture sensor observation through CameraInterface
         obs = self.camera.capture()
@@ -843,8 +845,18 @@ async def api_reset(request: Request):
     sess = session_manager.get_or_create(sid)
     if sess.is_suspended:
         sess.resume()
-    sess.handle_reset()
+    sess.handle_reset(randomize=False, reset_blocks=True)
     return {"status": "ok", "message": "Arm returned to rest pose and workspace reset."}
+
+
+@app.post("/api/sim/randomize")
+async def api_randomize(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
+    sess.handle_reset(randomize=True, reset_blocks=True)
+    return {"status": "ok", "message": "Blocks spawned at randomized collision-free tabletop coordinates."}
 
 
 @app.post("/api/session/resume")
