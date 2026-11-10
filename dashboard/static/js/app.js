@@ -414,6 +414,25 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 6D. Update Frontier Mapping & Occupancy Navigation Telemetry
+    if (data.frontier) {
+      const f = data.frontier;
+      const metaFrontierPct = document.getElementById('meta-frontier-pct');
+      const metaFrontierWpt = document.getElementById('meta-frontier-wpt');
+      const metaGridStats = document.getElementById('meta-grid-stats');
+      if (metaFrontierPct) metaFrontierPct.innerText = `${f.exploration_pct || 25}% EXPLORED`;
+      if (metaFrontierWpt) metaFrontierWpt.innerText = f.is_exploring ? (f.current_waypoint || 'SCANNING') : 'READY';
+      if (metaGridStats && f.occupancy_grid) {
+        let occ = 0;
+        let free = 0;
+        f.occupancy_grid.forEach(row => row.forEach(c => {
+          if (c === 2) occ++;
+          else if (c === 1) free++;
+        }));
+        metaGridStats.innerText = `${free} FREE / ${occ} OCCUPIED`;
+      }
+    }
+
     // 7. Update LLM VLA Cost Tracking Metrics
     if (data.cost) {
       updateCostMetrics(data.cost);
@@ -826,6 +845,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  const btnToggleFrustum = document.getElementById('btn-toggle-frustum');
+  if (btnToggleFrustum) {
+    btnToggleFrustum.addEventListener('click', () => {
+      simCanvas.showFrustums = !simCanvas.showFrustums;
+      btnToggleFrustum.classList.toggle('active', simCanvas.showFrustums);
+    });
+  }
+
+  const btnToggleGrid = document.getElementById('btn-toggle-grid');
+  if (btnToggleGrid) {
+    btnToggleGrid.addEventListener('click', () => {
+      simCanvas.showMappingGrid = !simCanvas.showMappingGrid;
+      btnToggleGrid.classList.toggle('active', simCanvas.showMappingGrid);
+    });
+  }
+
   const btnToggleP3D = document.getElementById('btn-toggle-perception-3d');
   if (btnToggleP3D) {
     btnToggleP3D.addEventListener('click', () => {
@@ -985,12 +1020,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 11. Refresh Mini VLA Camera Preview every 450ms without flicker (Supports RGB and Metric Depth Map)
+  // 11. Refresh Mini VLA Camera Preview every 450ms without flicker (Supports Overhead RGB, Eye-in-Hand Wrist Cam, Metric Depth, and Occupancy Map)
   const vlaImg = document.getElementById('vla-pip-img');
   let currentFeedType = 'rgb';
   const btnFeedRgb = document.getElementById('btn-feed-rgb');
+  const btnFeedWrist = document.getElementById('btn-feed-wrist');
   const btnFeedDepth = document.getElementById('btn-feed-depth');
+  const btnFeedMap = document.getElementById('btn-feed-map');
   const sensorTypeTag = document.getElementById('hud-sensor-type-tag');
+
+  const hudFeedConfigs = [
+    { btn: btnFeedRgb, type: 'rgb', tag: 'OVERHEAD RGB', endpoint: '/api/vla/camera_image' },
+    { btn: btnFeedWrist, type: 'wrist', tag: 'WRIST (EYE-IN-HAND)', endpoint: '/api/vla/wrist_image' },
+    { btn: btnFeedDepth, type: 'depth', tag: 'METRIC DEPTH MAP', endpoint: '/api/vla/depth_image' },
+    { btn: btnFeedMap, type: 'map', tag: 'OCCUPANCY GRID MAP', endpoint: '/api/vla/map_image' },
+  ];
 
   const refreshCam = () => {
     if (!vlaImg) return;
@@ -998,28 +1042,26 @@ document.addEventListener('DOMContentLoaded', () => {
     nextImg.onload = () => {
       vlaImg.src = nextImg.src;
     };
-    const endpoint = currentFeedType === 'depth' ? '/api/vla/depth_image' : '/api/vla/camera_image';
+    let endpoint = '/api/vla/camera_image';
+    if (currentFeedType === 'wrist') endpoint = '/api/vla/wrist_image';
+    else if (currentFeedType === 'depth') endpoint = '/api/vla/depth_image';
+    else if (currentFeedType === 'map') endpoint = '/api/vla/map_image';
     nextImg.src = `${endpoint}?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
   };
 
-  if (btnFeedRgb && btnFeedDepth) {
-    btnFeedRgb.addEventListener('click', (e) => {
-      e.stopPropagation();
-      currentFeedType = 'rgb';
-      btnFeedRgb.classList.add('active');
-      btnFeedDepth.classList.remove('active');
-      if (sensorTypeTag) sensorTypeTag.innerText = 'RGB CAMERA';
-      refreshCam();
-    });
-    btnFeedDepth.addEventListener('click', (e) => {
-      e.stopPropagation();
-      currentFeedType = 'depth';
-      btnFeedDepth.classList.add('active');
-      btnFeedRgb.classList.remove('active');
-      if (sensorTypeTag) sensorTypeTag.innerText = 'METRIC DEPTH MAP';
-      refreshCam();
-    });
-  }
+  hudFeedConfigs.forEach(({ btn, type, tag }) => {
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentFeedType = type;
+        hudFeedConfigs.forEach((h) => {
+          if (h.btn) h.btn.classList.toggle('active', h.type === type);
+        });
+        if (sensorTypeTag) sensorTypeTag.innerText = tag;
+        refreshCam();
+      });
+    }
+  });
 
   if (vlaImg) {
     setInterval(refreshCam, 450);

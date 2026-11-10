@@ -44,6 +44,8 @@ from simulation.camera import (
     render_camera_frame,
     render_depth_frame,
     render_depth_visual,
+    render_wrist_camera_frame,
+    render_occupancy_map_visual,
     encode_image_base64,
     pixel_to_world,
     world_to_pixel,
@@ -523,6 +525,8 @@ class UserSession:
             dets = self.localizer.localize(self.detector.detect(obs), obs)
             tracks = self.tracker.update(dets)
             self.mapper.update_from_perception(tracks, robot_obs)
+            self.explorer.update_occupancy_from_tracks(tracks)
+            self.explorer.mark_region(tcp_pos[0], tcp_pos[2], radius=0.18)
 
         # FPS calculations
         self.frame_count += 1
@@ -915,6 +919,36 @@ async def api_camera_image(request: Request, annotated: bool = True):
     sess = session_manager.get_or_create(sid)
     snapshot = sess.sim.get_snapshot()
     img = render_camera_frame(snapshot, annotated=annotated, target_block_id=sess.active_target_block_id)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@app.get("/api/vla/wrist_image")
+async def api_wrist_image(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    snapshot = sess.sim.get_snapshot()
+    img = render_wrist_camera_frame(snapshot, size=128, target_block_id=sess.active_target_block_id)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@app.get("/api/vla/map_image")
+async def api_map_image(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    snapshot = sess.sim.get_snapshot()
+    tcp_pos = snapshot.get("tcp", {}).get("position", [0.08, 0.85, 0.0])
+    img = render_occupancy_map_visual(
+        explorer_data=sess.explorer.to_dict(),
+        tracks=list(sess.tracker.tracks.values()),
+        tcp_pos=tcp_pos,
+        size=128
+    )
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)

@@ -44,7 +44,13 @@ class SimCanvas3D {
     this.showSemanticLabels = true;
     this.showColliders = false;
     this.showPerceptionBoxes = true;
+    this.showFrustums = true;
+    this.showMappingGrid = true;
     this.perceptionMeshes = {};
+    this.sensorFrustumGroup = null;
+    this.wristSensorBeam = null;
+    this.occupancyGridGroup = null;
+    this.occupancyGridTiles = [];
 
     // Performance Mode ('smooth' 60 FPS optimized for laptops, or 'hd' for high-end GPUs)
     this.perfMode = localStorage.getItem('AERO_PERF_MODE') || 'smooth';
@@ -122,6 +128,10 @@ class SimCanvas3D {
 
     // 7. TCP Trajectory Trail
     this.setupTrailLine();
+
+    // 8. 3D Sensor Visualizations & Tabletop Mapping Grid
+    this.setupSensorVisualizations();
+    this.setupTabletopMappingGrid();
 
     // Dynamic Viewport Resize Observer for seamless full-space filling
     if (window.ResizeObserver && this.canvas.parentElement) {
@@ -405,6 +415,95 @@ class SimCanvas3D {
     this.scene.add(this.tcpTrailLine);
   }
 
+  setupSensorVisualizations() {
+    this.sensorFrustumGroup = new THREE.Group();
+
+    // 1. Overhead Camera Frustum (from 0.08, 1.85, 0.0 to table bounds [-0.35, 0.35])
+    const camPos = new THREE.Vector3(0.08, 1.85, 0.0);
+    const corners = [
+      new THREE.Vector3(-0.35, 0.722, -0.35),
+      new THREE.Vector3(0.35, 0.722, -0.35),
+      new THREE.Vector3(0.35, 0.722, 0.35),
+      new THREE.Vector3(-0.35, 0.722, 0.35),
+    ];
+
+    const frustumMat = new THREE.LineBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.35,
+    });
+
+    const fPoints = [
+      camPos, corners[0],
+      camPos, corners[1],
+      camPos, corners[2],
+      camPos, corners[3],
+      corners[0], corners[1],
+      corners[1], corners[2],
+      corners[2], corners[3],
+      corners[3], corners[0]
+    ];
+    const fGeo = new THREE.BufferGeometry().setFromPoints(fPoints);
+    const fLines = new THREE.LineSegments(fGeo, frustumMat);
+    this.sensorFrustumGroup.add(fLines);
+
+    // Subtle overhead camera icon marker at (0.08, 1.85, 0.0)
+    const camIcon = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.02, 0.04),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+    );
+    camIcon.position.copy(camPos);
+    this.sensorFrustumGroup.add(camIcon);
+
+    // 2. Wrist Camera / Laser Sensor Beam (originates from TCP and shoots down)
+    const beamGeo = new THREE.CylinderGeometry(0.003, 0.038, 0.20, 16, 1, true);
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.28,
+      side: THREE.DoubleSide
+    });
+    this.wristSensorBeam = new THREE.Mesh(beamGeo, beamMat);
+    this.wristSensorBeam.visible = true;
+    this.sensorFrustumGroup.add(this.wristSensorBeam);
+
+    this.scene.add(this.sensorFrustumGroup);
+  }
+
+  setupTabletopMappingGrid() {
+    this.occupancyGridGroup = new THREE.Group();
+    this.occupancyGridTiles = [];
+    const rows = 10;
+    const cols = 10;
+    const halfX = 0.35 * 0.9;
+    const halfZ = 0.35 * 0.9;
+    const tileW = (2 * halfX) / cols;
+    const tileH = (2 * halfZ) / rows;
+
+    const tileGeo = new THREE.PlaneGeometry(tileW * 0.88, tileH * 0.88);
+    tileGeo.rotateX(-Math.PI / 2);
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cx = -halfX + (c + 0.5) * tileW;
+        const cz = -halfZ + (r + 0.5) * tileH;
+
+        const tileMat = new THREE.MeshBasicMaterial({
+          color: 0x06b6d4,
+          transparent: true,
+          opacity: 0.15,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        const tile = new THREE.Mesh(tileGeo, tileMat);
+        tile.position.set(cx, 0.722, cz);
+        this.occupancyGridGroup.add(tile);
+        this.occupancyGridTiles.push(tile);
+      }
+    }
+    this.scene.add(this.occupancyGridGroup);
+  }
+
   updateFromTelemetry(data) {
     if (!data) return;
 
@@ -533,6 +632,56 @@ class SimCanvas3D {
       const tcpPos = data.tcp.position;
       this.camera.position.set(tcpPos[0] - 0.22, tcpPos[1] + 0.18, tcpPos[2]);
       this.camera.lookAt(tcpPos[0], tcpPos[1], tcpPos[2]);
+    }
+
+    // 5. Update Sensor Frustums and Wrist Laser Beam
+    if (this.sensorFrustumGroup) {
+      this.sensorFrustumGroup.visible = this.showFrustums;
+    }
+    if (this.wristSensorBeam && data.tcp && data.tcp.position) {
+      const tcp = data.tcp.position;
+      const alt = Math.max(0.02, tcp[1] - 0.72);
+      this.wristSensorBeam.position.set(tcp[0], 0.72 + alt * 0.5, tcp[2]);
+      this.wristSensorBeam.scale.set(1.0, alt / 0.20, 1.0);
+      let nearBlock = false;
+      if (data.blocks) {
+        for (let b of data.blocks) {
+          const bp = b.position;
+          if (Math.hypot(bp[0] - tcp[0], bp[2] - tcp[2]) < 0.06 && Math.abs(bp[1] - tcp[1]) < 0.12) {
+            nearBlock = true;
+            break;
+          }
+        }
+      }
+      this.wristSensorBeam.material.color.setHex(nearBlock ? 0xf59e0b : 0x38bdf8);
+      this.wristSensorBeam.material.opacity = nearBlock ? 0.45 : 0.25;
+    }
+
+    // 6. Update 3D Tabletop Mapping / Occupancy Grid
+    if (this.occupancyGridGroup) {
+      this.occupancyGridGroup.visible = this.showMappingGrid;
+      if (this.showMappingGrid && data.frontier && data.frontier.occupancy_grid) {
+        const grid = data.frontier.occupancy_grid;
+        let idx = 0;
+        for (let r = 0; r < 10; r++) {
+          for (let c = 0; c < 10; c++) {
+            const tile = this.occupancyGridTiles[idx++];
+            if (!tile) continue;
+            const state = (grid[r] && grid[r][c] !== undefined) ? grid[r][c] : 0;
+            if (state === 2) {
+              tile.visible = true;
+              tile.material.color.setHex(0xf59e0b);
+              tile.material.opacity = 0.55;
+            } else if (state === 1) {
+              tile.visible = true;
+              tile.material.color.setHex(0x06b6d4);
+              tile.material.opacity = 0.20;
+            } else {
+              tile.visible = false;
+            }
+          }
+        }
+      }
     }
   }
 

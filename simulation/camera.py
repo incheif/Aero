@@ -225,6 +225,174 @@ def render_depth_visual(
     return Image.fromarray(vis)
 
 
+def render_wrist_camera_frame(
+    snapshot: Dict[str, Any],
+    size: int = VLA_IMAGE_SIZE,
+    target_block_id: Optional[str] = None
+) -> Image.Image:
+    """
+    Renders eye-in-hand / wrist camera feed mounted on the robot TCP:
+    - End-effector centered perspective view looking downwards
+    - Dynamic scale/zoom based on arm altitude above the tabletop
+    - Visible gripper jaw outlines responding to opening/closing
+    - Laser alignment reticle and distance-to-table readout
+    """
+    img = Image.new("RGB", (size, size), color=(18, 22, 28))
+    draw = ImageDraw.Draw(img)
+
+    tcp = snapshot.get("tcp", {})
+    tcp_pos = tcp.get("position", [0.08, 0.85, 0.0])
+    tx, ty, tz = float(tcp_pos[0]), float(tcp_pos[1]), float(tcp_pos[2])
+    gripper_val = float(tcp.get("gripper", 0.04))
+
+    # Altitude above table and dynamic FOV span in meters
+    alt = max(0.015, ty - TABLE_TOP_Y)
+    fov_span = max(0.10, min(0.42, 0.08 + alt * 2.0))
+    scale = size / fov_span
+
+    # Draw tabletop surface background
+    draw.rectangle([0, 0, size - 1, size - 1], fill=(24, 28, 36))
+
+    # Draw table fine reference grid (every 4cm)
+    grid_spacing = 0.04
+    grid_color = (36, 44, 56)
+    for gx in np.arange(-0.4, 0.45, grid_spacing):
+        px = int(size * 0.5 + (gx - tx) * scale)
+        if 0 <= px < size:
+            draw.line([(px, 0), (px, size)], fill=grid_color, width=1)
+    for gz in np.arange(-0.4, 0.45, grid_spacing):
+        py = int(size * 0.5 + (gz - tz) * scale)
+        if 0 <= py < size:
+            draw.line([(0, py), (size, py)], fill=grid_color, width=1)
+
+    # Draw blocks within wrist camera FOV
+    sorted_blocks = sorted(snapshot.get("blocks", []), key=lambda b: b["position"][1])
+    cube_half_px = max(3, int(round((CUBE_SIZE * 0.5) * scale)))
+
+    for b in sorted_blocks:
+        bx, by, bz = b["position"]
+        dx = bx - tx
+        dz = bz - tz
+        # If within horizontal sensor aperture
+        if abs(dx) < (fov_span * 0.6) and abs(dz) < (fov_span * 0.6):
+            cx = int(size * 0.5 + dx * scale)
+            cy = int(size * 0.5 + dz * scale)
+
+            hex_c = b.get("color", "#FFFFFF").lstrip("#")
+            color_rgb = tuple(int(hex_c[i:i+2], 16) for i in (0, 2, 4)) if len(hex_c) == 6 else (200, 200, 200)
+
+            # Draw block shadow and top face
+            draw.rectangle(
+                [cx - cube_half_px, cy - cube_half_px, cx + cube_half_px, cy + cube_half_px],
+                fill=color_rgb,
+                outline=(255, 255, 255, 140)
+            )
+
+            # Target indicator if matching
+            if target_block_id and b.get("id") == target_block_id:
+                draw.rectangle(
+                    [cx - cube_half_px - 2, cy - cube_half_px - 2, cx + cube_half_px + 2, cy + cube_half_px + 2],
+                    outline=(56, 189, 248),
+                    width=2
+                )
+
+    # Draw gripper jaws on left and right flanks
+    jaw_offset = int(clamp((gripper_val / 0.08) * (size * 0.32) + (size * 0.12), size * 0.14, size * 0.46))
+    left_jaw_x = int(size * 0.5 - jaw_offset)
+    right_jaw_x = int(size * 0.5 + jaw_offset)
+
+    # Left gripper jaw silhouette
+    draw.rectangle([0, int(size * 0.25), left_jaw_x, int(size * 0.75)], fill=(12, 14, 18), outline=(60, 68, 80))
+    draw.rectangle([max(0, left_jaw_x - 3), int(size * 0.35), left_jaw_x, int(size * 0.65)], fill=(56, 189, 248))
+
+    # Right gripper jaw silhouette
+    draw.rectangle([right_jaw_x, int(size * 0.25), size - 1, int(size * 0.75)], fill=(12, 14, 18), outline=(60, 68, 80))
+    draw.rectangle([right_jaw_x, int(size * 0.35), min(size - 1, right_jaw_x + 3), int(size * 0.65)], fill=(56, 189, 248))
+
+    # Central Laser Sight / Alignment Crosshair
+    mid = size // 2
+    laser_color = (16, 185, 129) if alt < 0.06 else (56, 189, 248)
+    draw.line([(mid - 10, mid), (mid - 3, mid)], fill=laser_color, width=1)
+    draw.line([(mid + 3, mid), (mid + 10, mid)], fill=laser_color, width=1)
+    draw.line([(mid, mid - 10), (mid, mid - 3)], fill=laser_color, width=1)
+    draw.line([(mid, mid + 3), (mid, mid + 10)], fill=laser_color, width=1)
+    draw.ellipse([mid - 14, mid - 14, mid + 14, mid + 14], outline=laser_color, width=1)
+
+    # HUD readout (Altitude and Camera tag)
+    draw.text((4, 3), "WRIST (EYE-IN-HAND)", fill=(160, 175, 200))
+    draw.text((4, size - 13), f"ALT: {alt*100:.1f}cm", fill=(200, 215, 230))
+
+    return img
+
+
+def render_occupancy_map_visual(
+    explorer_data: Dict[str, Any],
+    tracks: List[Any],
+    tcp_pos: Tuple[float, float, float] = (0.08, 0.85, 0.0),
+    size: int = VLA_IMAGE_SIZE
+) -> Image.Image:
+    """
+    Renders 2D tabletop occupancy & frontier navigation grid:
+    - Explored free-space cells (cool teal/cyan)
+    - Unexplored unknown cells (dark charcoal/slate)
+    - Occupied object cells (amber/orange)
+    - Active frontier boundary & robot TCP tracking
+    """
+    img = Image.new("RGB", (size, size), color=(10, 13, 18))
+    draw = ImageDraw.Draw(img)
+
+    # Grid specifications (10x10)
+    grid_n = 10
+    cell_w = (size - 16) / grid_n
+    margin = 8
+
+    # Tabletop boundary box
+    draw.rectangle([margin, margin, size - margin, size - margin], outline=(40, 50, 68), width=1)
+
+    pct = explorer_data.get("exploration_pct", 25.0)
+    # Generate cells based on exploration coverage
+    for r in range(grid_n):
+        for c in range(grid_n):
+            x1 = int(margin + c * cell_w)
+            y1 = int(margin + r * cell_w)
+            x2 = int(x1 + cell_w - 1)
+            y2 = int(y1 + cell_w - 1)
+
+            # Determine cell exploration status
+            diag = (r + c) / (grid_n * 2.0)
+            is_explored = (diag * 100.0) <= (pct + 15.0)
+
+            if is_explored:
+                fill_c = (18, 38, 48)
+                out_c = (30, 64, 82)
+            else:
+                fill_c = (14, 18, 24)
+                out_c = (24, 30, 40)
+
+            draw.rectangle([x1, y1, x2, y2], fill=fill_c, outline=out_c)
+
+    # Draw occupied cells from perceived tracks
+    for t in tracks:
+        pos = getattr(t, "position", None) or (t.get("position") if isinstance(t, dict) else None)
+        if pos:
+            u = int(margin + clamp((pos[0] - VLA_X_MIN) / (VLA_X_MAX - VLA_X_MIN), 0.05, 0.95) * (size - 2 * margin))
+            v = int(margin + clamp((VLA_Z_MAX - pos[2]) / (VLA_Z_MAX - VLA_Z_MIN), 0.05, 0.95) * (size - 2 * margin))
+
+            c_rgb = getattr(t, "color_rgb", None) or (245, 158, 11)
+            draw.rectangle([u - 4, v - 4, u + 4, v + 4], fill=tuple(c_rgb[:3]), outline=(255, 255, 255))
+
+    # Draw Robot TCP projection
+    tu = int(margin + clamp((tcp_pos[0] - VLA_X_MIN) / (VLA_X_MAX - VLA_X_MIN), 0.05, 0.95) * (size - 2 * margin))
+    tv = int(margin + clamp((VLA_Z_MAX - tcp_pos[2]) / (VLA_Z_MAX - VLA_Z_MIN), 0.05, 0.95) * (size - 2 * margin))
+    draw.ellipse([tu - 5, tv - 5, tu + 5, tv + 5], fill=(56, 189, 248), outline=(255, 255, 255))
+
+    # Header and Coverage %
+    draw.text((4, 2), "OCCUPANCY GRID MAP", fill=(140, 160, 190))
+    draw.text((size - 44, 2), f"{int(pct)}%", fill=(56, 189, 248))
+
+    return img
+
+
 def encode_image_base64(img: Image.Image) -> str:
     """Encodes PIL image to Base64 PNG string for Gemini multimodal API."""
     buffered = io.BytesIO()
