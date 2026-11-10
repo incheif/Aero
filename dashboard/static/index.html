@@ -6,7 +6,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.1">
+  <link rel="stylesheet" href="/css/style.css?v=3.2">
 </head>
 <body>
   <div id="app-layout">
@@ -86,19 +86,13 @@
         </div>
 
         <!-- Live AI Perception Camera Feed (128x128 Orthographic HUD) -->
-        <div id="camera-hud-pip" class="camera-hud-pip" title="Overhead 128x128 Camera Sensor (RGB & Metric Depth Buffers)">
+        <div id="camera-hud-pip" class="camera-hud-pip" title="Active Sensor Perception HUD (RGB, Wrist Cam, Depth, Occupancy Map)">
           <div class="hud-pip-header">
             <div class="hud-pip-title">
               <span class="hud-pip-dot"></span>
-              <span>128×128 SENSOR HUD</span>
+              <span>SENSOR HUD</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <div class="hud-stream-switcher">
-                <button class="hud-feed-btn active" id="btn-feed-rgb" title="Overhead RGB Camera Feed">OVERHEAD</button>
-                <button class="hud-feed-btn" id="btn-feed-wrist" title="Eye-in-Hand Wrist Camera Feed">WRIST</button>
-                <button class="hud-feed-btn" id="btn-feed-depth" title="Synthetic Depth Map">DEPTH</button>
-                <button class="hud-feed-btn" id="btn-feed-map" title="Occupancy & Frontier Navigation Map">MAP</button>
-              </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
               <span class="hud-pip-badge" id="hud-pip-status">PERCEPTION</span>
               <button class="btn-pip-toggle" id="btn-pip-toggle" title="Minimize/Maximize Camera HUD" aria-label="Toggle Camera HUD">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -106,15 +100,22 @@
             </div>
           </div>
           <div class="hud-pip-body" id="hud-pip-body">
+            <!-- 4-Option Stream Selector Bar -->
+            <div class="hud-stream-switcher">
+              <button class="hud-feed-btn active" id="btn-feed-rgb" title="Overhead RGB Camera Feed">OVERHEAD</button>
+              <button class="hud-feed-btn" id="btn-feed-wrist" title="Eye-in-Hand Wrist Camera Feed">WRIST</button>
+              <button class="hud-feed-btn" id="btn-feed-depth" title="Synthetic Depth Map">DEPTH</button>
+              <button class="hud-feed-btn" id="btn-feed-map" title="Occupancy & Frontier Navigation Map">MAP</button>
+            </div>
             <div class="hud-pip-viewport">
               <img id="vla-pip-img" src="/api/vla/camera_image" alt="VLA Sensor Feed" width="128" height="128" />
               <div class="hud-overlay-grid"></div>
               <div class="hud-crosshair-center"></div>
-              <div class="hud-sensor-tag" id="hud-sensor-type-tag">RGB CAMERA</div>
+              <div class="hud-sensor-tag" id="hud-sensor-type-tag">OVERHEAD RGB</div>
             </div>
             <div class="hud-pip-footer">
               <span class="hud-pip-stat" id="hud-target-label">TARGET: TRACKING</span>
-              <span class="hud-pip-metric" id="hud-cam-res">128×128 ORTHO</span>
+              <span class="hud-pip-metric" id="hud-cam-res">128×128 SENSOR</span>
             </div>
           </div>
         </div>
@@ -477,7 +478,7 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.1"></script>
-  <script src="/js/app.js?v=3.1"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.2"></script>
+  <script src="/js/app.js?v=3.2"></script>
 </body>
 </html>
