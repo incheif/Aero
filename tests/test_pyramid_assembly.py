@@ -358,5 +358,111 @@ class TestPyramidAssembly:
             assert abs(b["position"][0] - 0.40) < 0.035, f"Block {b_id} X position {b['position'][0]} not aligned at X=0.40m"
             assert b["position"][1] >= TABLE_TOP_Y + CUBE_HALF - 0.005, f"Block {b_id} penetrated table"
 
+    def test_07_per_step_clearance_obstructed_6_block_pyramid(self):
+        """
+        Verify per-step clearance removes obstructing blocks from partial/full pyramid footprint:
+        - Place block_purple (Apex Cap) inside Base Tier 2 at STACK_ORIGIN [0.45, 0.7475, 0.20].
+        - Verify Step Clearance Staging clears it safely to a perimeter slot BEFORE base tier placement,
+          then picks block_purple back from its staged slot when placing the Apex Cap.
+        """
+        from simulation.physics_engine import RobotArmSimulation
+        sim = RobotArmSimulation()
+        sim.blocks["block_purple"].position = [STACK_ORIGIN[0], TABLE_TOP_Y + CUBE_HALF, STACK_ORIGIN[2]]
+
+        agent = GoogleVLAAgent()
+        agent.api_key = ""
+        agent.interpreter.api_key = ""
+        agent.execution_mode = "deterministic"
+
+        res = agent.parse_instruction("Build a 6-block pyramid tower.", None, sim.get_snapshot(), {})
+        assert res["is_possible"] is True
+        plan = res["plan"]
+        grounding = res["grounding"]
+
+        staged = [g for g in grounding if g.get("role") == "Step Clearance Staging"]
+        assert len(staged) >= 1, "Expected Step Clearance Staging for block_purple obstructing STACK_ORIGIN"
+        staged_purple = [g for g in staged if g["entity"] == "block_purple"]
+        assert len(staged_purple) == 1
+        staged_coords = staged_purple[0]["target_coords"]
+
+        apex_entry = [g for g in grounding if g.get("role") == "Apex Cap" and g["entity"] == "block_purple"][0]
+        assert apex_entry["source_coords"] == staged_coords, (
+            "Apex Cap must pick block_purple from its newly staged perimeter slot"
+        )
+
+        # Execute full plan in physics engine and verify clean completion
+        controller = TrajectoryController()
+        controller.load_plan(plan)
+        for _ in range(2600):
+            if not controller.is_active:
+                break
+            snap = sim.get_snapshot()
+            cmd = controller.step(snap["tcp"]["position"], sim.joints)
+            if not cmd:
+                break
+            sim.set_joint_targets(cmd["joints"], cmd.get("gripper"))
+            sim.step(FIXED_DT)
+
+        assert not controller.is_active, f"Arm froze at step {controller.step_idx + 1}: {controller.current_action_desc}"
+
+    def test_08_per_step_clearance_single_and_dual_towers(self):
+        """
+        Verify per-step clearance generalizes across Single Tower and Multi-Tower instructions
+        and assigns distinct collision-free staging slots when multiple blockers exist.
+        """
+        from simulation.physics_engine import RobotArmSimulation
+
+        # Case A: Bystander block_purple sitting directly on STACK_ORIGIN during 3-block tower command
+        sim = RobotArmSimulation()
+        sim.blocks["block_purple"].position = [STACK_ORIGIN[0], TABLE_TOP_Y + CUBE_HALF, STACK_ORIGIN[2]]
+
+        agent = GoogleVLAAgent()
+        agent.api_key = ""
+        agent.interpreter.api_key = ""
+        agent.execution_mode = "deterministic"
+
+        res = agent.parse_instruction("Stack red, blue, and yellow blocks into a 3-layer tower", None, sim.get_snapshot(), {})
+        assert res["is_possible"] is True
+        grounding = res["grounding"]
+        staged = [g for g in grounding if g.get("role") == "Step Clearance Staging"]
+        assert any(g["entity"] == "block_purple" for g in staged), (
+            "Bystander block_purple on STACK_ORIGIN must be cleared before Layer 0 placement"
+        )
+
+        controller = TrajectoryController()
+        controller.load_plan(res["plan"])
+        for _ in range(1600):
+            if not controller.is_active:
+                break
+            snap = sim.get_snapshot()
+            cmd = controller.step(snap["tcp"]["position"], sim.joints)
+            if not cmd:
+                break
+            sim.set_joint_targets(cmd["joints"], cmd.get("gripper"))
+            sim.step(FIXED_DT)
+
+        assert not controller.is_active, f"Single tower froze at {controller.current_action_desc}"
+        final_blocks = {b["id"]: b for b in sim.get_snapshot()["blocks"]}
+        purple_dist_to_pad = math.hypot(
+            final_blocks["block_purple"]["position"][0] - STACK_ORIGIN[0],
+            final_blocks["block_purple"]["position"][2] - STACK_ORIGIN[2],
+        )
+        assert purple_dist_to_pad >= 0.08, f"Bystander block_purple still too close to pad ({purple_dist_to_pad:.3f}m)"
+
+        # Case B: Dual towers where block_emerald blocks Tower 1 pad and block_purple blocks Tower 2 pad
+        sim2 = RobotArmSimulation()
+        sim2.blocks["block_emerald"].position = [0.40, TABLE_TOP_Y + CUBE_HALF, 0.10]
+        sim2.blocks["block_purple"].position = [0.40, TABLE_TOP_Y + CUBE_HALF, 0.26]
+
+        res2 = agent.parse_instruction("Make 2 distinct towers of 2 blocks each.", None, sim2.get_snapshot(), {})
+        assert res2["is_possible"] is True
+        staged2 = [g for g in res2["grounding"] if g.get("role") == "Step Clearance Staging"]
+        assert len(staged2) >= 2, f"Expected >=2 staged blockers for obstructed dual towers, got {len(staged2)}"
+        staged_targets = [tuple(round(v, 3) for v in g["target_coords"]) for g in staged2]
+        assert len(set(staged_targets)) == len(staged_targets), (
+            f"Multiple staged blockers collided onto identical staging coordinates: {staged_targets}"
+        )
+
+
 
 

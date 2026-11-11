@@ -13,11 +13,13 @@ from typing import Dict, List, Any, Optional, Tuple
 from PIL import Image
 
 from simulation.constants import (
+    ARM_MOUNT,
     STACK_ORIGIN,
     STACK_ORIGIN_A,
     STACK_ORIGIN_B,
     SAFE_HOVER_Y,
     SAFE_CORRIDOR_STAGING_SLOT,
+    SAFE_STAGING_SLOTS,
     PICK_Y,
     TABLE_TOP_Y,
     CUBE_SIZE,
@@ -430,14 +432,31 @@ Output a JSON object ONLY with the following schema:
 
                 if is_stack_cmd and grounded_seq:
                     grounded_seq = grounded_seq[:target_layers]
-                    synthesized_plan = []
+                    sim_blocks = {
+                        bid: {**b, "position": list(b["position"])}
+                        for bid, b in blocks_by_id.items()
+                    }
+                    synthesized_plan: List[Dict[str, Any]] = []
+                    cloud_grounding: List[Dict[str, Any]] = []
+                    placed_ids: set = set()
+                    cleared_log: List[str] = []
                     for layer_idx, b_id in enumerate(grounded_seq):
-                        b = blocks_by_id[b_id]
-                        bx, by, bz = b["position"]
                         target_y = stack_slot_y(layer_idx)
-                        steps = self._generate_pick_and_place(bx, bz, STACK_ORIGIN[0], STACK_ORIGIN[2], target_y, b["name"])
-                        synthesized_plan.extend(steps)
+                        self._append_pick_and_place_with_clearance(
+                            synthesized_plan,
+                            cloud_grounding,
+                            sim_blocks,
+                            b_id,
+                            (STACK_ORIGIN[0], target_y, STACK_ORIGIN[2]),
+                            f"Layer {layer_idx}",
+                            placed_ids,
+                            [STACK_ORIGIN],
+                            cleared_log,
+                            grounding_extra={"target_layer": layer_idx},
+                        )
                     self.active_plan = synthesized_plan
+                    if cleared_log:
+                        self.latest_grounding = cloud_grounding
                 elif raw_plan:
                     self.active_plan = self._sanitize_raw_plan(raw_plan)
                 else:
@@ -538,9 +557,15 @@ Output a JSON object ONLY with the following schema:
             else:
                 from simulation.constants import BLOCK_SPAWNS
                 blocks = {b["id"]: b for b in BLOCK_SPAWNS}
+        sim_blocks: Dict[str, Dict[str, Any]] = {
+            bid: {**b, "position": list(b["position"])}
+            for bid, b in blocks.items()
+        }
         plan: List[Dict[str, Any]] = []
         thought: str = ""
         grounding: List[Dict[str, Any]] = []
+        placed_ids: set = set()
+        cleared_log: List[str] = []
 
         all_block_ids = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple", "block_pink"]
         action_type = interpretation.get("action_type", "STACK_TOWER")
@@ -563,17 +588,22 @@ Output a JSON object ONLY with the following schema:
 
         # 2. Reset or Clear Target Zone
         elif action_type == "CLEAR":
-            thought = (
-                "Google VLA Cognitive Reasoner: Clearing target zone. "
-                "Identifying block closest to pad tolerance [0.48, 0.22] "
-                "and moving it to the safe table perimeter."
-            )
             pad_block = min(
-                blocks.values(),
+                sim_blocks.values(),
                 key=lambda b: math.hypot(b["position"][0] - STACK_ORIGIN[0], b["position"][2] - STACK_ORIGIN[2])
             )
             bx, by, bz = pad_block["position"]
-            plan = self._generate_pick_and_place(bx, bz, -0.10, -0.15, PICK_Y, pad_block["name"])
+            sx, sy, sz = self._find_free_staging_slot(
+                sim_blocks,
+                exclude_ids={pad_block["id"]},
+                forbidden_slots=[STACK_ORIGIN],
+            )
+            thought = (
+                "Google VLA Cognitive Reasoner: Clearing target zone. "
+                f"Identifying {pad_block['name']} closest to target pad [{STACK_ORIGIN[0]:.2f}, {STACK_ORIGIN[2]:.2f}] "
+                f"and moving it to clear perimeter slot [{sx:.2f}, {sz:.2f}]."
+            )
+            plan = self._generate_pick_and_place(bx, bz, sx, sz, sy, pad_block["name"], src_y=by)
 
         # 3. Rest or Standby Pose
         elif action_type == "REST":
@@ -597,6 +627,7 @@ Output a JSON object ONLY with the following schema:
 
             max_constructed_y = TABLE_TOP_Y
             tower_summaries = []
+            reserved_tower_slots = list(origins)
 
             for t_idx, tower_blocks in enumerate(towers_data):
                 t_origin = origins[t_idx] if t_idx < len(origins) else STACK_ORIGIN
@@ -604,25 +635,26 @@ Output a JSON object ONLY with the following schema:
                 tower_strs = []
 
                 for layer_idx, b_id in enumerate(tower_blocks):
-                    b = blocks.get(b_id)
-                    if not b:
+                    if b_id not in sim_blocks:
                         continue
-                    bx, by, bz = b["position"]
                     target_y = stack_slot_y(layer_idx)
-                    grounding.append({
-                        "entity": b_id,
-                        "color": b["color"],
-                        "source_coords": [bx, by, bz],
-                        "target_zone": f"Tower {t_idx+1} [Z={t_origin[2]:.2f}]",
-                        "target_coords": [t_origin[0], target_y, t_origin[2]],
-                        "target_layer": layer_idx,
-                    })
-                    steps = self._generate_pick_and_place(
-                        bx, bz, t_origin[0], t_origin[2], target_y, b["name"],
-                        min_transit_y=clearance_y
+                    self._append_pick_and_place_with_clearance(
+                        plan,
+                        grounding,
+                        sim_blocks,
+                        b_id,
+                        (t_origin[0], target_y, t_origin[2]),
+                        f"Tower {t_idx+1} L{layer_idx}",
+                        placed_ids,
+                        reserved_tower_slots,
+                        cleared_log,
+                        grounding_extra={
+                            "target_zone": f"Tower {t_idx+1} [Z={t_origin[2]:.2f}]",
+                            "target_layer": layer_idx,
+                        },
+                        min_transit_y=clearance_y,
                     )
-                    plan.extend(steps)
-                    tower_strs.append(f"L{layer_idx}:{b['name']}")
+                    tower_strs.append(f"L{layer_idx}:{sim_blocks[b_id]['name']}")
                     max_constructed_y = max(max_constructed_y, target_y)
 
                 tower_summaries.append(f"Tower {t_idx+1} [{t_origin[0]:.2f}, {t_origin[2]:.2f}]: {' -> '.join(tower_strs)}")
@@ -637,10 +669,14 @@ Output a JSON object ONLY with the following schema:
             })
 
             thought = interpretation.get("thought", "")
-            if not thought:
+            if cleared_log or not thought:
+                clr_note = (
+                    f"Per-step clearance staged obstructing {', '.join(dict.fromkeys(cleared_log))} out of tower pads. "
+                    if cleared_log else ""
+                )
                 thought = (
                     f"Google VLA Multi-Tower Reasoning: Assembling {num_towers} distinct towers. "
-                    f"{'; '.join(tower_summaries)}. "
+                    f"{clr_note}{'; '.join(tower_summaries)}. "
                     f"Transit clearance dynamically maintained at Y>={final_clearance:.3f}m to eliminate inter-tower collision."
                 )
 
@@ -650,13 +686,10 @@ Output a JSON object ONLY with the following schema:
             pyramid_targets = interpretation.get("target_blocks", [])
             slots = get_pyramid_slots(pyramid_type, STACK_ORIGIN)
 
-            pyr_strs = []
+            pyr_tasks: List[Tuple[str, Tuple[float, float, float], str, int]] = []
             for idx, (b_id, slot_target) in enumerate(zip(pyramid_targets, slots)):
-                b = blocks.get(b_id)
-                if not b:
+                if b_id not in sim_blocks:
                     continue
-                bx, by, bz = b["position"]
-                tx, ty, tz = slot_target
                 is_apex = (idx == len(slots) - 1)
                 if pyramid_type == "6_block_stepped":
                     if idx < 3:
@@ -665,19 +698,33 @@ Output a JSON object ONLY with the following schema:
                         slot_role = f"Mid Tier {idx - 2}"
                     else:
                         slot_role = "Apex Cap"
-                elif pyramid_type == "5_block_square":
-                    slot_role = "Apex Cap" if is_apex else f"Base {idx + 1}"
                 else:
                     slot_role = "Apex Cap" if is_apex else f"Base {idx + 1}"
-
-                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "role": slot_role, "target_coords": [tx, ty, tz]})
                 extra_dwell = 10 if is_apex else 0
-                steps = self._generate_pick_and_place(
-                    bx, bz, tx, tz, ty, b["name"],
-                    extra_dwell=extra_dwell
+                pyr_tasks.append((b_id, slot_target, slot_role, extra_dwell))
+
+            # Smart same-tier vacate optimization for base tier blocks already sitting inside target footprint
+            base_cutoff_y = TABLE_TOP_Y + CUBE_HALF + 0.015
+            base_tasks = [t for t in pyr_tasks if t[1][1] <= base_cutoff_y]
+            upper_tasks = [t for t in pyr_tasks if t[1][1] > base_cutoff_y]
+            base_tasks = self._reorder_same_tier_vacate_first(base_tasks, sim_blocks, placed_ids)
+
+            pyr_strs = []
+            for b_id, slot_target, slot_role, extra_dwell in base_tasks + upper_tasks:
+                self._append_pick_and_place_with_clearance(
+                    plan,
+                    grounding,
+                    sim_blocks,
+                    b_id,
+                    slot_target,
+                    slot_role,
+                    placed_ids,
+                    slots,
+                    cleared_log,
+                    grounding_extra={"role": slot_role},
+                    extra_dwell=extra_dwell,
                 )
-                plan.extend(steps)
-                pyr_strs.append(f"{slot_role}:{b['name']}")
+                pyr_strs.append(f"{slot_role}:{sim_blocks[b_id]['name']}")
 
             plan.append({
                 "action": "HOME",
@@ -688,66 +735,58 @@ Output a JSON object ONLY with the following schema:
             })
 
             thought = interpretation.get("thought", "")
-            if not thought:
+            if cleared_log or not thought:
                 if pyramid_type == "6_block_stepped":
                     pyr_label = "6-block stepped"
                 elif pyramid_type == "5_block_square":
                     pyr_label = "5-block 3D square"
                 else:
                     pyr_label = "3-block stepped"
+                clr_note = (
+                    f"Per-step clearance staged obstructing {', '.join(dict.fromkeys(cleared_log))} before placement. "
+                    if cleared_log else ""
+                )
                 thought = (
                     f"Google VLA Pyramid Stacking: Synthesizing {pyr_label} pyramid assembly. "
-                    f"Sequence: {' | '.join(pyr_strs)}. Applying zero-impulse vertical descent holding to maintain contact stability."
+                    f"{clr_note}Sequence: {' | '.join(pyr_strs)}. Applying zero-impulse vertical descent holding to maintain contact stability."
                 )
 
         # 5B. Block Train Assembly (All Boxes In One Line) with Path Clearance Staging
         elif action_type == "BLOCK_TRAIN":
             train_targets = interpretation.get("target_blocks", all_block_ids)
-            # Filter to blocks actually present in the workcell
-            train_targets = [b for b in train_targets if b in blocks]
+            train_targets = [b for b in train_targets if b in sim_blocks]
             if not train_targets:
-                train_targets = [b for b in all_block_ids if b in blocks]
+                train_targets = [b for b in all_block_ids if b in sim_blocks]
 
             slots = get_train_slots(len(train_targets), origin=(0.40, TABLE_TOP_Y, 0.0), spacing=0.076)
 
-            # Stage 2: Path Clearance Detection
-            # Any block that lies within the placement corridor or directly conflicts with upcoming carriage slots
-            # must be safely staged out of the corridor before placing conflicting carriages.
             min_slot_x = min(s[0] for s in slots)
             max_slot_x = max(s[0] for s in slots)
             min_slot_z = min(s[2] for s in slots)
             max_slot_z = max(s[2] for s in slots)
 
-            staging_target = SAFE_CORRIDOR_STAGING_SLOT
             staged_blocks: List[str] = []
-
-            for idx, b_id in enumerate(train_targets):
-                if idx == 0:
-                    continue  # The very first block to be placed clears itself immediately
-                b_info = blocks.get(b_id)
-                if not b_info:
-                    continue
+            for b_id, b_info in sim_blocks.items():
+                if train_targets and b_id == train_targets[0]:
+                    continue  # Lead block vacates immediately
                 bx, by, bz = b_info["position"]
-
-                # Collision criteria: Inside the carriage transit corridor or within 85mm of any carriage slot
                 in_corridor = (
                     (min_slot_x - 0.09 <= bx <= max_slot_x + 0.09)
                     and (min_slot_z - 0.05 <= bz <= max_slot_z + 0.05)
                 )
-                conflicts_with_slots = any(
-                    math.hypot(bx - s[0], bz - s[2]) < 0.085
-                    for s in slots
-                )
-
+                conflicts_with_slots = any(math.hypot(bx - s[0], bz - s[2]) < 0.085 for s in slots)
                 if in_corridor or conflicts_with_slots:
                     staged_blocks.append(b_id)
 
-            # Generate Stage 2 path clearance sub-plans for obstructing blocks
             for b_id in staged_blocks:
-                b_info = blocks[b_id]
+                b_info = sim_blocks[b_id]
                 bx, by, bz = b_info["position"]
-                sx, sy, sz = staging_target
-
+                sx, sy, sz = self._find_free_staging_slot(
+                    sim_blocks,
+                    exclude_ids={b_id},
+                    forbidden_slots=slots,
+                    min_slot_clearance=0.095,
+                )
                 grounding.append({
                     "entity": b_id,
                     "color": b_info["color"],
@@ -755,35 +794,34 @@ Output a JSON object ONLY with the following schema:
                     "role": "Path Clearance Staging",
                     "target_coords": [sx, sy, sz],
                 })
-
                 stage_steps = self._generate_pick_and_place(
                     bx, bz, sx, sz, sy,
                     f"{b_info['name']} (Path Clearance Staging)",
+                    src_y=by,
                     min_transit_y=SAFE_HOVER_Y,
                 )
                 plan.extend(stage_steps)
-                # Update block's spatial memory to staging slot so subsequent carriage placement picks from here
-                blocks[b_id]["position"] = [sx, sy, sz]
+                sim_blocks[b_id]["position"] = [sx, sy, sz]
+                cleared_log.append(b_info["name"])
 
-            # Place train carriages sequentially into their aligned slots
             train_strs = []
             for idx, (b_id, slot_target) in enumerate(zip(train_targets, slots)):
-                b = blocks.get(b_id)
-                if not b:
+                if b_id not in sim_blocks:
                     continue
-                bx, by, bz = b["position"]  # Uses staging coords if previously staged!
-                tx, ty, tz = slot_target
                 car_label = "Engine (Lead)" if idx == 0 else f"Carriage {idx}"
-                grounding.append({
-                    "entity": b_id,
-                    "color": b["color"],
-                    "source_coords": [bx, by, bz],
-                    "role": car_label,
-                    "target_coords": [tx, ty, tz]
-                })
-                steps = self._generate_pick_and_place(bx, bz, tx, tz, ty, b["name"])
-                plan.extend(steps)
-                train_strs.append(f"{car_label}:{b['name']}")
+                self._append_pick_and_place_with_clearance(
+                    plan,
+                    grounding,
+                    sim_blocks,
+                    b_id,
+                    slot_target,
+                    car_label,
+                    placed_ids,
+                    slots,
+                    cleared_log,
+                    grounding_extra={"role": car_label},
+                )
+                train_strs.append(f"{car_label}:{sim_blocks[b_id]['name']}")
 
             plan.append({
                 "action": "HOME",
@@ -794,12 +832,11 @@ Output a JSON object ONLY with the following schema:
             })
 
             thought = interpretation.get("thought", "")
-            if staged_blocks or not thought:
-                staged_names = [blocks[b_id]["name"] for b_id in staged_blocks]
+            if staged_blocks or cleared_log or not thought:
+                all_cleared = list(dict.fromkeys(cleared_log))
                 clearance_str = (
-                    f"Path clearance active: Detected {', '.join(staged_names)} obstructing train corridor. "
-                    f"Safely staged to perimeter [{staging_target[0]:.2f}, {staging_target[2]:.2f}] before carriage assembly. "
-                    if staged_blocks else ""
+                    f"Path clearance active: Safely staged obstructing {', '.join(all_cleared)} out of train corridor before carriage assembly. "
+                    if all_cleared else ""
                 )
                 thought = (
                     f"Google VLA Block Train Assembly: Arranging {len(train_targets)} boxes in a single line. "
@@ -842,23 +879,34 @@ Output a JSON object ONLY with the following schema:
 
             layer_strs = []
             for layer_idx, b_id in enumerate(blocks_to_use):
-                b = blocks.get(b_id)
-                if not b:
+                if b_id not in sim_blocks:
                     continue
-                bx, by, bz = b["position"]
                 target_y = stack_slot_y(layer_idx)
-                grounding.append({"entity": b_id, "color": b["color"], "source_coords": [bx, by, bz], "target_layer": layer_idx})
-                steps = self._generate_pick_and_place(bx, bz, STACK_ORIGIN[0], STACK_ORIGIN[2], target_y, b["name"])
-                plan.extend(steps)
-                layer_strs.append(f"Layer {layer_idx}: {b['name']} (Y={target_y:.4f}m)")
+                self._append_pick_and_place_with_clearance(
+                    plan,
+                    grounding,
+                    sim_blocks,
+                    b_id,
+                    (STACK_ORIGIN[0], target_y, STACK_ORIGIN[2]),
+                    f"Layer {layer_idx}",
+                    placed_ids,
+                    [STACK_ORIGIN],
+                    cleared_log,
+                    grounding_extra={"target_layer": layer_idx},
+                )
+                layer_strs.append(f"Layer {layer_idx}: {sim_blocks[b_id]['name']} (Y={target_y:.4f}m)")
 
             thought = interpretation.get("thought", "")
-            if not thought:
-                unused_names = [blocks[uid]["name"] for uid in unused_blocks if uid in blocks]
+            if cleared_log or not thought:
+                unused_names = [sim_blocks[uid]["name"] for uid in unused_blocks if uid in sim_blocks]
                 leave_str = f"Remaining block(s) ({', '.join(unused_names)}) remain resting on table." if unused_names else "All 7 blocks stacked."
+                clr_note = (
+                    f"Per-step clearance staged obstructing {', '.join(dict.fromkeys(cleared_log))} away from pad first. "
+                    if cleared_log else ""
+                )
                 thought = (
                     f"Google VLA Cognitive Reasoner: User requested {target_layers}-layer tower assembly on designated target pad. "
-                    f"Synthesizing {target_layers}-layer sequence: " + " | ".join(layer_strs) + f". {leave_str} "
+                    f"{clr_note}Synthesizing {target_layers}-layer sequence: " + " | ".join(layer_strs) + f". {leave_str} "
                     "Applying metric coordinate locking, kinematic altitude clamping (<=1.12m), and zero-impulse jaw release holding to avoid toppling."
                 )
 
@@ -898,6 +946,171 @@ Output a JSON object ONLY with the following schema:
         """Resets all session cost metrics."""
         self.cost_tracker.reset()
 
+    def _find_free_staging_slot(
+        self,
+        sim_blocks: Dict[str, Dict[str, Any]],
+        exclude_ids: set,
+        forbidden_slots: List[Tuple[float, float, float]],
+        min_block_clearance: float = 0.082,
+        min_slot_clearance: float = 0.095,
+    ) -> Tuple[float, float, float]:
+        """Select a reachable, collision-free perimeter staging coordinate for temporary block removal."""
+        base_y = TABLE_TOP_Y + CUBE_HALF
+        candidates: List[Tuple[float, float, float]] = list(SAFE_STAGING_SLOTS)
+        for gx in (0.14, 0.21, 0.28, 0.35, 0.40):
+            for gz in (-0.30, -0.22, -0.14, 0.0, 0.14, 0.22, 0.30, 0.34):
+                arm_d = math.hypot(gx - ARM_MOUNT[0], gz - ARM_MOUNT[2])
+                if 0.44 <= arm_d <= 0.68:
+                    candidates.append((gx, base_y, gz))
+
+        best_fallback = SAFE_CORRIDOR_STAGING_SLOT
+        best_score = -1.0
+
+        for cx, cy, cz in candidates:
+            block_dists = [
+                math.hypot(cx - b["position"][0], cz - b["position"][2])
+                for bid, b in sim_blocks.items()
+                if bid not in exclude_ids
+            ]
+            slot_dists = [
+                math.hypot(cx - s[0], cz - s[2])
+                for s in forbidden_slots
+            ]
+            min_b = min(block_dists) if block_dists else 1.0
+            min_s = min(slot_dists) if slot_dists else 1.0
+
+            if min_b >= min_block_clearance and min_s >= min_slot_clearance:
+                return (cx, base_y, cz)
+
+            score = min(min_b, min_s)
+            if score > best_score:
+                best_score = score
+                best_fallback = (cx, base_y, cz)
+
+        return best_fallback
+
+    def _find_obstructing_blocks(
+        self,
+        sim_blocks: Dict[str, Dict[str, Any]],
+        placing_block_id: str,
+        target_xyz: Tuple[float, float, float],
+        placed_ids: set,
+        clearance_radius: float = 0.076,
+    ) -> List[str]:
+        """Return unplaced block IDs stacked atop the source block or obstructing the target slot."""
+        tx, ty, tz = target_xyz
+        bx, by, bz = sim_blocks[placing_block_id]["position"]
+        blockers: List[Tuple[float, float, str]] = []
+
+        for other_id, other in sim_blocks.items():
+            if other_id == placing_block_id or other_id in placed_ids:
+                continue
+            ox, oy, oz = other["position"]
+            blocks_pickup = math.hypot(ox - bx, oz - bz) < 0.045 and oy > (by + 0.030)
+            blocks_target = (
+                math.hypot(ox - tx, oz - tz) < clearance_radius
+                and oy <= (ty + CUBE_SIZE * 1.25)
+            )
+            if blocks_pickup or blocks_target:
+                blockers.append((-oy, math.hypot(ox - tx, oz - tz), other_id))
+
+        blockers.sort()
+        return [bid for _, _, bid in blockers]
+
+    def _reorder_same_tier_vacate_first(
+        self,
+        tasks: List[Tuple[str, Tuple[float, float, float], str, int]],
+        sim_blocks: Dict[str, Dict[str, Any]],
+        placed_ids: set,
+        clearance_radius: float = 0.076,
+    ) -> List[Tuple[str, Tuple[float, float, float], str, int]]:
+        """When an assigned block occupies another same-tier slot whose own target is clear, schedule it first."""
+        if len(tasks) <= 1:
+            return tasks
+        ordered = list(tasks)
+        for i in range(len(ordered)):
+            b_i, s_i, _, _ = ordered[i]
+            blockers_i = self._find_obstructing_blocks(sim_blocks, b_i, s_i, placed_ids, clearance_radius)
+            if not blockers_i:
+                continue
+            for j in range(i + 1, len(ordered)):
+                b_j, s_j, _, _ = ordered[j]
+                if b_j in blockers_i and not self._find_obstructing_blocks(
+                    sim_blocks, b_j, s_j, placed_ids, clearance_radius
+                ):
+                    task_j = ordered.pop(j)
+                    ordered.insert(i, task_j)
+                    break
+        return ordered
+
+    def _append_pick_and_place_with_clearance(
+        self,
+        plan: List[Dict[str, Any]],
+        grounding: List[Dict[str, Any]],
+        sim_blocks: Dict[str, Dict[str, Any]],
+        block_id: str,
+        target_xyz: Tuple[float, float, float],
+        role_label: str,
+        placed_ids: set,
+        forbidden_slots: List[Tuple[float, float, float]],
+        cleared_log: List[str],
+        grounding_extra: Optional[Dict[str, Any]] = None,
+        min_transit_y: Optional[float] = None,
+        extra_dwell: int = 0,
+    ):
+        """Clear any per-step obstructions around source/target slots before generating pick-and-place steps."""
+        for _ in range(len(sim_blocks)):
+            blockers = self._find_obstructing_blocks(sim_blocks, block_id, target_xyz, placed_ids)
+            if not blockers:
+                break
+            obs_id = blockers[0]
+            obs = sim_blocks[obs_id]
+            ox, oy, oz = obs["position"]
+            src_pos = tuple(sim_blocks[block_id]["position"])
+            sx, sy, sz = self._find_free_staging_slot(
+                sim_blocks,
+                exclude_ids={obs_id},
+                forbidden_slots=list(forbidden_slots) + [src_pos, target_xyz],
+            )
+            grounding.append({
+                "entity": obs_id,
+                "color": obs["color"],
+                "source_coords": [ox, oy, oz],
+                "role": "Step Clearance Staging",
+                "target_coords": [sx, sy, sz],
+            })
+            plan.extend(self._generate_pick_and_place(
+                ox, oz, sx, sz, sy,
+                f"{obs['name']} (Step Clearance Staging)",
+                src_y=oy,
+                min_transit_y=min_transit_y,
+            ))
+            sim_blocks[obs_id]["position"] = [sx, sy, sz]
+            cleared_log.append(obs["name"])
+
+        b = sim_blocks[block_id]
+        bx, by, bz = b["position"]
+        tx, ty, tz = target_xyz
+        entry: Dict[str, Any] = {
+            "entity": block_id,
+            "color": b["color"],
+            "source_coords": [bx, by, bz],
+            "target_coords": [tx, ty, tz],
+        }
+        if grounding_extra:
+            entry.update(grounding_extra)
+        grounding.append(entry)
+
+        plan.extend(self._generate_pick_and_place(
+            bx, bz, tx, tz, ty,
+            b["name"],
+            src_y=by,
+            min_transit_y=min_transit_y,
+            extra_dwell=extra_dwell,
+        ))
+        sim_blocks[block_id]["position"] = [tx, ty, tz]
+        placed_ids.add(block_id)
+
     def _generate_pick_and_place(
         self,
         src_x: float,
@@ -908,14 +1121,17 @@ Output a JSON object ONLY with the following schema:
         obj_name: str,
         min_transit_y: Optional[float] = None,
         extra_dwell: int = 0,
+        src_y: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """
         Generates robust closed-loop pick-and-place waypoint sub-plan
         with metric-locked coordinates, soft approach, and zero-impulse drop.
         Dynamically adjusts transit and approach altitudes to safely clear lower layers of tower.
         """
+        src_elev = max(0.0, src_y - (TABLE_TOP_Y + CUBE_HALF)) if src_y is not None else 0.0
+        effective_pick_y = PICK_Y + (src_elev if src_elev > 0.015 else 0.0)
         # Calculate safe transit hover altitude above any existing stack layers or clearance planes
-        transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, min_transit_y or 0.0)
+        transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, (src_y + 0.080 if src_y else 0.0), min_transit_y or 0.0)
 
         # Place altitude corresponds to PICK_Y plus vertical layer offset above table.
         # For stacked layers (layer_offset > 0), add a 4mm lift buffer so parallel jaw tips
@@ -934,10 +1150,10 @@ Output a JSON object ONLY with the following schema:
                 "dwell_ticks": 10,
                 "candidate_pitches": [-1.25, -1.0, -1.45],
             },
-            # 2. Descend to pick height (clearing table surface)
+            # 2. Descend to pick height (clearing table surface or underlying cube)
             {
                 "action": "DESCEND_PICK",
-                "target": (src_x, PICK_Y, src_z),
+                "target": (src_x, effective_pick_y, src_z),
                 "gripper": 0.60,
                 "desc": f"Descend to grip {obj_name}",
                 "dwell_ticks": 12,
@@ -946,7 +1162,7 @@ Output a JSON object ONLY with the following schema:
             # 3. Grip closure
             {
                 "action": "GRIP",
-                "target": (src_x, PICK_Y, src_z),
+                "target": (src_x, effective_pick_y, src_z),
                 "gripper": 1.0,
                 "desc": f"Close parallel jaws around {obj_name}",
                 "dwell_ticks": 18,
