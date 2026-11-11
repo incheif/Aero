@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.2">
+  <link rel="stylesheet" href="/css/style.css?v=3.3">
 </head>
+
 <body>
   <div id="app-layout">
     <!-- Minimal Header -->
@@ -25,8 +27,10 @@
 
       <div class="header-status-group">
         <!-- Back to Home Link -->
-        <a href="/" class="btn-header" id="btn-home-link" title="Return to Home Portal" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <a href="/" class="btn-header" id="btn-home-link" title="Return to Home Portal"
+          style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
           </svg>
@@ -34,14 +38,17 @@
         </a>
 
         <!-- Private Session Pill -->
-        <div class="session-pill" id="header-session-pill" title="Private Isolated Workcell: Actions in this browser tab do not interfere with other visitors.">
+        <div class="session-pill" id="header-session-pill"
+          title="Private Isolated Workcell: Actions in this browser tab do not interfere with other visitors.">
           <span class="session-dot"></span>
           <span id="header-session-id">Session</span>
         </div>
 
         <!-- Sidebar / Telemetry Toggle Button (Adapts on Laptop/Mobile) -->
-        <button class="btn-header btn-toggle-panel" id="btn-toggle-sidebar" title="Toggle Telemetry & Logs Panel" aria-label="Toggle Telemetry Panel">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="btn-header btn-toggle-panel" id="btn-toggle-sidebar" title="Toggle Telemetry & Logs Panel"
+          aria-label="Toggle Telemetry Panel">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="15" y1="3" x2="15" y2="21"></line>
           </svg>
@@ -59,91 +66,121 @@
         <!-- Minimal Camera & Zoom Controls Pill -->
         <div class="viewport-floating-bar">
           <button class="cam-btn active" data-view="orbit" id="cam-orbit" title="Orbit Camera">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 1 9 9M3 12a9 9 0 0 1 9-9"></path></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 3a9 9 0 0 1 9 9M3 12a9 9 0 0 1 9-9"></path>
+            </svg>
             <span>Orbit</span>
           </button>
           <button class="cam-btn" data-view="play" id="cam-play" title="Playground Focused View">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="3"></rect><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="3"></rect>
+              <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
             <span>Play</span>
           </button>
           <button class="cam-btn" data-view="top" id="cam-top" title="Top-Down View (128x128 Sensor)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
             <span>Top</span>
           </button>
           <div style="width: 1px; height: 14px; background: rgba(255, 255, 255, 0.2); margin: 0 2px;"></div>
           <button class="cam-btn active" id="btn-toggle-frustum" title="Toggle 3D Sensor Frustums & Vision Cones">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 22 22 22"></polygon></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 22 22 22"></polygon>
+            </svg>
             <span>Sensor FOV</span>
           </button>
-          <button class="cam-btn active" id="btn-toggle-grid" title="Toggle 3D Tabletop Occupancy & Mapping Navigation Grid">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+          <button class="cam-btn active" id="btn-toggle-grid"
+            title="Toggle 3D Tabletop Occupancy & Mapping Navigation Grid">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="3" y1="15" x2="21" y2="15"></line>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+              <line x1="15" y1="3" x2="15" y2="21"></line>
+            </svg>
             <span>Mapping Grid</span>
           </button>
-          <button class="cam-btn active" id="btn-toggle-perception-3d" title="Toggle 3D Estimated Perception Bounding Boxes">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <button class="cam-btn active" id="btn-toggle-perception-3d"
+            title="Toggle 3D Estimated Perception Bounding Boxes">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
             <span>Est. 3D Boxes</span>
           </button>
         </div>
 
         <!-- Live AI Perception Camera Feed (128x128 Orthographic HUD) -->
-        <div id="camera-hud-pip" class="camera-hud-pip" title="Active Sensor Perception HUD (RGB, Wrist Cam, Depth, Occupancy Map)">
-          <div class="hud-pip-header">
-            <div class="hud-pip-title">
-              <span class="hud-pip-dot"></span>
-              <span>SENSOR HUD</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span class="hud-pip-badge" id="hud-pip-status">PERCEPTION</span>
-              <button class="btn-pip-toggle" id="btn-pip-toggle" title="Minimize/Maximize Camera HUD" aria-label="Toggle Camera HUD">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
+          <div id="camera-hud-pip" class="camera-hud-pip"
+            title="Active Sensor Perception HUD (RGB, Wrist Cam, Depth, Occupancy Map)">
+            <div class="hud-pip-header">
+              <div class="hud-pip-title">
+                <span class="hud-pip-dot"></span>
+                <span>SENSOR HUD</span>
+              </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span class="hud-pip-badge" id="hud-pip-status">PERCEPTION</span>
+                  <button class="btn-pip-toggle" id="btn-pip-toggle" title="Minimize/Maximize Camera HUD"
+                    aria-label="Toggle Camera HUD">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="hud-pip-body" id="hud-pip-body">
+                <!-- 4-Option Stream Selector Bar -->
+                <div class="hud-stream-switcher">
+                  <button class="hud-feed-btn active" id="btn-feed-rgb"
+                    title="Overhead RGB Camera Feed">OVERHEAD</button>
+                  <button class="hud-feed-btn" id="btn-feed-wrist" title="Eye-in-Hand Wrist Camera Feed">WRIST</button>
+                  <button class="hud-feed-btn" id="btn-feed-depth" title="Synthetic Depth Map">DEPTH</button>
+                  <button class="hud-feed-btn" id="btn-feed-map"
+                    title="Occupancy & Frontier Navigation Map">MAP</button>
+                </div>
+                <div class="hud-pip-viewport">
+                  <canvas id="vla-pip-canvas" width="160" height="160"></canvas>
+                  <img id="vla-pip-img" src="/api/vla/map_image" alt="VLA Sensor Feed" width="128" height="128" style="display: none;" />
+                  <div class="hud-overlay-grid"></div>
+                  <div class="hud-crosshair-center"></div>
+                  <div class="hud-sensor-tag" id="hud-sensor-type-tag">OVERHEAD RGB</div>
+                </div>
+                <div class="hud-pip-footer">
+                  <span class="hud-pip-stat" id="hud-target-label">TARGET: TRACKING</span>
+                  <span class="hud-pip-metric" id="hud-cam-res">128×128 SENSOR</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="hud-pip-body" id="hud-pip-body">
-            <!-- 4-Option Stream Selector Bar -->
-            <div class="hud-stream-switcher">
-              <button class="hud-feed-btn active" id="btn-feed-rgb" title="Overhead RGB Camera Feed">OVERHEAD</button>
-              <button class="hud-feed-btn" id="btn-feed-wrist" title="Eye-in-Hand Wrist Camera Feed">WRIST</button>
-              <button class="hud-feed-btn" id="btn-feed-depth" title="Synthetic Depth Map">DEPTH</button>
-              <button class="hud-feed-btn" id="btn-feed-map" title="Occupancy & Frontier Navigation Map">MAP</button>
-            </div>
-            <div class="hud-pip-viewport">
-              <img id="vla-pip-img" src="/api/vla/camera_image" alt="VLA Sensor Feed" width="128" height="128" />
-              <div class="hud-overlay-grid"></div>
-              <div class="hud-crosshair-center"></div>
-              <div class="hud-sensor-tag" id="hud-sensor-type-tag">OVERHEAD RGB</div>
-            </div>
-            <div class="hud-pip-footer">
-              <span class="hud-pip-stat" id="hud-target-label">TARGET: TRACKING</span>
-              <span class="hud-pip-metric" id="hud-cam-res">128×128 SENSOR</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Live Workcell & Kinematics Quick Dock -->
-      <div id="workcell-dock">
-        <div class="dock-metric-pill">
-          <span class="dock-label">TCP POSE</span>
-          <span class="dock-val" id="dock-tcp-pos">X: 0.08 · Y: 0.85 · Z: 0.00</span>
-        </div>
-        <div class="dock-metric-pill">
-          <span class="dock-label">GRIPPER</span>
-          <span class="dock-val" id="dock-gripper-state">100% OPEN</span>
-        </div>
-        <div class="dock-metric-pill" title="Spatial Accuracy: 70% Position + 30% Upright Orientation">
-          <span class="dock-label">ACCURACY</span>
-          <span class="dock-val" id="dock-spatial-accuracy">--%</span>
-        </div>
-        <div class="dock-metric-pill" title="Physical Stability Hold (18 ticks = 0.30s post-release verification)">
-          <span class="dock-label">STABILITY</span>
-          <span class="dock-val" id="dock-stability-status">IDLE</span>
-        </div>
-        <div class="dock-metric-pill">
-          <span class="dock-label">SIM RATE</span>
-          <span class="dock-val" id="dock-fps-val">60.0 FPS</span>
-        </div>
-      </div>
+          <!-- Live Workcell & Kinematics Quick Dock -->
+          <div id="workcell-dock">
+            <div class="dock-metric-pill">
+              <span class="dock-label">TCP POSE</span>
+              <span class="dock-val" id="dock-tcp-pos">X: 0.08 · Y: 0.85 · Z: 0.00</span>
+            </div>
+            <div class="dock-metric-pill">
+              <span class="dock-label">GRIPPER</span>
+              <span class="dock-val" id="dock-gripper-state">100% OPEN</span>
+            </div>
+            <div class="dock-metric-pill" title="Spatial Accuracy: 70% Position + 30% Upright Orientation">
+              <span class="dock-label">ACCURACY</span>
+              <span class="dock-val" id="dock-spatial-accuracy">--%</span>
+            </div>
+            <div class="dock-metric-pill" title="Physical Stability Hold (18 ticks = 0.30s post-release verification)">
+              <span class="dock-label">STABILITY</span>
+              <span class="dock-val" id="dock-stability-status">IDLE</span>
+            </div>
+            <div class="dock-metric-pill">
+              <span class="dock-label">SIM RATE</span>
+              <span class="dock-val" id="dock-fps-val">60.0 FPS</span>
+            </div>
+          </div>
     </main>
 
     <!-- Minimal Command Bar (Bottom) -->
@@ -151,43 +188,70 @@
       <!-- Essential Playground Challenge Chips -->
       <div class="chips-row">
         <button class="prompt-chip" data-prompt="Make a 3-layer tower of red, blue and yellow.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5" />
+          </svg>
           <span>🗼 3-Layer Tower</span>
         </button>
         <button class="prompt-chip" data-prompt="Make 2 distinct towers of 2 blocks each.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v20M18 2v20M2 18h8M14 18h8"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2v20M18 2v20M2 18h8M14 18h8" />
+          </svg>
           <span>🗼🗼 2 Distinct Towers</span>
         </button>
         <button class="prompt-chip" data-prompt="Build a 6-block pyramid tower.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 22h20L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 22h20L12 2z" />
+          </svg>
           <span>🔺 6-Block Pyramid</span>
         </button>
         <button class="prompt-chip" data-prompt="Make a block train with all boxes in one line.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M7 17v2M17 17v2M2 12h20"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="10" rx="2" />
+            <path d="M7 17v2M17 17v2M2 12h20" />
+          </svg>
           <span>🚂 Block Train (One Line)</span>
         </button>
         <button class="prompt-chip" data-prompt="Wave high to greet me.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+          </svg>
           <span>👋 Wave High</span>
         </button>
         <button class="prompt-chip" data-prompt="Point at the blue cube.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16"></polyline><line x1="16" y1="12" x2="8" y2="12"></line></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 8 8 12 12 16"></polyline>
+            <line x1="16" y1="12" x2="8" y2="12"></line>
+          </svg>
           <span>🎯 Point at Blue</span>
         </button>
         <button class="prompt-chip" data-prompt="Snap the gripper jaws.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m10 12V4M3 8h18M3 16h18"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 16V4m10 12V4M3 8h18M3 16h18" />
+          </svg>
           <span>🤏 Snap Gripper</span>
         </button>
         <button class="prompt-chip" data-prompt="Build a 7-layer tower with all 7 blocks.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
           <span>🤖 7-Layer Tower</span>
         </button>
         <button class="prompt-chip" data-prompt="Build a tower of 8 blocks.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
           <span>🚫 Tower of 8 (Impossible)</span>
         </button>
         <button class="prompt-chip" data-prompt="Break the yellow block into pieces.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+          </svg>
           <span>🚫 Break a Block (Impossible)</span>
         </button>
       </div>
@@ -195,15 +259,13 @@
       <!-- Command Input with Rest & Execute Buttons -->
       <div class="command-input-wrapper">
         <span class="cmd-icon">✦</span>
-        <input
-          type="text"
-          id="command-input"
+        <input type="text" id="command-input"
           placeholder="Type instruction (e.g. 'Build a 3-layer tower', 'Build 2 distinct towers')..."
-          autocomplete="off"
-        />
+          autocomplete="off" />
         <button class="send-btn" id="send-command-btn">
           <span>Execute</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
           </svg>
@@ -222,7 +284,8 @@
             <span class="mobile-drawer-title">VLA Telemetry & Logs</span>
           </div>
           <button class="btn-close-drawer" id="btn-close-sidebar" aria-label="Close telemetry panel" title="Close">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
@@ -233,11 +296,16 @@
       <!-- Sidebar Tab Switcher -->
       <div class="sidebar-tab-switcher">
         <button class="tab-btn active" id="tab-btn-telemetry">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
           <span>Telemetry</span>
         </button>
         <button class="tab-btn" id="tab-btn-logs">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
           <span>Execution Logs</span>
           <span class="tab-badge" id="logs-badge-count">0</span>
         </button>
@@ -257,7 +325,8 @@
           <!-- VLA Mode Explainer Callout -->
           <div class="vla-mode-explainer" id="vla-mode-explainer">
             <span class="mode-tag-pill" id="mode-tag-status">✦ ZERO-DEPENDENCY RUNTIME</span>
-            <span class="mode-info-snippet" id="mode-info-text">Autonomous multimodal policy engine: 3D spatial grounding, collision-free trajectory synthesis, and physics hold verification.</span>
+            <span class="mode-info-snippet" id="mode-info-text">Autonomous multimodal policy engine: 3D spatial
+              grounding, collision-free trajectory synthesis, and physics hold verification.</span>
           </div>
           <div class="thought-box" id="vla-thought-box">
             Ready. Enter an instruction to begin.
@@ -281,7 +350,8 @@
               <span>AI Perception & Memory</span>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <span class="thought-status-badge badge-est" id="perception-mode-badge" title="Estimated State: Derived from RGB-D Sensor observations">ESTIMATED STATE</span>
+              <span class="thought-status-badge badge-est" id="perception-mode-badge"
+                title="Estimated State: Derived from RGB-D Sensor observations">ESTIMATED STATE</span>
               <span class="thought-status-badge badge-conf" id="perception-conf-badge">96% CONF</span>
             </div>
           </div>
@@ -307,7 +377,8 @@
           </div>
 
           <!-- Mapping & Frontier Navigation Status Strip -->
-          <div class="perception-meta-strip" style="margin-top: 4px; background: rgba(14, 25, 42, 0.55); border-color: rgba(56, 189, 248, 0.2);">
+          <div class="perception-meta-strip"
+            style="margin-top: 4px; background: rgba(14, 25, 42, 0.55); border-color: rgba(56, 189, 248, 0.2);">
             <div class="meta-strip-item">
               <span class="meta-strip-label">MAPPING</span>
               <span class="meta-strip-val" id="meta-frontier-pct" style="color: #38bdf8;">25% EXPLORED</span>
@@ -336,7 +407,9 @@
               </thead>
               <tbody id="perception-tracks-body">
                 <tr>
-                  <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 10px; font-size: 0.72rem;">Acquiring live camera perception tracks...</td>
+                  <td colspan="5"
+                    style="text-align: center; color: var(--text-dim); padding: 10px; font-size: 0.72rem;">Acquiring
+                    live camera perception tracks...</td>
                 </tr>
               </tbody>
             </table>
@@ -363,11 +436,13 @@
           <div class="cost-hero-row" style="margin-bottom: 8px;">
             <div>
               <div class="cost-label">Spatial Accuracy</div>
-              <div class="cost-total-amount" id="spatial-acc-display" style="font-size: 1.15rem; color: #ffffff;">0.0%</div>
+              <div class="cost-total-amount" id="spatial-acc-display" style="font-size: 1.15rem; color: #ffffff;">0.0%
+              </div>
             </div>
             <div>
               <div class="cost-label">Task Completion</div>
-              <div class="cost-total-amount" id="completion-score-display" style="font-size: 1.15rem; color: #a1a1aa;">0.00 / 1.00</div>
+              <div class="cost-total-amount" id="completion-score-display" style="font-size: 1.15rem; color: #a1a1aa;">
+                0.00 / 1.00</div>
             </div>
           </div>
 
@@ -394,18 +469,34 @@
         <!-- 3. Dedicated Rest Arm & Randomize Spawns Card -->
         <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-rest-hero" id="btn-rest-main">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
             </svg>
             Rest Arm / Reset Baseline
           </button>
-          <button class="btn-rest-hero" id="btn-randomize-main" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <button class="btn-rest-hero" id="btn-randomize-main"
+            style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
               <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
             </svg>
             Randomize Layout (Test Perception)
+          </button>
+          <button class="btn-rest-hero" id="btn-nudge-block"
+            style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 9 2 12 5 15"></polyline>
+              <polyline points="9 5 12 2 15 5"></polyline>
+              <polyline points="15 19 12 22 9 19"></polyline>
+              <polyline points="19 9 22 12 19 15"></polyline>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <line x1="12" y1="2" x2="12" y2="22"></line>
+            </svg>
+            Nudge Block (Disturbance Test)
           </button>
           <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
             Scatters blocks to random tabletop positions within 5-DOF reach envelope
@@ -425,7 +516,8 @@
             </div>
             <div class="logs-header-actions">
               <button class="btn-logs-action" id="btn-open-logs-tab" title="Open Execution Stream in a New Tab">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                   <polyline points="15 3 21 3 21 9"></polyline>
                   <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -433,11 +525,17 @@
                 <span>New Tab</span>
               </button>
               <button class="btn-logs-action active" id="btn-toggle-autoscroll" title="Toggle Auto-Scroll">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <polyline points="19 12 12 19 5 12" />
+                </svg>
                 <span id="autoscroll-label">Scroll: ON</span>
               </button>
               <button class="btn-logs-action" id="btn-clear-logs" title="Clear Event Logs">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
                 <span>Clear</span>
               </button>
             </div>
@@ -464,7 +562,8 @@
           <!-- Bottom Status Footer -->
           <div class="logs-footer-bar">
             <span class="logs-footer-text">
-              <span class="logs-dot-pulse"></span> Real-time execution audit · <strong>WHAT</strong> occurred & <strong>HOW</strong> (kinematics, tolerances)
+              <span class="logs-dot-pulse"></span> Real-time execution audit · <strong>WHAT</strong> occurred &
+              <strong>HOW</strong> (kinematics, tolerances)
             </span>
           </div>
         </div>
@@ -478,7 +577,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.2"></script>
-  <script src="/js/app.js?v=3.2"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.3"></script>
+  <script src="/js/app.js?v=3.3"></script>
 </body>
+
 </html>

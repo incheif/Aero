@@ -430,10 +430,15 @@ header {
   background: #0e1016;
 }
 
-.hud-pip-viewport img {
+.hud-pip-viewport img,
+.hud-pip-viewport canvas {
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: cover;
+}
+
+.hud-pip-viewport img {
   image-rendering: pixelated;
   object-fit: contain;
 }
@@ -443,7 +448,7 @@ header {
   inset: 0;
   pointer-events: none;
   background: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 16px 16px;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
 }
@@ -797,8 +802,17 @@ header {
 }
 
 @keyframes pulse-live {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }
 
 .logs-header-heading {
@@ -933,8 +947,15 @@ header {
 }
 
 @keyframes log-slide-in {
-  from { opacity: 0; transform: translateY(-3px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .log-entry:hover {
@@ -1441,6 +1462,7 @@ header {
     opacity: 0;
     transform: translate(-50%, -12px);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, 0);
@@ -2167,9 +2189,20 @@ header {
 }
 
 @keyframes pulse-dot {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
-  70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(56, 189, 248, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+  }
+
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 6px rgba(56, 189, 248, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+  }
 }
 
 .badge-est {
@@ -2303,5 +2336,3 @@ header {
   padding: 2px 6px;
   color: #e4e4e7;
 }
-
-

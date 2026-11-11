@@ -31,11 +31,13 @@ class TrajectoryController:
         self.tcp_trail: List[Tuple[float, float, float]] = []
         self.max_trail_points: int = 120
         self.current_setpoint: Optional[List[float]] = None
+        self.segment_ticks: int = 0
 
     def load_plan(self, plan: List[Dict[str, Any]]):
         self.current_plan = list(plan)
         self.step_idx = 0
         self.dwell_counter = 0
+        self.segment_ticks = 0
         self.is_active = len(plan) > 0
         self.current_action_desc = self.current_plan[0]["desc"] if self.is_active else "Idle"
         self.current_setpoint = None
@@ -44,6 +46,7 @@ class TrajectoryController:
         self.is_active = False
         self.current_plan.clear()
         self.step_idx = 0
+        self.segment_ticks = 0
         self.current_action_desc = "Stopped"
         self.tcp_trail.clear()
         self.current_setpoint = None
@@ -89,7 +92,11 @@ class TrajectoryController:
             self.current_setpoint[2] - current_tcp_pos[2]
         )
 
-        max_step = 0.010  # 10mm per tick at 60Hz (~0.60 m/s, matches physical joint actuator speed limit)
+        # Smooth S-curve velocity profile: gentle ease-in over first 5 ticks and smooth deceleration on approach
+        self.segment_ticks += 1
+        ease_in = min(1.0, 0.35 + 0.65 * (self.segment_ticks / 5.0))
+        ease_out = 1.0 if dist_setpoint >= 0.045 else max(0.42, dist_setpoint / 0.045)
+        max_step = 0.011 * ease_in * ease_out
         if lag <= 0.050:
             if dist_setpoint <= max_step:
                 self.current_setpoint = [float(target_pos[0]), float(target_pos[1]), float(target_pos[2])]
@@ -164,6 +171,7 @@ class TrajectoryController:
             if self.dwell_counter >= required_dwell:
                 # Advance to next waypoint
                 self.dwell_counter = 0
+                self.segment_ticks = 0
                 self.step_idx += 1
                 self.current_setpoint = None
                 if self.step_idx >= len(self.current_plan):
@@ -190,3 +198,24 @@ class TrajectoryController:
             "pct": round((self.step_idx / max(1, len(self.current_plan))) * 100.0, 1),
             "action": self.current_action_desc,
         }
+
+    def get_remaining_waypoints(self, current_tcp_pos: Any) -> List[List[float]]:
+        """Return current TCP coordinate followed by remaining planned target coordinates."""
+        if not self.is_active or self.step_idx >= len(self.current_plan):
+            return []
+        pts: List[List[float]] = [[round(float(v), 4) for v in current_tcp_pos[:3]]]
+        for step in self.current_plan[self.step_idx:]:
+            tgt = step.get("target")
+            if tgt is not None and len(tgt) >= 3:
+                pts.append([round(float(tgt[0]), 4), round(float(tgt[1]), 4), round(float(tgt[2]), 4)])
+        return pts
+
+    def get_final_target(self) -> Optional[List[float]]:
+        """Return the final target [x, y, z] coordinate of the active trajectory plan, or None."""
+        if not self.is_active or not self.current_plan:
+            return None
+        for step in reversed(self.current_plan):
+            tgt = step.get("target")
+            if tgt is not None and len(tgt) >= 3:
+                return [round(float(tgt[0]), 4), round(float(tgt[1]), 4), round(float(tgt[2]), 4)]
+        return None

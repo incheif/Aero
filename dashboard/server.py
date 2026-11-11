@@ -525,8 +525,6 @@ class UserSession:
             dets = self.localizer.localize(self.detector.detect(obs), obs)
             tracks = self.tracker.update(dets)
             self.mapper.update_from_perception(tracks, robot_obs)
-            self.explorer.update_occupancy_from_tracks(tracks)
-            self.explorer.mark_region(tcp_pos[0], tcp_pos[2], radius=0.18)
 
         # FPS calculations
         self.frame_count += 1
@@ -567,6 +565,8 @@ class UserSession:
             "target_zone": snapshot["target_zone"],
             "scores": snapshot.get("scores", {}),
             "tcp_trail": self.controller.tcp_trail[-60:],
+            "planned_path": self.controller.get_remaining_waypoints(snapshot["tcp"]["position"]),
+            "planned_target": self.controller.get_final_target(),
             "semantic_map": self.mapper.to_dict(),
             "perception": {
                 "tracks": [t.to_dict() for t in self.tracker.tracks.values()],
@@ -575,6 +575,9 @@ class UserSession:
                 "calibrated": True,
                 "execution_phase": self.execution_monitor.current_phase,
                 "mode": "perception_estimated",
+                "target_block_id": self.active_target_block_id,
+                "detected_count": len(self.detected_blobs),
+                "camera_res": "128x128",
             },
             "frontier": self.explorer.to_dict(),
             "vla": {
@@ -588,11 +591,6 @@ class UserSession:
                 "last_api_error": getattr(self.vla_agent, "last_api_error", None),
             },
             "cost": self.vla_agent.get_cost_summary(),
-            "perception": {
-                "target_block_id": self.active_target_block_id,
-                "detected_count": len(self.detected_blobs),
-                "camera_res": "128x128",
-            },
             "is_paused": self.is_paused,
             "manual_mode": self.manual_mode,
         }
@@ -863,6 +861,33 @@ async def api_randomize(request: Request):
     return {"status": "ok", "message": "Blocks spawned at randomized collision-free tabletop coordinates."}
 
 
+@app.post("/api/sim/nudge")
+async def api_nudge_block(request: Request, block_id: Optional[str] = None):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
+    result = sess.sim.nudge_random_block(block_id=block_id)
+    if not result:
+        return {"status": "noop", "message": "No available tabletop block to nudge cleanly."}
+
+    # Refresh camera perception & semantic map immediately after external disturbance
+    obs = sess.camera.capture()
+    robot_obs = sess.robot_sensor.get_state()
+    dets = sess.localizer.localize(sess.detector.detect(obs), obs)
+    tracks = sess.tracker.update(dets)
+    sess.mapper.update_from_perception(tracks, robot_obs)
+
+    sess.log_event(
+        "perception",
+        "DISTURBANCE",
+        f"Physical disturbance applied: {result['name']} nudged on tabletop.",
+        f"Displaced from [{result['old_position'][0]:.3f}, {result['old_position'][2]:.3f}] to "
+        f"[{result['new_position'][0]:.3f}, {result['new_position'][2]:.3f}]. Semantic map re-localized."
+    )
+    return {"status": "ok", **result}
+
+
 @app.post("/api/session/resume")
 async def api_resume_session(request: Request):
     sid = extract_session_id(request)
@@ -925,6 +950,18 @@ async def api_camera_image(request: Request, annotated: bool = True):
     return StreamingResponse(buf, media_type="image/png")
 
 
+@app.get("/api/vla/depth_image")
+async def api_depth_image(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    snapshot = sess.sim.get_snapshot()
+    img = render_depth_visual(snapshot, size=128)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
 @app.get("/api/vla/wrist_image")
 async def api_wrist_image(request: Request):
     sid = extract_session_id(request)
@@ -942,25 +979,13 @@ async def api_map_image(request: Request):
     sid = extract_session_id(request)
     sess = session_manager.get_or_create(sid)
     snapshot = sess.sim.get_snapshot()
-    tcp_pos = snapshot.get("tcp", {}).get("position", [0.08, 0.85, 0.0])
+    tcp_pos = tuple(snapshot.get("tcp", {}).get("position", [0.08, 0.85, 0.0]))
     img = render_occupancy_map_visual(
-        explorer_data=sess.explorer.to_dict(),
-        tracks=list(sess.tracker.tracks.values()),
+        sess.explorer.to_dict(),
+        list(sess.tracker.tracks.values()),
         tcp_pos=tcp_pos,
-        size=128
+        size=128,
     )
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return StreamingResponse(buf, media_type="image/png")
-
-
-@app.get("/api/vla/depth_image")
-async def api_depth_image(request: Request):
-    sid = extract_session_id(request)
-    sess = session_manager.get_or_create(sid)
-    snapshot = sess.sim.get_snapshot()
-    img = render_depth_visual(snapshot, size=128)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)

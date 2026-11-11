@@ -910,10 +910,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function triggerNudgeBlock() {
+    const btn = document.getElementById('btn-nudge-block');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await sessionFetch('/api/sim/nudge', { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        console.log(`[Disturbance] Nudged ${data.name} to`, data.new_position);
+      }
+    } catch (err) {
+      console.error('Error nudging block:', err);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   document.getElementById('btn-rest-header')?.addEventListener('click', triggerRestArm);
   document.getElementById('btn-rest-inline')?.addEventListener('click', triggerRestArm);
   document.getElementById('btn-rest-main')?.addEventListener('click', triggerRestArm);
   document.getElementById('btn-randomize-main')?.addEventListener('click', triggerRandomizeLayout);
+  document.getElementById('btn-nudge-block')?.addEventListener('click', triggerNudgeBlock);
   document.getElementById('btn-reset')?.addEventListener('click', triggerRestArm);
 
   document.getElementById('btn-reset-cost')?.addEventListener('click', async () => {
@@ -1020,8 +1037,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 11. Refresh Mini VLA Camera Preview every 450ms without flicker (Supports Overhead RGB, Eye-in-Hand Wrist Cam, Metric Depth, and Occupancy Map)
+  // 11. Sensor HUD Switcher: Live 30 FPS WebGL perspective cameras for OVERHEAD / WRIST / DEPTH,
+  //     and backend 2D occupancy grid PNG polling for MAP mode.
   const vlaImg = document.getElementById('vla-pip-img');
+  const vlaCanvas = document.getElementById('vla-pip-canvas');
   let currentFeedType = 'rgb';
   const btnFeedRgb = document.getElementById('btn-feed-rgb');
   const btnFeedWrist = document.getElementById('btn-feed-wrist');
@@ -1036,17 +1055,20 @@ document.addEventListener('DOMContentLoaded', () => {
     { btn: btnFeedMap, type: 'map', tag: 'OCCUPANCY GRID MAP', endpoint: '/api/vla/map_image' },
   ];
 
-  const refreshCam = () => {
-    if (!vlaImg) return;
+  const syncFeedVisibility = () => {
+    const isMap = currentFeedType === 'map';
+    if (simCanvas) simCanvas.hudFeedMode = currentFeedType;
+    if (vlaCanvas) vlaCanvas.style.display = isMap ? 'none' : 'block';
+    if (vlaImg) vlaImg.style.display = isMap ? 'block' : 'none';
+  };
+
+  const refreshMapImg = () => {
+    if (!vlaImg || currentFeedType !== 'map') return;
     const nextImg = new Image();
     nextImg.onload = () => {
-      vlaImg.src = nextImg.src;
+      if (currentFeedType === 'map') vlaImg.src = nextImg.src;
     };
-    let endpoint = '/api/vla/camera_image';
-    if (currentFeedType === 'wrist') endpoint = '/api/vla/wrist_image';
-    else if (currentFeedType === 'depth') endpoint = '/api/vla/depth_image';
-    else if (currentFeedType === 'map') endpoint = '/api/vla/map_image';
-    nextImg.src = `${endpoint}?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
+    nextImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
   };
 
   hudFeedConfigs.forEach(({ btn, type, tag }) => {
@@ -1058,13 +1080,15 @@ document.addEventListener('DOMContentLoaded', () => {
           if (h.btn) h.btn.classList.toggle('active', h.type === type);
         });
         if (sensorTypeTag) sensorTypeTag.innerText = tag;
-        refreshCam();
+        syncFeedVisibility();
+        if (type === 'map') refreshMapImg();
       });
     }
   });
 
+  syncFeedVisibility();
   if (vlaImg) {
-    setInterval(refreshCam, 450);
+    setInterval(refreshMapImg, 450);
   }
 
   // 12. Auto-execute command if passed via URL ?cmd=...

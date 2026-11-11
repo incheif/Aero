@@ -51,6 +51,21 @@ class SimCanvas3D {
     this.wristSensorBeam = null;
     this.occupancyGridGroup = null;
     this.occupancyGridTiles = [];
+    this.plannedPathLine = null;
+    this.ghostTargetMesh = null;
+
+    // Live WebGL PiP Sensor Feed State
+    this.hudFeedMode = 'rgb';
+    this.pipFrameCounter = 0;
+    this.pipSize = 160;
+    this.pipCanvas = null;
+    this.pipCtx = null;
+    this.pipRenderTarget = null;
+    this.pipReadBuffer = null;
+    this.pipImageData = null;
+    this.overheadSensorCam = null;
+    this.wristSensorCam = null;
+    this.depthMaterial = null;
 
     // Performance Mode ('smooth' 60 FPS optimized for laptops, or 'hd' for high-end GPUs)
     this.perfMode = localStorage.getItem('AERO_PERF_MODE') || 'smooth';
@@ -126,12 +141,14 @@ class SimCanvas3D {
     // 6. Articulated Panda Robot Arm (RobotArm.tsx from new_project_1)
     this.buildRobotArm();
 
-    // 7. TCP Trajectory Trail
+    // 7. TCP Trajectory Trail & Planned Preview
     this.setupTrailLine();
+    this.setupPlannedPreview();
 
-    // 8. 3D Sensor Visualizations & Tabletop Mapping Grid
+    // 8. 3D Sensor Visualizations, Tabletop Mapping Grid & Live Sensor Cameras
     this.setupSensorVisualizations();
     this.setupTabletopMappingGrid();
+    this.setupSensorCameras();
 
     // Dynamic Viewport Resize Observer for seamless full-space filling
     if (window.ResizeObserver && this.canvas.parentElement) {
@@ -252,7 +269,88 @@ class SimCanvas3D {
       this.scene.add(leg);
     });
 
-    // 3. Clean, unmarked tabletop (all target spot decals removed)
+    // 3. ESD Workbench Lab Mat (5 cm calibration grid across active workcell)
+    const matTexCanvas = document.createElement('canvas');
+    matTexCanvas.width = 512;
+    matTexCanvas.height = 384;
+    const mctx = matTexCanvas.getContext('2d');
+    mctx.fillStyle = '#14171f';
+    mctx.fillRect(0, 0, 512, 384);
+    mctx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
+    mctx.lineWidth = 1;
+    const stepX = 512 / 18;
+    const stepY = 384 / 14;
+    for (let i = 1; i < 18; i++) {
+      mctx.beginPath();
+      mctx.moveTo(i * stepX, 12);
+      mctx.lineTo(i * stepX, 372);
+      mctx.stroke();
+    }
+    for (let j = 1; j < 14; j++) {
+      mctx.beginPath();
+      mctx.moveTo(12, j * stepY);
+      mctx.lineTo(500, j * stepY);
+      mctx.stroke();
+    }
+    mctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    mctx.lineWidth = 2;
+    mctx.strokeRect(12, 12, 488, 360);
+    // Subtle center workcell reticle
+    mctx.beginPath();
+    mctx.moveTo(246, 192);
+    mctx.lineTo(266, 192);
+    mctx.moveTo(256, 182);
+    mctx.lineTo(256, 202);
+    mctx.stroke();
+
+    const matTex = new THREE.CanvasTexture(matTexCanvas);
+    matTex.anisotropy = 4;
+    const labMat = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.92, 0.70),
+      new THREE.MeshStandardMaterial({
+        map: matTex,
+        roughness: 0.72,
+        metalness: 0.08,
+      })
+    );
+    labMat.rotation.x = -Math.PI / 2;
+    labMat.position.set(0.04, 0.7204, 0.0);
+    labMat.receiveShadow = true;
+    labMat.matrixAutoUpdate = false;
+    labMat.updateMatrix();
+    this.scene.add(labMat);
+
+    // 4. Overhead Stereo Camera Bar & Vertical Stanchion Rig at (0.08, 1.85, 0.0)
+    const camRigGroup = new THREE.Group();
+    const rigMetalMat = new THREE.MeshStandardMaterial({ color: 0x27272a, metalness: 0.75, roughness: 0.3 });
+    const lensGlassMat = new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9, roughness: 0.1 });
+
+    // Vertical rear mast from back table edge up to camera bar
+    const rearPost = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 1.16, 14), rigMetalMat);
+    rearPost.position.set(0.08, 1.30, -0.43);
+    camRigGroup.add(rearPost);
+    // Horizontal cantilever arm to (0.08, 1.86, 0.0)
+    const boomArm = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.022, 0.45), rigMetalMat);
+    boomArm.position.set(0.08, 1.87, -0.215);
+    camRigGroup.add(boomArm);
+    // Stereo camera bar housing (sits at Y=1.855, above optical center Y=1.835)
+    const camBar = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.024, 0.036), rigMetalMat);
+    camBar.position.set(0.08, 1.855, 0.0);
+    camRigGroup.add(camBar);
+    [-0.042, 0.042].forEach((lx) => {
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.012, 16), lensGlassMat);
+      lens.position.set(0.08 + lx, 1.842, 0.0);
+      camRigGroup.add(lens);
+    });
+    const camStatusDot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.004, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+    );
+    camStatusDot.position.set(0.08, 1.855, 0.020);
+    camRigGroup.add(camStatusDot);
+    this.scene.add(camRigGroup);
+
+    // 5. Clean, unmarked tabletop (all target spot decals removed)
     this.targetPads = [];
     this.targetPad = null;
   }
@@ -356,6 +454,45 @@ class SimCanvas3D {
     wristGroup.add(palm);
     this.arm.palm = palm;
 
+    // Eye-in-Hand Wrist Camera Pod + Status LED Ring mounted on top of palm
+    const wristPod = new THREE.Mesh(
+      new THREE.BoxGeometry(0.032, 0.018, 0.034),
+      new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.7, roughness: 0.3 })
+    );
+    wristPod.position.set(0.122, 0.032, 0.0);
+    wristGroup.add(wristPod);
+
+    const wristLens = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.0065, 0.0065, 0.008, 14),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.1 })
+    );
+    wristLens.rotation.z = Math.PI / 2;
+    wristLens.position.set(0.139, 0.032, 0.0);
+    wristGroup.add(wristLens);
+
+    const statusLedMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x38bdf8,
+      emissiveIntensity: 1.4,
+      roughness: 0.2,
+    });
+    const statusLed = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 12, 12), statusLedMat);
+    statusLed.position.set(0.124, 0.042, 0.012);
+    wristGroup.add(statusLed);
+    this.arm.statusLed = statusLed;
+
+    // Mounted Eye-in-Hand PerspectiveCamera looking forward/slightly down between jaws
+    const wristCam = new THREE.PerspectiveCamera(58, 1.0, 0.032, 4.0);
+    wristCam.position.set(0.142, 0.042, 0.0);
+    const wristLookMat = new THREE.Matrix4().lookAt(
+      new THREE.Vector3(0.142, 0.042, 0.0),
+      new THREE.Vector3(0.265, -0.022, 0.0),
+      new THREE.Vector3(0, 1, 0)
+    );
+    wristCam.quaternion.setFromRotationMatrix(wristLookMat);
+    wristGroup.add(wristCam);
+    this.wristSensorCam = wristCam;
+
     // 5. Parallel Gripper Sliding Jaws (JAW_LENGTH = 0.095m, centered at X = 0.18m matching TCP)
     const jawGeo = new THREE.BoxGeometry(0.095, 0.036, 0.012);
 
@@ -413,6 +550,87 @@ class SimCanvas3D {
 
     this.tcpTrailLine = new THREE.Line(geometry, material);
     this.scene.add(this.tcpTrailLine);
+  }
+
+  setupPlannedPreview() {
+    // Remaining future waypoint trajectory line (emerald dashed/solid cue)
+    const maxPts = 64;
+    const planGeo = new THREE.BufferGeometry();
+    planGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPts * 3), 3));
+    const planMat = new THREE.LineBasicMaterial({
+      color: 0x10b981,
+      transparent: true,
+      opacity: 0.72,
+    });
+    this.plannedPathLine = new THREE.Line(planGeo, planMat);
+    this.plannedPathLine.geometry.setDrawRange(0, 0);
+    this.scene.add(this.plannedPathLine);
+
+    // Translucent target destination ghost cube
+    const ghostGeo = new THREE.BoxGeometry(0.056, 0.056, 0.056);
+    const ghostMat = new THREE.MeshBasicMaterial({
+      color: 0x10b981,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+    });
+    const ghostMesh = new THREE.Mesh(ghostGeo, ghostMat);
+    const ghostEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(ghostGeo),
+      new THREE.LineBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.75 })
+    );
+    ghostMesh.add(ghostEdges);
+    ghostMesh.visible = false;
+    this.scene.add(ghostMesh);
+    this.ghostTargetMesh = ghostMesh;
+  }
+
+  setupSensorCameras() {
+    this.overheadSensorCam = new THREE.PerspectiveCamera(38, 1.0, 0.12, 4.0);
+    this.overheadSensorCam.position.set(0.08, 1.835, 0.0);
+    this.overheadSensorCam.up.set(0, 0, -1);
+    this.overheadSensorCam.lookAt(0.08, 0.72, 0.0);
+
+    this.pipCanvas = document.getElementById('vla-pip-canvas');
+    this.pipCtx = this.pipCanvas ? this.pipCanvas.getContext('2d') : null;
+    this.pipRenderTarget = new THREE.WebGLRenderTarget(this.pipSize, this.pipSize, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.UnsignedByteType,
+      depthBuffer: true,
+    });
+    this.pipReadBuffer = new Uint8Array(this.pipSize * this.pipSize * 4);
+    if (this.pipCtx) {
+      this.pipImageData = this.pipCtx.createImageData(this.pipSize, this.pipSize);
+    }
+
+    this.depthMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uNear: { value: 0.65 },
+        uFar: { value: 1.35 },
+      },
+      vertexShader: `
+        varying float vViewDist;
+        void main() {
+          vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+          vViewDist = -mvPos.z;
+          gl_Position = projectionMatrix * mvPos;
+        }
+      `,
+      fragmentShader: `
+        uniform float uNear;
+        uniform float uFar;
+        varying float vViewDist;
+        void main() {
+          float t = clamp((uFar - vViewDist) / (uFar - uNear), 0.0, 1.0);
+          vec3 col = mix(vec3(0.03, 0.06, 0.14), vec3(0.02, 0.72, 0.84), smoothstep(0.0, 0.45, t));
+          col = mix(col, vec3(0.96, 0.72, 0.18), smoothstep(0.45, 0.82, t));
+          col = mix(col, vec3(1.0, 0.96, 0.88), smoothstep(0.82, 1.0, t));
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
   }
 
   setupSensorVisualizations() {
@@ -627,6 +845,45 @@ class SimCanvas3D {
       this.tcpTrailLine.geometry.setDrawRange(0, 0);
     }
 
+    // 4b. Update Planned Path Preview & Target Ghost Cube
+    if (this.plannedPathLine && data.planned_path && data.planned_path.length > 1) {
+      const pPts = data.planned_path;
+      const count = Math.min(64, pPts.length);
+      const posArr = this.plannedPathLine.geometry.attributes.position.array;
+      for (let i = 0; i < count; i++) {
+        posArr[i * 3] = pPts[i][0];
+        posArr[i * 3 + 1] = pPts[i][1];
+        posArr[i * 3 + 2] = pPts[i][2];
+      }
+      this.plannedPathLine.geometry.setDrawRange(0, count);
+      this.plannedPathLine.geometry.attributes.position.needsUpdate = true;
+      this.plannedPathLine.visible = true;
+    } else if (this.plannedPathLine) {
+      this.plannedPathLine.geometry.setDrawRange(0, 0);
+      this.plannedPathLine.visible = false;
+    }
+
+    if (this.ghostTargetMesh) {
+      if (data.planned_target && data.planned_target.length >= 3) {
+        const gt = data.planned_target;
+        this.ghostTargetMesh.position.set(gt[0], Math.max(0.7475, gt[1]), gt[2]);
+        this.ghostTargetMesh.visible = true;
+      } else {
+        this.ghostTargetMesh.visible = false;
+      }
+    }
+
+    // 4c. Update Wrist Status LED Color (amber grasp / green active / red error / cyan idle)
+    if (this.arm.statusLed && this.arm.statusLed.material) {
+      const vlaStatus = (data.vla && data.vla.status) ? String(data.vla.status).toUpperCase() : 'IDLE';
+      let ledHex = 0x38bdf8;
+      if (data.grasped_block_id) ledHex = 0xf59e0b;
+      else if (vlaStatus === 'EXECUTING' || vlaStatus === 'PLANNING') ledHex = 0x10b981;
+      else if (vlaStatus === 'ERROR') ledHex = 0xef4444;
+      this.arm.statusLed.material.color.setHex(ledHex);
+      this.arm.statusLed.material.emissive.setHex(ledHex);
+    }
+
     // 4. Update Wrist Camera if active
     if (this.activeCameraView === 'wrist' && data.tcp) {
       const tcpPos = data.tcp.position;
@@ -815,7 +1072,83 @@ class SimCanvas3D {
       });
     }
 
+    // Subtle pulsing of target ghost cube
+    if (this.ghostTargetMesh && this.ghostTargetMesh.visible) {
+      this.ghostTargetMesh.material.opacity = 0.14 + Math.sin(Date.now() * 0.006) * 0.07;
+    }
+
+    // Throttled 30 FPS real 3D WebGL Vision HUD rendering for OVERHEAD / WRIST / DEPTH
+    this.renderPipHud();
+
     this.renderer.render(this.scene, this.camera);
+  }
+
+  renderPipHud() {
+    if (!this.renderer || !this.pipRenderTarget || !this.pipCtx || !this.pipCanvas) return;
+    if (this.hudFeedMode === 'map' || this.pipCanvas.offsetParent === null) return;
+    if ((this.pipFrameCounter++ % 2) !== 0) return;
+
+    const activeCam = (this.hudFeedMode === 'wrist' && this.wristSensorCam)
+      ? this.wristSensorCam
+      : this.overheadSensorCam;
+    if (!activeCam) return;
+
+    // Temporarily hide debug overlays & markers for clean sensor camera image
+    const prevFrustum = this.sensorFrustumGroup ? this.sensorFrustumGroup.visible : false;
+    const prevGrid = this.occupancyGridGroup ? this.occupancyGridGroup.visible : false;
+    const prevPlan = this.plannedPathLine ? this.plannedPathLine.visible : false;
+    const prevGhost = this.ghostTargetMesh ? this.ghostTargetMesh.visible : false;
+    const prevTrail = this.tcpTrailLine ? this.tcpTrailLine.visible : false;
+    const prevTcp = this.arm.tcpMarker ? this.arm.tcpMarker.visible : false;
+    const prevBoxes = [];
+
+    if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = false;
+    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = false;
+    if (this.plannedPathLine) this.plannedPathLine.visible = false;
+    if (this.ghostTargetMesh) this.ghostTargetMesh.visible = false;
+    if (this.tcpTrailLine) this.tcpTrailLine.visible = false;
+    if (this.arm.tcpMarker) this.arm.tcpMarker.visible = false;
+    Object.values(this.perceptionMeshes).forEach((m) => {
+      prevBoxes.push([m, m.visible]);
+      m.visible = false;
+    });
+
+    const prevOverride = this.scene.overrideMaterial;
+    if (this.hudFeedMode === 'depth' && this.depthMaterial) {
+      this.scene.overrideMaterial = this.depthMaterial;
+    }
+
+    const prevTarget = this.renderer.getRenderTarget();
+    this.renderer.setRenderTarget(this.pipRenderTarget);
+    this.renderer.clear();
+    this.renderer.render(this.scene, activeCam);
+    this.renderer.readRenderTargetPixels(
+      this.pipRenderTarget, 0, 0, this.pipSize, this.pipSize, this.pipReadBuffer
+    );
+    this.renderer.setRenderTarget(prevTarget);
+    this.scene.overrideMaterial = prevOverride;
+
+    // Restore debug overlays before main viewport render
+    if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = prevFrustum;
+    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = prevGrid;
+    if (this.plannedPathLine) this.plannedPathLine.visible = prevPlan;
+    if (this.ghostTargetMesh) this.ghostTargetMesh.visible = prevGhost;
+    if (this.tcpTrailLine) this.tcpTrailLine.visible = prevTrail;
+    if (this.arm.tcpMarker) this.arm.tcpMarker.visible = prevTcp;
+    prevBoxes.forEach(([m, v]) => { m.visible = v; });
+
+    // Flip Y rows from WebGL bottom-up origin into top-down 2D canvas
+    const w = this.pipSize;
+    const h = this.pipSize;
+    const rowBytes = w * 4;
+    const dst = this.pipImageData.data;
+    const src = this.pipReadBuffer;
+    for (let y = 0; y < h; y++) {
+      const srcOffset = (h - 1 - y) * rowBytes;
+      const dstOffset = y * rowBytes;
+      dst.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+    }
+    this.pipCtx.putImageData(this.pipImageData, 0, 0);
   }
 }
 

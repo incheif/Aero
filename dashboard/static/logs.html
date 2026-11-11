@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AERO | Execution Stream &amp; Audit Terminal</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.2">
+  <link rel="stylesheet" href="/css/style.css?v=3.3">
   <style>
     body {
       background-color: #09090b;
@@ -103,8 +104,17 @@
     }
 
     @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.85);
+      }
     }
 
     .btn-return-studio {
@@ -230,27 +240,34 @@
         height: 48px;
         padding: 0 12px;
       }
+
       .brand-subtitle-badge {
         display: none;
       }
+
       .logs-standalone-body {
         padding: 12px;
       }
+
       .header-actions {
         gap: 8px;
       }
+
       #session-badge {
         display: none;
       }
+
       .logs-toolbar {
         gap: 8px;
         margin-bottom: 8px;
         padding-bottom: 8px;
       }
+
       .log-filter-chip {
         padding: 4px 8px;
         font-size: 0.68rem;
       }
+
       .standalone-footer {
         flex-direction: column;
         align-items: flex-start;
@@ -260,13 +277,15 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Minimal Dark-Mode Header -->
   <header class="logs-standalone-header">
     <a href="/studio" class="brand-standalone" title="Return to 3D Studio">
       <div class="brand-icon">
-        <img src="/logo.png" alt="AERO Logo" class="brand-logo-img" style="width: 100%; height: 100%; object-fit: cover;">
+        <img src="/logo.png" alt="AERO Logo" class="brand-logo-img"
+          style="width: 100%; height: 100%; object-fit: cover;">
       </div>
       <div>
         <span class="brand-title">AERO</span>
@@ -286,7 +305,8 @@
       </div>
 
       <a href="/studio" class="btn-return-studio" title="Return to 3D Simulation Studio">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
           <polyline points="15 3 21 3 21 9"></polyline>
           <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -313,11 +333,17 @@
       <div class="standalone-controls">
         <span class="logs-counter-badge" id="logs-total-count">0 events</span>
         <button class="btn-logs-action active" id="btn-toggle-autoscroll" title="Toggle Auto-Scroll">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <polyline points="19 12 12 19 5 12" />
+          </svg>
           <span id="autoscroll-label">Scroll: ON</span>
         </button>
         <button class="btn-logs-action" id="btn-clear-logs" title="Clear Event Logs">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
           <span>Clear Buffer</span>
         </button>
       </div>
@@ -339,10 +365,10 @@
 
   <!-- Script for standalone real-time log ingestion and filtering -->
   <script>
-    (function() {
+    (function () {
       const urlParams = new URLSearchParams(window.location.search);
       const sessionId = urlParams.get('session_id') || localStorage.getItem('AERO_SESSION_ID') || 'sess_default';
-      
+
       document.getElementById('session-display').innerText = sessionId;
 
       let localLogs = [];
@@ -518,7 +544,7 @@
             if (data.logs) {
               updateLogs(data.logs);
             }
-          } catch (_) {}
+          } catch (_) { }
         };
 
         ws.onclose = () => {
@@ -542,10 +568,11 @@
           .then(data => {
             if (data && data.logs) updateLogs(data.logs);
           })
-          .catch(() => {});
+          .catch(() => { });
       }, 1500);
 
     })();
   </script>
 </body>
+
 </html>

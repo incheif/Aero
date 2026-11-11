@@ -6,6 +6,7 @@ table collision bounds, and stacking tolerances matching new_project_1.
 
 import math
 import copy
+import random
 from typing import Dict, List, Tuple, Optional, Any
 from .constants import (
     FIXED_DT,
@@ -130,6 +131,67 @@ class RobotArmSimulation:
     def set_active_task(self, block_ids: Optional[List[str]] = None, targets: Optional[Dict[str, List[float]]] = None):
         self.active_task_blocks = block_ids
         self.active_task_targets = targets
+
+    def nudge_random_block(self, block_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Shift a tabletop, ungrasped block by 4.5-7.5 cm within safe reachable bounds
+        to test live closed-loop re-perception and disturbance recovery.
+        """
+        candidates = [
+            b for b in self.blocks.values()
+            if not b.is_grasped
+            and (block_id is None or b.id == block_id)
+            and b.position[1] <= TABLE_TOP_Y + CUBE_HALF + 0.015
+            and not any(other.supported_by == b.id for other in self.blocks.values())
+        ]
+        if not candidates:
+            candidates = [
+                b for b in self.blocks.values()
+                if not b.is_grasped and (block_id is None or b.id == block_id)
+            ]
+        if not candidates:
+            return None
+
+        target = random.choice(candidates)
+        old_pos = [round(v, 4) for v in target.position]
+        min_x = max(-0.26, -TABLE_HALF_EXTENTS[0] + CUBE_HALF + 0.06)
+        max_x = min(0.28, TABLE_HALF_EXTENTS[0] - CUBE_HALF - 0.06)
+        min_z = max(-0.28, -TABLE_HALF_EXTENTS[1] + CUBE_HALF + 0.06)
+        max_z = min(0.28, TABLE_HALF_EXTENTS[1] - CUBE_HALF - 0.06)
+
+        chosen_xz = None
+        for _ in range(20):
+            angle = random.uniform(0.0, 2.0 * math.pi)
+            dist = random.uniform(0.045, 0.075)
+            nx = clamp(target.position[0] + math.cos(angle) * dist, min_x, max_x)
+            nz = clamp(target.position[2] + math.sin(angle) * dist, min_z, max_z)
+            # Keep clear of base column at (0, 0)
+            if math.hypot(nx, nz) < 0.14:
+                continue
+            # Keep clear of other tabletop blocks
+            overlaps = any(
+                other.id != target.id
+                and abs(other.position[1] - target.position[1]) < CUBE_SIZE
+                and math.hypot(other.position[0] - nx, other.position[2] - nz) < (CUBE_SIZE * 1.45)
+                for other in self.blocks.values()
+            )
+            if not overlaps:
+                chosen_xz = (nx, nz)
+                break
+
+        if chosen_xz is None:
+            return None
+
+        target.position[0] = round(chosen_xz[0], 4)
+        target.position[2] = round(chosen_xz[1], 4)
+        target.velocity = [0.0, 0.0, 0.0]
+        target.supported_by = None
+        return {
+            "block_id": target.id,
+            "name": target.name,
+            "old_position": old_pos,
+            "new_position": [round(v, 4) for v in target.position],
+        }
 
     def set_joint_targets(self, targets: Dict[str, float], gripper: Optional[float] = None):
         for k, v in targets.items():
