@@ -7,7 +7,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.3">
+  <link rel="stylesheet" href="/css/style.css?v=3.4">
 </head>
 
 <body>
@@ -62,56 +62,86 @@
       <!-- Framed 3D Simulation Viewport Card (Fills Available Stage Space) -->
       <div id="viewport-container" class="viewport-fill">
         <canvas id="canvas-3d"></canvas>
+        <div id="split-screen-grid" class="split-1" aria-label="Multi-view camera layout">
+          <div class="split-pane" data-screen="studio"></div>
+        </div>
 
-        <!-- Minimal Camera & Zoom Controls Pill -->
-        <div class="viewport-floating-bar">
-          <button class="cam-btn active" data-view="orbit" id="cam-orbit" title="Orbit Camera">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M12 3a9 9 0 0 1 9 9M3 12a9 9 0 0 1 9-9"></path>
-            </svg>
-            <span>Orbit</span>
-          </button>
-          <button class="cam-btn" data-view="play" id="cam-play" title="Playground Focused View">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="2" width="20" height="20" rx="3"></rect>
-              <polygon points="10 8 16 12 10 16 10 8"></polygon>
-            </svg>
-            <span>Play</span>
-          </button>
-          <button class="cam-btn" data-view="top" id="cam-top" title="Top-Down View (128x128 Sensor)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-            <span>Top</span>
-          </button>
-          <div style="width: 1px; height: 14px; background: rgba(255, 255, 255, 0.2); margin: 0 2px;"></div>
-          <button class="cam-btn active" id="btn-toggle-frustum" title="Toggle 3D Sensor Frustums & Vision Cones">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 2 22 22 22"></polygon>
-            </svg>
-            <span>Sensor FOV</span>
-          </button>
-          <button class="cam-btn active" id="btn-toggle-grid"
-            title="Toggle 3D Tabletop Occupancy & Mapping Navigation Grid">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="3" y1="9" x2="21" y2="9"></line>
-              <line x1="3" y1="15" x2="21" y2="15"></line>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
-              <line x1="15" y1="3" x2="15" y2="21"></line>
-            </svg>
-            <span>Mapping Grid</span>
-          </button>
-          <button class="cam-btn active" id="btn-toggle-perception-3d"
-            title="Toggle 3D Estimated Perception Bounding Boxes">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-            <span>Est. 3D Boxes</span>
-          </button>
+        <!-- Top Viewport HUD: Camera & Overlay Controls + Multi-Screen Manager -->
+        <div class="viewport-top-hud">
+          <!-- Minimal Camera & Zoom Controls Pill -->
+          <div class="viewport-floating-bar">
+            <button class="cam-btn active" data-view="orbit" id="cam-orbit" title="Orbit Camera">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 3a9 9 0 0 1 9 9M3 12a9 9 0 0 1 9-9"></path>
+              </svg>
+              <span>Orbit</span>
+            </button>
+            <button class="cam-btn" data-view="play" id="cam-play" title="Playground Focused View">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="20" rx="3"></rect>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+              </svg>
+              <span>Play</span>
+            </button>
+            <button class="cam-btn" data-view="top" id="cam-top" title="Top-Down View (128x128 Sensor)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span>Top</span>
+            </button>
+            <div style="width: 1px; height: 14px; background: rgba(255, 255, 255, 0.2); margin: 0 2px;"></div>
+            <button class="cam-btn active" id="btn-toggle-frustum" title="Toggle 3D Sensor Frustums & Vision Cones">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 22 22 22"></polygon>
+              </svg>
+              <span>Sensor FOV</span>
+            </button>
+            <button class="cam-btn active" id="btn-toggle-grid"
+              title="Toggle 3D Tabletop Occupancy & Mapping Navigation Grid">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+              <span>Mapping Grid</span>
+            </button>
+            <button class="cam-btn active" id="btn-toggle-perception-3d"
+              title="Toggle 3D Estimated Perception Bounding Boxes">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span>Est. 3D Boxes</span>
+            </button>
+          </div>
+
+          <!-- Big-Screen Multi-View Feed Manager -->
+          <div class="screen-manager-bar" id="screen-manager-bar"
+            title="Select 1, 2, or 3+ feeds to show on the main screen">
+            <span class="screen-mgr-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              Screens
+            </span>
+            <button class="screen-btn active" data-screen="studio" id="btn-screen-studio"
+              title="Toggle Main 3D Studio Viewport">Studio</button>
+            <button class="screen-btn" data-screen="rgb" id="btn-screen-rgb"
+              title="Toggle Overhead RGB Camera on Main Screen">Overhead</button>
+            <button class="screen-btn" data-screen="wrist" id="btn-screen-wrist"
+              title="Toggle Eye-in-Hand Wrist Camera on Main Screen">Wrist</button>
+            <button class="screen-btn" data-screen="depth" id="btn-screen-depth"
+              title="Toggle Metric Depth Map on Main Screen">Depth</button>
+            <button class="screen-btn" data-screen="map" id="btn-screen-map"
+              title="Toggle 2D Occupancy Map on Main Screen">Map</button>
+            <span class="screen-layout-badge" id="screen-layout-badge">1 VIEW</span>
+          </div>
         </div>
 
         <!-- Live AI Perception Camera Feed (128x128 Orthographic HUD) -->
@@ -577,8 +607,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.3"></script>
-  <script src="/js/app.js?v=3.3"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.4"></script>
+  <script src="/js/app.js?v=3.4"></script>
 </body>
 
 </html>

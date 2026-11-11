@@ -1063,10 +1063,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const refreshMapImg = () => {
-    if (!vlaImg || currentFeedType !== 'map') return;
+    const mainMapImgs = document.querySelectorAll('.split-map-img');
+    const needPipMap = Boolean(vlaImg && currentFeedType === 'map');
+    const needMainMap = mainMapImgs.length > 0;
+    if (!needPipMap && !needMainMap) return;
+
     const nextImg = new Image();
     nextImg.onload = () => {
-      if (currentFeedType === 'map') vlaImg.src = nextImg.src;
+      if (vlaImg && currentFeedType === 'map') vlaImg.src = nextImg.src;
+      document.querySelectorAll('.split-map-img').forEach((imgEl) => {
+        imgEl.src = nextImg.src;
+      });
     };
     nextImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
   };
@@ -1087,9 +1094,111 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   syncFeedVisibility();
-  if (vlaImg) {
-    setInterval(refreshMapImg, 450);
-  }
+  setInterval(refreshMapImg, 450);
+
+  // 11b. Main Big-Screen Multi-View Manager (1 = full view, 2 = 2-way split, 3 = 3-way split, etc.)
+  const splitGrid = document.getElementById('split-screen-grid');
+  const screenButtons = Array.from(document.querySelectorAll('.screen-btn[data-screen]'));
+  const screenLayoutBadge = document.getElementById('screen-layout-badge');
+  const SCREEN_LABELS = {
+    studio: 'STUDIO 3D',
+    rgb: 'OVERHEAD RGB',
+    wrist: 'WRIST (EYE-IN-HAND)',
+    depth: 'METRIC DEPTH',
+    map: 'OCCUPANCY MAP',
+  };
+  let selectedMainScreens = ['studio'];
+
+  const renderScreenLayout = () => {
+    if (!splitGrid) return;
+    const count = selectedMainScreens.length;
+    splitGrid.className = `split-${Math.min(5, Math.max(1, count))}`;
+
+    screenButtons.forEach((btn) => {
+      const s = btn.getAttribute('data-screen');
+      btn.classList.toggle('active', selectedMainScreens.includes(s));
+    });
+
+    if (screenLayoutBadge) {
+      if (count === 1) screenLayoutBadge.innerText = '1 VIEW';
+      else if (count <= 3) screenLayoutBadge.innerText = `${count} SPLIT`;
+      else screenLayoutBadge.innerText = `${count} GRID`;
+    }
+
+    splitGrid.innerHTML = '';
+    const isDefaultStudio = count === 1 && selectedMainScreens[0] === 'studio';
+
+    selectedMainScreens.forEach((screenType) => {
+      const pane = document.createElement('div');
+      pane.className = 'split-pane';
+      pane.setAttribute('data-screen', screenType);
+
+      if (screenType === 'map') {
+        const mapImg = document.createElement('img');
+        mapImg.className = 'split-map-img';
+        mapImg.alt = 'Occupancy & Frontier Map';
+        mapImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
+        pane.appendChild(mapImg);
+      }
+
+      if (!isDefaultStudio) {
+        const chip = document.createElement('div');
+        chip.className = 'split-pane-chip';
+
+        const dot = document.createElement('span');
+        dot.className = `split-pane-dot dot-${screenType}`;
+        chip.appendChild(dot);
+
+        const txt = document.createElement('span');
+        txt.innerText = SCREEN_LABELS[screenType] || screenType.toUpperCase();
+        chip.appendChild(txt);
+
+        if (count > 1) {
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'split-pane-close';
+          closeBtn.type = 'button';
+          closeBtn.title = `Close ${SCREEN_LABELS[screenType] || screenType}`;
+          closeBtn.innerText = '×';
+          closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMainScreen(screenType);
+          });
+          chip.appendChild(closeBtn);
+        }
+        pane.appendChild(chip);
+      }
+
+      splitGrid.appendChild(pane);
+    });
+
+    if (simCanvas && typeof simCanvas.setMainScreens === 'function') {
+      simCanvas.setMainScreens(selectedMainScreens, () => splitGrid.querySelectorAll('.split-pane'));
+    }
+    if (selectedMainScreens.includes('map')) {
+      refreshMapImg();
+    }
+  };
+
+  const toggleMainScreen = (screenType) => {
+    const idx = selectedMainScreens.indexOf(screenType);
+    if (idx !== -1) {
+      if (selectedMainScreens.length <= 1) return; // Always keep at least 1 feed on main screen
+      selectedMainScreens.splice(idx, 1);
+    } else {
+      selectedMainScreens.push(screenType);
+    }
+    renderScreenLayout();
+  };
+
+  screenButtons.forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const s = btn.getAttribute('data-screen');
+      if (s) toggleMainScreen(s);
+    });
+  });
+
+  renderScreenLayout();
 
   // 12. Auto-execute command if passed via URL ?cmd=...
   const urlParams = new URLSearchParams(window.location.search);

@@ -54,6 +54,10 @@ class SimCanvas3D {
     this.plannedPathLine = null;
     this.ghostTargetMesh = null;
 
+    // Multi-View Screen Management State (1 = single view, 2+ = split screen)
+    this.mainScreens = ['studio'];
+    this.paneProvider = null;
+
     // Live WebGL PiP Sensor Feed State
     this.hudFeedMode = 'rgb';
     this.pipFrameCounter = 0;
@@ -944,12 +948,12 @@ class SimCanvas3D {
 
   setCameraView(viewName) {
     this.activeCameraView = viewName;
+    const allowOrbit = this.mainScreens.includes('studio') && viewName !== 'wrist';
+    if (this.controls) this.controls.enabled = allowOrbit;
     if (viewName === 'wrist') {
-      if (this.controls) this.controls.enabled = false;
       return;
     }
 
-    if (this.controls) this.controls.enabled = true;
     const rig = this.cameraRigs[viewName] || this.cameraRigs.orbit;
 
     // Smooth transition
@@ -1080,7 +1084,126 @@ class SimCanvas3D {
     // Throttled 30 FPS real 3D WebGL Vision HUD rendering for OVERHEAD / WRIST / DEPTH
     this.renderPipHud();
 
-    this.renderer.render(this.scene, this.camera);
+    // Render 1, 2, or 3+ selected views across the main viewport
+    this.renderMainScreens();
+  }
+
+  setMainScreens(screens, paneProvider = null) {
+    this.mainScreens = (Array.isArray(screens) && screens.length > 0) ? [...screens] : ['studio'];
+    this.paneProvider = paneProvider;
+    if (this.controls) {
+      this.controls.enabled = this.mainScreens.includes('studio') && this.activeCameraView !== 'wrist';
+    }
+  }
+
+  _pushHideOverlays() {
+    const saved = {
+      frustum: this.sensorFrustumGroup ? this.sensorFrustumGroup.visible : false,
+      grid: this.occupancyGridGroup ? this.occupancyGridGroup.visible : false,
+      plan: this.plannedPathLine ? this.plannedPathLine.visible : false,
+      ghost: this.ghostTargetMesh ? this.ghostTargetMesh.visible : false,
+      trail: this.tcpTrailLine ? this.tcpTrailLine.visible : false,
+      tcp: this.arm.tcpMarker ? this.arm.tcpMarker.visible : false,
+      boxes: [],
+    };
+    if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = false;
+    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = false;
+    if (this.plannedPathLine) this.plannedPathLine.visible = false;
+    if (this.ghostTargetMesh) this.ghostTargetMesh.visible = false;
+    if (this.tcpTrailLine) this.tcpTrailLine.visible = false;
+    if (this.arm.tcpMarker) this.arm.tcpMarker.visible = false;
+    Object.values(this.perceptionMeshes).forEach((m) => {
+      saved.boxes.push([m, m.visible]);
+      m.visible = false;
+    });
+    return saved;
+  }
+
+  _popOverlays(saved) {
+    if (!saved) return;
+    if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = saved.frustum;
+    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = saved.grid;
+    if (this.plannedPathLine) this.plannedPathLine.visible = saved.plan;
+    if (this.ghostTargetMesh) this.ghostTargetMesh.visible = saved.ghost;
+    if (this.tcpTrailLine) this.tcpTrailLine.visible = saved.trail;
+    if (this.arm.tcpMarker) this.arm.tcpMarker.visible = saved.tcp;
+    saved.boxes.forEach(([m, v]) => { m.visible = v; });
+  }
+
+  renderMainScreens() {
+    if (!this.renderer || !this.scene || !this.camera) return;
+
+    const isDefaultSingle = this.mainScreens.length === 1 && this.mainScreens[0] === 'studio';
+    const cw = this.canvas.clientWidth || 1;
+    const ch = this.canvas.clientHeight || 1;
+
+    if (isDefaultSingle) {
+      this.renderer.setScissorTest(false);
+      if (Math.abs(this.camera.aspect - (cw / ch)) > 0.002) {
+        this.camera.aspect = cw / ch;
+        this.camera.updateProjectionMatrix();
+      }
+      this.renderer.setViewport(0, 0, cw, ch);
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+
+    const panes = this.paneProvider ? this.paneProvider() : [];
+    const canvasRect = this.canvas.getBoundingClientRect();
+    if (!panes || panes.length === 0 || canvasRect.width <= 0 || canvasRect.height <= 0) {
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, cw, ch);
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+
+    // Clear whole canvas first so split grid dividers are clean black
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, canvasRect.width, canvasRect.height);
+    this.renderer.clear();
+    this.renderer.setScissorTest(true);
+
+    const prevOverride = this.scene.overrideMaterial;
+    for (let i = 0; i < panes.length; i++) {
+      const pane = panes[i];
+      const screenType = pane.dataset ? pane.dataset.screen : null;
+      if (!screenType || screenType === 'map') continue;
+
+      const pr = pane.getBoundingClientRect();
+      const w = Math.max(1, Math.round(pr.width));
+      const h = Math.max(1, Math.round(pr.height));
+      const x = Math.round(pr.left - canvasRect.left);
+      const y = Math.round(canvasRect.height - (pr.bottom - canvasRect.top));
+
+      this.renderer.setViewport(x, y, w, h);
+      this.renderer.setScissor(x, y, w, h);
+
+      if (screenType === 'studio') {
+        if (Math.abs(this.camera.aspect - (w / h)) > 0.002) {
+          this.camera.aspect = w / h;
+          this.camera.updateProjectionMatrix();
+        }
+        this.scene.overrideMaterial = prevOverride;
+        this.renderer.render(this.scene, this.camera);
+      } else {
+        const cam = (screenType === 'wrist' && this.wristSensorCam)
+          ? this.wristSensorCam
+          : this.overheadSensorCam;
+        if (!cam) continue;
+        cam.aspect = w / h;
+        cam.updateProjectionMatrix();
+        const saved = this._pushHideOverlays();
+        this.scene.overrideMaterial = (screenType === 'depth' && this.depthMaterial)
+          ? this.depthMaterial
+          : prevOverride;
+        this.renderer.render(this.scene, cam);
+        this.scene.overrideMaterial = prevOverride;
+        this._popOverlays(saved);
+      }
+    }
+
+    this.scene.overrideMaterial = prevOverride;
+    this.renderer.setScissorTest(false);
   }
 
   renderPipHud() {
@@ -1093,26 +1216,14 @@ class SimCanvas3D {
       : this.overheadSensorCam;
     if (!activeCam) return;
 
-    // Temporarily hide debug overlays & markers for clean sensor camera image
-    const prevFrustum = this.sensorFrustumGroup ? this.sensorFrustumGroup.visible : false;
-    const prevGrid = this.occupancyGridGroup ? this.occupancyGridGroup.visible : false;
-    const prevPlan = this.plannedPathLine ? this.plannedPathLine.visible : false;
-    const prevGhost = this.ghostTargetMesh ? this.ghostTargetMesh.visible : false;
-    const prevTrail = this.tcpTrailLine ? this.tcpTrailLine.visible : false;
-    const prevTcp = this.arm.tcpMarker ? this.arm.tcpMarker.visible : false;
-    const prevBoxes = [];
+    // Ensure square aspect & no lingering scissor clipping on the offscreen PiP target
+    this.renderer.setScissorTest(false);
+    if (Math.abs(activeCam.aspect - 1.0) > 0.002) {
+      activeCam.aspect = 1.0;
+      activeCam.updateProjectionMatrix();
+    }
 
-    if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = false;
-    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = false;
-    if (this.plannedPathLine) this.plannedPathLine.visible = false;
-    if (this.ghostTargetMesh) this.ghostTargetMesh.visible = false;
-    if (this.tcpTrailLine) this.tcpTrailLine.visible = false;
-    if (this.arm.tcpMarker) this.arm.tcpMarker.visible = false;
-    Object.values(this.perceptionMeshes).forEach((m) => {
-      prevBoxes.push([m, m.visible]);
-      m.visible = false;
-    });
-
+    const saved = this._pushHideOverlays();
     const prevOverride = this.scene.overrideMaterial;
     if (this.hudFeedMode === 'depth' && this.depthMaterial) {
       this.scene.overrideMaterial = this.depthMaterial;
@@ -1128,14 +1239,7 @@ class SimCanvas3D {
     this.renderer.setRenderTarget(prevTarget);
     this.scene.overrideMaterial = prevOverride;
 
-    // Restore debug overlays before main viewport render
-    if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = prevFrustum;
-    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = prevGrid;
-    if (this.plannedPathLine) this.plannedPathLine.visible = prevPlan;
-    if (this.ghostTargetMesh) this.ghostTargetMesh.visible = prevGhost;
-    if (this.tcpTrailLine) this.tcpTrailLine.visible = prevTrail;
-    if (this.arm.tcpMarker) this.arm.tcpMarker.visible = prevTcp;
-    prevBoxes.forEach(([m, v]) => { m.visible = v; });
+    this._popOverlays(saved);
 
     // Flip Y rows from WebGL bottom-up origin into top-down 2D canvas
     const w = this.pipSize;

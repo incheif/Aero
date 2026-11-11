@@ -292,20 +292,239 @@ header {
 }
 
 #canvas-3d {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
 }
 
-/* Minimalist Camera & Zoom Floating Bar */
-.viewport-floating-bar {
+/* Split-Screen Multi-View Grid Overlay */
+#split-screen-grid {
   position: absolute;
-  top: 14px;
-  left: 16px;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+}
+
+#split-screen-grid.split-1 {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+#split-screen-grid.split-2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+#split-screen-grid.split-3 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr;
+}
+
+#split-screen-grid.split-4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+#split-screen-grid.split-5 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+}
+
+.split-pane {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#split-screen-grid:not(.split-1) .split-pane {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+.split-pane[data-screen="map"] {
+  background: radial-gradient(circle at center, #111116 0%, #09090b 100%);
   display: flex;
   align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.split-map-img {
+  max-width: 82%;
+  max-height: 76%;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  background: #050507;
+  margin-top: 28px;
+}
+
+.split-pane-chip {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 18;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(12, 12, 16, 0.86);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e4e4e7;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: auto;
+}
+
+.split-pane-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+}
+
+.split-pane-dot.dot-studio {
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.65);
+}
+
+.split-pane-dot.dot-wrist {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+}
+
+.split-pane-dot.dot-depth {
+  background: #a855f7;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.7);
+}
+
+.split-pane-dot.dot-map {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+}
+
+.split-pane-close {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  font-size: 0.82rem;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.split-pane-close:hover {
+  color: #ffffff;
+}
+
+/* Top Viewport HUD (Camera Bar Left + Screen Management Right) */
+.viewport-top-hud {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  z-index: 25;
+  pointer-events: none;
+}
+
+/* Minimalist Camera & Zoom Floating Bar */
+.viewport-floating-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 5px;
-  z-index: 20;
+  pointer-events: auto;
+}
+
+/* Multi-View Screen Management Pill */
+.screen-manager-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(14, 14, 18, 0.84);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass-bright);
+  pointer-events: auto;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.screen-mgr-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 6px 0 4px;
+}
+
+.screen-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.screen-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--mono-white);
+}
+
+.screen-btn.active {
+  background: var(--mono-white);
+  border-color: var(--mono-white);
+  color: var(--mono-950);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+}
+
+.screen-layout-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  margin-left: 2px;
 }
 
 .viewport-bar-divider {
@@ -1850,11 +2069,30 @@ header {
     border-radius: var(--radius-md);
   }
 
-  /* Floating Camera Bar on Mobile */
-  .viewport-floating-bar {
+  /* Floating Camera & Screen Manager Bar on Mobile */
+  .viewport-top-hud {
     top: 8px;
     left: 8px;
+    right: 8px;
+    gap: 5px;
+  }
+
+  .viewport-floating-bar {
     gap: 3px;
+  }
+
+  .screen-manager-bar {
+    padding: 3px 5px;
+    gap: 3px;
+  }
+
+  .screen-btn {
+    padding: 3px 7px;
+    font-size: 0.6rem;
+  }
+
+  .screen-mgr-label {
+    display: none;
   }
 
   .cam-btn {
