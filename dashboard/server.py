@@ -128,7 +128,7 @@ class UserSession:
             "system",
             "STARTUP",
             f"Session {session_id} initialized with private workcell.",
-            "Rapier3D physics running at 60 FPS (dt=16.6ms). 7 blocks spawned at canonical table coordinates."
+            "Rapier3D physics running at 60 FPS (dt=16.6ms). 6 blocks spawned at canonical table coordinates."
         )
 
     def log_event(self, category: str, badge: str, what: str, how: str) -> Dict[str, Any]:
@@ -297,8 +297,6 @@ class UserSession:
             "green": "block_emerald",
             "purple": "block_purple",
             "violet": "block_purple",
-            "pink": "block_pink",
-            "rose": "block_pink",
         }
 
         target_block = None
@@ -455,7 +453,7 @@ class UserSession:
                     for c_name, b_id in [
                         ("cyan", "block_cyan"), ("orange", "block_orange"), ("magenta", "block_magenta"),
                         ("yellow", "block_yellow"), ("emerald", "block_emerald"), ("green", "block_emerald"),
-                        ("purple", "block_purple"), ("violet", "block_purple"), ("pink", "block_pink"), ("rose", "block_pink")
+                        ("purple", "block_purple"), ("violet", "block_purple")
                     ]:
                         if c_name in s_desc.lower() or b_id in s_desc.lower():
                             self.active_target_block_id = b_id

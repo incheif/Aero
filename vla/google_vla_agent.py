@@ -393,8 +393,6 @@ Output a JSON object ONLY with the following schema:
                 "emerald": "block_emerald",
                 "purple": "block_purple",
                 "violet": "block_purple",
-                "pink": "block_pink",
-                "rose": "block_pink",
             }
 
             grounded_seq = []
@@ -422,7 +420,7 @@ Output a JSON object ONLY with the following schema:
                 self.latest_grounding = embedded_res.get("grounding", [])
             else:
                 is_stack_cmd = any(w in instruction.lower() for w in ("stack", "tower", "layer", "tier", "pad", "build", "twer", "towr"))
-                target_layers = interpretation.get("layer_count", len(grounded_seq) or 7) if interpretation else 7
+                target_layers = interpretation.get("layer_count", len(grounded_seq) or 6) if interpretation else 6
 
                 # If interpretation provided target blocks (handles color mapping like red->magenta, blue->cyan), prioritize them
                 if interpretation and interpretation.get("target_blocks"):
@@ -567,7 +565,7 @@ Output a JSON object ONLY with the following schema:
         placed_ids: set = set()
         cleared_log: List[str] = []
 
-        all_block_ids = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple", "block_pink"]
+        all_block_ids = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple"]
         action_type = interpretation.get("action_type", "STACK_TOWER")
 
         # 1. Autonomous Exploration Command
@@ -575,7 +573,7 @@ Output a JSON object ONLY with the following schema:
             thought = (
                 "Google VLA Perception: High-level exploration command detected. "
                 "Synthesizing multi-quadrant sweeping trajectory at safe hover altitude (0.920m) "
-                "to inspect unmapped regions, resolve occlusions, and construct 3D spatial memory for all 7 blocks."
+                "to inspect unmapped regions, resolve occlusions, and construct 3D spatial memory for all 6 blocks."
             )
             plan = [
                 {"action": "EXPLORE_SCAN", "target": (0.25, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "desc": "Center overview survey"},
@@ -863,7 +861,7 @@ Output a JSON object ONLY with the following schema:
 
         # 7. Single Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
         else:
-            target_layers = interpretation.get("layer_count", 7)
+            target_layers = interpretation.get("layer_count", 6)
             interp_targets = interpretation.get("target_blocks", [])
             blocks_to_use = [b for b in interp_targets if b in blocks][:target_layers]
 
@@ -899,7 +897,7 @@ Output a JSON object ONLY with the following schema:
             thought = interpretation.get("thought", "")
             if cleared_log or not thought:
                 unused_names = [sim_blocks[uid]["name"] for uid in unused_blocks if uid in sim_blocks]
-                leave_str = f"Remaining block(s) ({', '.join(unused_names)}) remain resting on table." if unused_names else "All 7 blocks stacked."
+                leave_str = f"Remaining block(s) ({', '.join(unused_names)}) remain resting on table." if unused_names else "All 6 blocks stacked."
                 clr_note = (
                     f"Per-step clearance staged obstructing {', '.join(dict.fromkeys(cleared_log))} away from pad first. "
                     if cleared_log else ""

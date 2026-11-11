@@ -272,7 +272,6 @@
     const cubeYellow = createCube(0xfacc15); // Tabletop Yellow (4th workcell cube)
     const cubeOrange = createCube(0xf97316); // Tabletop Orange (5th workcell cube)
     const cubePurple = createCube(0x9333ea); // Tabletop Purple (6th workcell cube)
-    const cubePink = createCube(0xff2e93);   // Tabletop Pink (7th workcell cube)
 
     // Physical World Constants
     const TOWER_X = 0.18;
@@ -293,19 +292,16 @@
     cubeBlue.position.set(...blueStart);
     cubeGreen.position.set(...greenStart);
 
-    // 7-block workcell tabletop positions for Yellow, Orange, Purple, and Pink cubes
+    // 6-block workcell tabletop positions for Yellow, Orange, and Purple cubes
     const yellowStart = [0.30, TABLE_Y + CUBE_HALF, -0.11];
     const orangeStart = [0.28, TABLE_Y + CUBE_HALF, 0.13];
     const purpleStart = [0.16, TABLE_Y + CUBE_HALF, -0.25];
-    const pinkStart = [0.32, TABLE_Y + CUBE_HALF, 0.22];
     cubeYellow.position.set(...yellowStart);
     cubeYellow.rotation.y = 0.22;
     cubeOrange.position.set(...orangeStart);
     cubeOrange.rotation.y = -0.28;
     cubePurple.position.set(...purpleStart);
     cubePurple.rotation.y = 0.18;
-    cubePink.position.set(...pinkStart);
-    cubePink.rotation.y = -0.15;
 
     // Target Stacked Positions in 3-layer tower: Red -> Blue -> Green
     const blueStacked = [TOWER_X, TABLE_Y + CUBE_HALF + CUBE_SIZE, TOWER_Z];
