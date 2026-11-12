@@ -853,14 +853,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const btnToggleGrid = document.getElementById('btn-toggle-grid');
-  if (btnToggleGrid) {
-    btnToggleGrid.addEventListener('click', () => {
-      simCanvas.showMappingGrid = !simCanvas.showMappingGrid;
-      btnToggleGrid.classList.toggle('active', simCanvas.showMappingGrid);
-    });
-  }
-
   const btnToggleP3D = document.getElementById('btn-toggle-perception-3d');
   if (btnToggleP3D) {
     btnToggleP3D.addEventListener('click', () => {

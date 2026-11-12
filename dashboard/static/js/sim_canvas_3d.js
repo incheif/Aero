@@ -45,12 +45,9 @@ class SimCanvas3D {
     this.showColliders = false;
     this.showPerceptionBoxes = true;
     this.showFrustums = true;
-    this.showMappingGrid = true;
     this.perceptionMeshes = {};
     this.sensorFrustumGroup = null;
     this.wristSensorBeam = null;
-    this.occupancyGridGroup = null;
-    this.occupancyGridTiles = [];
     this.plannedPathLine = null;
     this.ghostTargetMesh = null;
 
@@ -149,9 +146,8 @@ class SimCanvas3D {
     this.setupTrailLine();
     this.setupPlannedPreview();
 
-    // 8. 3D Sensor Visualizations, Tabletop Mapping Grid & Live Sensor Cameras
+    // 8. 3D Sensor Visualizations & Live Sensor Cameras
     this.setupSensorVisualizations();
-    this.setupTabletopMappingGrid();
     this.setupSensorCameras();
 
     // Dynamic Viewport Resize Observer for seamless full-space filling
@@ -692,40 +688,6 @@ class SimCanvas3D {
     this.scene.add(this.sensorFrustumGroup);
   }
 
-  setupTabletopMappingGrid() {
-    this.occupancyGridGroup = new THREE.Group();
-    this.occupancyGridTiles = [];
-    const rows = 10;
-    const cols = 10;
-    const halfX = 0.35 * 0.9;
-    const halfZ = 0.35 * 0.9;
-    const tileW = (2 * halfX) / cols;
-    const tileH = (2 * halfZ) / rows;
-
-    const tileGeo = new THREE.PlaneGeometry(tileW * 0.88, tileH * 0.88);
-    tileGeo.rotateX(-Math.PI / 2);
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const cx = -halfX + (c + 0.5) * tileW;
-        const cz = -halfZ + (r + 0.5) * tileH;
-
-        const tileMat = new THREE.MeshBasicMaterial({
-          color: 0x06b6d4,
-          transparent: true,
-          opacity: 0.15,
-          side: THREE.DoubleSide,
-          depthWrite: false
-        });
-        const tile = new THREE.Mesh(tileGeo, tileMat);
-        tile.position.set(cx, 0.722, cz);
-        this.occupancyGridGroup.add(tile);
-        this.occupancyGridTiles.push(tile);
-      }
-    }
-    this.scene.add(this.occupancyGridGroup);
-  }
-
   updateFromTelemetry(data) {
     if (!data) return;
 
@@ -917,33 +879,6 @@ class SimCanvas3D {
       this.wristSensorBeam.material.color.setHex(nearBlock ? 0xf59e0b : 0x38bdf8);
       this.wristSensorBeam.material.opacity = nearBlock ? 0.45 : 0.25;
     }
-
-    // 6. Update 3D Tabletop Mapping / Occupancy Grid
-    if (this.occupancyGridGroup) {
-      this.occupancyGridGroup.visible = this.showMappingGrid;
-      if (this.showMappingGrid && data.frontier && data.frontier.occupancy_grid) {
-        const grid = data.frontier.occupancy_grid;
-        let idx = 0;
-        for (let r = 0; r < 10; r++) {
-          for (let c = 0; c < 10; c++) {
-            const tile = this.occupancyGridTiles[idx++];
-            if (!tile) continue;
-            const state = (grid[r] && grid[r][c] !== undefined) ? grid[r][c] : 0;
-            if (state === 2) {
-              tile.visible = true;
-              tile.material.color.setHex(0xf59e0b);
-              tile.material.opacity = 0.55;
-            } else if (state === 1) {
-              tile.visible = true;
-              tile.material.color.setHex(0x06b6d4);
-              tile.material.opacity = 0.20;
-            } else {
-              tile.visible = false;
-            }
-          }
-        }
-      }
-    }
   }
 
   setCameraView(viewName) {
@@ -1099,7 +1034,6 @@ class SimCanvas3D {
   _pushHideOverlays() {
     const saved = {
       frustum: this.sensorFrustumGroup ? this.sensorFrustumGroup.visible : false,
-      grid: this.occupancyGridGroup ? this.occupancyGridGroup.visible : false,
       plan: this.plannedPathLine ? this.plannedPathLine.visible : false,
       ghost: this.ghostTargetMesh ? this.ghostTargetMesh.visible : false,
       trail: this.tcpTrailLine ? this.tcpTrailLine.visible : false,
@@ -1107,7 +1041,6 @@ class SimCanvas3D {
       boxes: [],
     };
     if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = false;
-    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = false;
     if (this.plannedPathLine) this.plannedPathLine.visible = false;
     if (this.ghostTargetMesh) this.ghostTargetMesh.visible = false;
     if (this.tcpTrailLine) this.tcpTrailLine.visible = false;
@@ -1122,7 +1055,6 @@ class SimCanvas3D {
   _popOverlays(saved) {
     if (!saved) return;
     if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = saved.frustum;
-    if (this.occupancyGridGroup) this.occupancyGridGroup.visible = saved.grid;
     if (this.plannedPathLine) this.plannedPathLine.visible = saved.plan;
     if (this.ghostTargetMesh) this.ghostTargetMesh.visible = saved.ghost;
     if (this.tcpTrailLine) this.tcpTrailLine.visible = saved.trail;
