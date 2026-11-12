@@ -7,7 +7,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.6">
+  <link rel="stylesheet" href="/css/style.css?v=3.7">
 </head>
 
 <body>
@@ -352,33 +352,7 @@
           </div>
         </div>
 
-        <!-- 2. Scene & Perception (Compact Summary) -->
-        <div class="card" id="perception-card">
-          <div class="card-title">
-            <div style="display: flex; align-items: center; gap: 7px;">
-              <span class="perception-pulse-dot"></span>
-              <span>Scene &amp; Perception</span>
-            </div>
-            <div style="display: flex; gap: 6px; align-items: center;">
-              <span class="thought-status-badge badge-conf" id="perception-conf-badge">96% CONF</span>
-            </div>
-          </div>
-
-          <div class="scene-meta-row">
-            <span class="scene-meta-label">Phase</span>
-            <span class="scene-meta-val" id="meta-exec-phase">OBSERVE / IDLE</span>
-          </div>
-
-          <div class="scene-chips-row" id="perception-tracks-summary">
-            <span class="rel-chip">Scanning workcell...</span>
-          </div>
-
-          <div class="relations-chips" id="relations-chips" style="margin-top: 6px;">
-            <span class="rel-chip">Flat tabletop layout</span>
-          </div>
-        </div>
-
-        <!-- 3. Task Evaluation -->
+        <!-- 2. Task Evaluation -->
         <div class="card" id="evaluation-card">
           <div class="card-title">
             <span>Evaluation</span>
@@ -404,40 +378,41 @@
           </div>
         </div>
 
-        <!-- 4. Workcell Controls -->
-        <div class="card">
-          <div class="card-title">
-            <span>Workcell Controls</span>
-          </div>
-          <div class="telemetry-actions-row">
-            <button class="btn-action-compact" id="btn-rest-main" title="Return arm to rest pose & reset blocks">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-              <span>Reset</span>
-            </button>
-            <button class="btn-action-compact btn-action-cyan" id="btn-randomize-main"
-              title="Scatter blocks to random tabletop positions">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
-              </svg>
-              <span>Randomize</span>
-            </button>
-            <button class="btn-action-compact btn-action-amber" id="btn-nudge-block"
-              title="Nudge a block to test closed-loop disturbance recovery">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="5 9 2 12 5 15"></polyline>
-                <polyline points="19 9 22 12 19 15"></polyline>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
-              </svg>
-              <span>Nudge</span>
-            </button>
-          </div>
+        <!-- 3. Dedicated Rest Arm & Randomize Spawns Card -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn-rest-hero" id="btn-rest-main">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            Rest Arm / Reset Baseline
+          </button>
+          <button class="btn-rest-hero" id="btn-randomize-main"
+            style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
+            </svg>
+            Randomize Layout (Test Perception)
+          </button>
+          <button class="btn-rest-hero" id="btn-nudge-block"
+            style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 9 2 12 5 15"></polyline>
+              <polyline points="9 5 12 2 15 5"></polyline>
+              <polyline points="15 19 12 22 9 19"></polyline>
+              <polyline points="19 9 22 12 19 15"></polyline>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <line x1="12" y1="2" x2="12" y2="22"></line>
+            </svg>
+            Nudge Block (Disturbance Test)
+          </button>
+          <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
+            Scatters blocks to random tabletop positions within 5-DOF reach envelope
+          </span>
         </div>
       </div>
 
@@ -514,8 +489,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.6"></script>
-  <script src="/js/app.js?v=3.6"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.7"></script>
+  <script src="/js/app.js?v=3.7"></script>
 </body>
 
 </html>
