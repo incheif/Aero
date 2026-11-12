@@ -712,10 +712,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let lastTracksHtml = '';
   function updatePerceptionTracks(tracks) {
+    const summaryEl = document.getElementById('perception-tracks-summary');
     const tbody = document.getElementById('perception-tracks-body');
-    if (!tbody) return;
+    if (!summaryEl && !tbody) return;
+
     if (!tracks || tracks.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 8px;">No active tracks</td></tr>';
+      if (summaryEl) summaryEl.innerHTML = '<span class="rel-chip">No objects detected</span>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 8px;">No active tracks</td></tr>';
+      return;
+    }
+
+    if (summaryEl) {
+      const summaryHtml = tracks.map((t) => {
+        const cName = t.color_name ? (t.color_name.charAt(0).toUpperCase() + t.color_name.slice(1)) : (t.class_name || 'Block');
+        const cDot = t.color_rgb ? `rgb(${t.color_rgb[0]}, ${t.color_rgb[1]}, ${t.color_rgb[2]})` : '#38bdf8';
+        return `<span class="scene-object-chip"><span class="color-dot" style="background-color: ${cDot};"></span>${cName}</span>`;
+      }).join('');
+      if (summaryHtml !== lastTracksHtml) {
+        lastTracksHtml = summaryHtml;
+        summaryEl.innerHTML = summaryHtml;
+      }
       return;
     }
 

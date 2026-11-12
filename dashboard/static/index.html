@@ -7,7 +7,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.5">
+  <link rel="stylesheet" href="/css/style.css?v=3.6">
 </head>
 
 <body>
@@ -330,29 +330,20 @@
         </button>
       </div>
 
-      <!-- View 1: Telemetry & Evaluation Cards -->
+      <!-- View 1: Telemetry & Evaluation Cards (Clean Essential View) -->
       <div id="telemetry-view" class="sidebar-view active">
-        <!-- 1. VLA Status & Reasoning -->
+        <!-- 1. Agent Status & Progress -->
         <div class="card">
           <div class="card-title">
-            <span>VLA Agent</span>
-            <div style="display: flex; gap: 6px; align-items: center;">
-              <span class="thought-status-badge" id="vla-mode-badge" title="VLA Runtime Mode">AUTONOMOUS VLA</span>
-              <span class="thought-status-badge" id="vla-status-badge">READY</span>
-            </div>
-          </div>
-          <!-- VLA Mode Explainer Callout -->
-          <div class="vla-mode-explainer" id="vla-mode-explainer">
-            <span class="mode-tag-pill" id="mode-tag-status">✦ ZERO-DEPENDENCY RUNTIME</span>
-            <span class="mode-info-snippet" id="mode-info-text">Autonomous multimodal policy engine: 3D spatial
-              grounding, collision-free trajectory synthesis, and physics hold verification.</span>
+            <span>Agent</span>
+            <span class="thought-status-badge" id="vla-status-badge">READY</span>
           </div>
           <div class="thought-box" id="vla-thought-box">
             Ready. Enter an instruction to begin.
           </div>
           <div class="plan-progress-container">
             <div class="progress-header">
-              <span>Action Progress</span>
+              <span>Progress</span>
               <span id="vla-progress-text">Idle</span>
             </div>
             <div class="progress-track">
@@ -361,118 +352,46 @@
           </div>
         </div>
 
-        <!-- 2. AI Perception & 3D Spatial Memory Card (Estimated State) -->
+        <!-- 2. Scene & Perception (Compact Summary) -->
         <div class="card" id="perception-card">
           <div class="card-title">
             <div style="display: flex; align-items: center; gap: 7px;">
               <span class="perception-pulse-dot"></span>
-              <span>AI Perception & Memory</span>
+              <span>Scene &amp; Perception</span>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <span class="thought-status-badge badge-est" id="perception-mode-badge"
-                title="Estimated State: Derived from RGB-D Sensor observations">ESTIMATED STATE</span>
               <span class="thought-status-badge badge-conf" id="perception-conf-badge">96% CONF</span>
             </div>
           </div>
 
-          <!-- Sensor Boundary & Calibration Status Strip -->
-          <div class="perception-meta-strip">
-            <div class="meta-strip-item">
-              <span class="meta-strip-label">BOUNDARY</span>
-              <span class="meta-strip-val" style="color: #10b981;">STRICT (ZERO CHEATING)</span>
-            </div>
-            <div class="meta-strip-item">
-              <span class="meta-strip-label">CALIBRATION</span>
-              <span class="meta-strip-val" id="meta-calib-status">CAMERA → BASE [OK]</span>
-            </div>
-            <div class="meta-strip-item">
-              <span class="meta-strip-label">EST. TCP POSE</span>
-              <span class="meta-strip-val" id="meta-tcp-est">[0.08, 0.85, 0.00]</span>
-            </div>
-            <div class="meta-strip-item">
-              <span class="meta-strip-label">EXEC PHASE</span>
-              <span class="meta-strip-val" id="meta-exec-phase">OBSERVE / IDLE</span>
-            </div>
+          <div class="scene-meta-row">
+            <span class="scene-meta-label">Phase</span>
+            <span class="scene-meta-val" id="meta-exec-phase">OBSERVE / IDLE</span>
           </div>
 
-          <!-- Mapping & Frontier Navigation Status Strip -->
-          <div class="perception-meta-strip"
-            style="margin-top: 4px; background: rgba(14, 25, 42, 0.55); border-color: rgba(56, 189, 248, 0.2);">
-            <div class="meta-strip-item">
-              <span class="meta-strip-label">MAPPING</span>
-              <span class="meta-strip-val" id="meta-frontier-pct" style="color: #38bdf8;">25% EXPLORED</span>
-            </div>
-            <div class="meta-strip-item">
-              <span class="meta-strip-label">FRONTIER TARGET</span>
-              <span class="meta-strip-val" id="meta-frontier-wpt">READY</span>
-            </div>
-            <div class="meta-strip-item">
-              <span class="meta-strip-label">GRID CELLS</span>
-              <span class="meta-strip-val" id="meta-grid-stats">100 CELLS</span>
-            </div>
+          <div class="scene-chips-row" id="perception-tracks-summary">
+            <span class="rel-chip">Scanning workcell...</span>
           </div>
 
-          <!-- Active Tracked Entities Table -->
-          <div class="tracks-table-wrapper">
-            <table class="tracks-table">
-              <thead>
-                <tr>
-                  <th>TRACK</th>
-                  <th>OBJECT</th>
-                  <th>EST. POSITION [X, Y, Z]</th>
-                  <th>CONF</th>
-                  <th>STATUS</th>
-                </tr>
-              </thead>
-              <tbody id="perception-tracks-body">
-                <tr>
-                  <td colspan="5"
-                    style="text-align: center; color: var(--text-dim); padding: 10px; font-size: 0.72rem;">Acquiring
-                    live camera perception tracks...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Inferred Spatial Relations Feed -->
-          <div class="relations-box">
-            <div class="relations-header">
-              <span>Topological Spatial Relations (Estimated)</span>
-              <span id="relations-count-tag" style="color: var(--text-dim); font-size: 0.65rem;">0 relations</span>
-            </div>
-            <div class="relations-chips" id="relations-chips">
-              <span class="rel-chip">Scanning workcell geometry...</span>
-            </div>
+          <div class="relations-chips" id="relations-chips" style="margin-top: 6px;">
+            <span class="rel-chip">Flat tabletop layout</span>
           </div>
         </div>
 
-        <!-- 3. Playground Telemetry & Multi-Metric Evaluation Card -->
+        <!-- 3. Task Evaluation -->
         <div class="card" id="evaluation-card">
           <div class="card-title">
-            <span>Playground Evaluation</span>
+            <span>Evaluation</span>
             <span class="thought-status-badge" id="telemetry-stability-badge">STABILITY: IDLE</span>
           </div>
-          <div class="cost-hero-row" style="margin-bottom: 8px;">
-            <div>
-              <div class="cost-label">Spatial Accuracy</div>
-              <div class="cost-total-amount" id="spatial-acc-display" style="font-size: 1.15rem; color: #ffffff;">0.0%
-              </div>
-            </div>
-            <div>
-              <div class="cost-label">Task Completion</div>
-              <div class="cost-total-amount" id="completion-score-display" style="font-size: 1.15rem; color: #a1a1aa;">
-                0.00 / 1.00</div>
-            </div>
-          </div>
-
           <div class="token-metrics-grid">
             <div class="token-metric-item">
-              <span class="token-metric-label">Peak Torque</span>
-              <span class="token-metric-val" id="peak-torque-display">0.00</span>
+              <span class="token-metric-label">Spatial Accuracy</span>
+              <span class="token-metric-val" id="spatial-acc-display" style="color: #ffffff;">0.0%</span>
             </div>
             <div class="token-metric-item">
-              <span class="token-metric-label">Avg Effort</span>
-              <span class="token-metric-val" id="avg-torque-display">0.00</span>
+              <span class="token-metric-label">Completion</span>
+              <span class="token-metric-val" id="completion-score-display">0.00 / 1.00</span>
             </div>
             <div class="token-metric-item">
               <span class="token-metric-label">Hold Settle</span>
@@ -485,41 +404,40 @@
           </div>
         </div>
 
-        <!-- 3. Dedicated Rest Arm & Randomize Spawns Card -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
-          <button class="btn-rest-hero" id="btn-rest-main">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-            Rest Arm / Reset Baseline
-          </button>
-          <button class="btn-rest-hero" id="btn-randomize-main"
-            style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-              <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
-            </svg>
-            Randomize Layout (Test Perception)
-          </button>
-          <button class="btn-rest-hero" id="btn-nudge-block"
-            style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 9 2 12 5 15"></polyline>
-              <polyline points="9 5 12 2 15 5"></polyline>
-              <polyline points="15 19 12 22 9 19"></polyline>
-              <polyline points="19 9 22 12 19 15"></polyline>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <line x1="12" y1="2" x2="12" y2="22"></line>
-            </svg>
-            Nudge Block (Disturbance Test)
-          </button>
-          <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
-            Scatters blocks to random tabletop positions within 5-DOF reach envelope
-          </span>
+        <!-- 4. Workcell Controls -->
+        <div class="card">
+          <div class="card-title">
+            <span>Workcell Controls</span>
+          </div>
+          <div class="telemetry-actions-row">
+            <button class="btn-action-compact" id="btn-rest-main" title="Return arm to rest pose & reset blocks">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              <span>Reset</span>
+            </button>
+            <button class="btn-action-compact btn-action-cyan" id="btn-randomize-main"
+              title="Scatter blocks to random tabletop positions">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
+              </svg>
+              <span>Randomize</span>
+            </button>
+            <button class="btn-action-compact btn-action-amber" id="btn-nudge-block"
+              title="Nudge a block to test closed-loop disturbance recovery">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="5 9 2 12 5 15"></polyline>
+                <polyline points="19 9 22 12 19 15"></polyline>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+              </svg>
+              <span>Nudge</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -596,8 +514,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.5"></script>
-  <script src="/js/app.js?v=3.5"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.6"></script>
+  <script src="/js/app.js?v=3.6"></script>
 </body>
 
 </html>
