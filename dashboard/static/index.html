@@ -7,7 +7,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.8">
+  <link rel="stylesheet" href="/css/style.css?v=3.9">
 </head>
 
 <body>
@@ -110,15 +110,7 @@
 
           <!-- Big-Screen Multi-View Feed Manager -->
           <div class="screen-manager-bar" id="screen-manager-bar"
-            title="Select 1, 2, or 3+ feeds to show on the main screen">
-            <span class="screen-mgr-label">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-              </svg>
-              Screens
-            </span>
+            title="Select feeds to display on the main screen">
             <button class="screen-btn active" data-screen="studio" id="btn-screen-studio"
               title="Toggle Main 3D Studio Viewport">Studio</button>
             <button class="screen-btn" data-screen="rgb" id="btn-screen-rgb"
@@ -127,54 +119,41 @@
               title="Toggle Eye-in-Hand Wrist Camera on Main Screen">Wrist</button>
             <button class="screen-btn" data-screen="depth" id="btn-screen-depth"
               title="Toggle Metric Depth Map on Main Screen">Depth</button>
-            <button class="screen-btn" data-screen="map" id="btn-screen-map"
-              title="Toggle 2D Occupancy Map on Main Screen">Map</button>
             <span class="screen-layout-badge" id="screen-layout-badge">1 VIEW</span>
           </div>
         </div>
 
-        <!-- Live AI Perception Camera Feed (128x128 Orthographic HUD) -->
-          <div id="camera-hud-pip" class="camera-hud-pip"
-            title="Active Sensor Perception HUD (RGB, Wrist Cam, Depth, Occupancy Map)">
-            <div class="hud-pip-header">
-              <div class="hud-pip-title">
-                <span class="hud-pip-dot"></span>
-                <span>SENSOR HUD</span>
-              </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span class="hud-pip-badge" id="hud-pip-status">PERCEPTION</span>
-                  <button class="btn-pip-toggle" id="btn-pip-toggle" title="Minimize/Maximize Camera HUD"
-                    aria-label="Toggle Camera HUD">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2.5">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div class="hud-pip-body" id="hud-pip-body">
-                <!-- 4-Option Stream Selector Bar -->
-                <div class="hud-stream-switcher">
-                  <button class="hud-feed-btn active" id="btn-feed-rgb"
-                    title="Overhead RGB Camera Feed">OVERHEAD</button>
-                  <button class="hud-feed-btn" id="btn-feed-wrist" title="Eye-in-Hand Wrist Camera Feed">WRIST</button>
-                  <button class="hud-feed-btn" id="btn-feed-depth" title="Synthetic Depth Map">DEPTH</button>
-                  <button class="hud-feed-btn" id="btn-feed-map"
-                    title="Occupancy & Frontier Navigation Map">MAP</button>
-                </div>
-                <div class="hud-pip-viewport">
-                  <canvas id="vla-pip-canvas" width="160" height="160"></canvas>
-                  <img id="vla-pip-img" src="/api/vla/map_image" alt="VLA Sensor Feed" width="128" height="128" style="display: none;" />
-                  <div class="hud-overlay-grid"></div>
-                  <div class="hud-crosshair-center"></div>
-                  <div class="hud-sensor-tag" id="hud-sensor-type-tag">OVERHEAD RGB</div>
-                </div>
-                <div class="hud-pip-footer">
-                  <span class="hud-pip-stat" id="hud-target-label">TARGET: TRACKING</span>
-                  <span class="hud-pip-metric" id="hud-cam-res">128×128 SENSOR</span>
-                </div>
-              </div>
+        <!-- Live AI Perception Map Feed (Bottom Left HUD) -->
+        <div id="camera-hud-pip" class="camera-hud-pip"
+          title="Active Occupancy & Frontier Navigation Map">
+          <div class="hud-pip-header">
+            <div class="hud-pip-title">
+              <span class="hud-pip-dot" style="background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+              <span>MAP HUD</span>
             </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="hud-pip-badge" id="hud-pip-status" style="color: #6ee7b7; border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.15);">NAVIGATION</span>
+              <button class="btn-pip-toggle" id="btn-pip-toggle" title="Minimize/Maximize HUD"
+                aria-label="Toggle HUD">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="hud-pip-body" id="hud-pip-body">
+            <div class="hud-pip-viewport">
+              <img id="vla-pip-img" src="/api/vla/map_image" alt="Occupancy Map Feed" width="128" height="128" style="display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;" />
+              <div class="hud-overlay-grid"></div>
+              <div class="hud-sensor-tag" id="hud-sensor-type-tag">OCCUPANCY MAP</div>
+            </div>
+            <div class="hud-pip-footer">
+              <span class="hud-pip-stat" id="hud-target-label">FRONTIER: ACTIVE</span>
+              <span class="hud-pip-metric" id="hud-cam-res">128×128 GRID</span>
+            </div>
+          </div>
+        </div>
           </div>
 
           <!-- Live Workcell & Kinematics Quick Dock -->
@@ -509,8 +488,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.8"></script>
-  <script src="/js/app.js?v=3.8"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.9"></script>
+  <script src="/js/app.js?v=3.9"></script>
 </body>
 
 </html>

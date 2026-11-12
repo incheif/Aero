@@ -1072,66 +1072,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 11. Sensor HUD Switcher: Live 30 FPS WebGL perspective cameras for OVERHEAD / WRIST / DEPTH,
-  //     and backend 2D occupancy grid PNG polling for MAP mode.
+  // 11. Bottom-Left Map HUD: Live backend 2D occupancy grid & frontier map image polling.
   const vlaImg = document.getElementById('vla-pip-img');
-  const vlaCanvas = document.getElementById('vla-pip-canvas');
-  let currentFeedType = 'rgb';
-  const btnFeedRgb = document.getElementById('btn-feed-rgb');
-  const btnFeedWrist = document.getElementById('btn-feed-wrist');
-  const btnFeedDepth = document.getElementById('btn-feed-depth');
-  const btnFeedMap = document.getElementById('btn-feed-map');
-  const sensorTypeTag = document.getElementById('hud-sensor-type-tag');
-
-  const hudFeedConfigs = [
-    { btn: btnFeedRgb, type: 'rgb', tag: 'OVERHEAD RGB', endpoint: '/api/vla/camera_image' },
-    { btn: btnFeedWrist, type: 'wrist', tag: 'WRIST (EYE-IN-HAND)', endpoint: '/api/vla/wrist_image' },
-    { btn: btnFeedDepth, type: 'depth', tag: 'METRIC DEPTH MAP', endpoint: '/api/vla/depth_image' },
-    { btn: btnFeedMap, type: 'map', tag: 'OCCUPANCY GRID MAP', endpoint: '/api/vla/map_image' },
-  ];
-
-  const syncFeedVisibility = () => {
-    const isMap = currentFeedType === 'map';
-    if (simCanvas) simCanvas.hudFeedMode = currentFeedType;
-    if (vlaCanvas) vlaCanvas.style.display = isMap ? 'none' : 'block';
-    if (vlaImg) vlaImg.style.display = isMap ? 'block' : 'none';
-  };
+  let currentFeedType = 'map';
 
   const refreshMapImg = () => {
-    const mainMapImgs = document.querySelectorAll('.split-map-img');
-    const needPipMap = Boolean(vlaImg && currentFeedType === 'map');
-    const needMainMap = mainMapImgs.length > 0;
-    if (!needPipMap && !needMainMap) return;
-
+    if (!vlaImg) return;
     const nextImg = new Image();
     nextImg.onload = () => {
-      if (vlaImg && currentFeedType === 'map') vlaImg.src = nextImg.src;
-      document.querySelectorAll('.split-map-img').forEach((imgEl) => {
-        imgEl.src = nextImg.src;
-      });
+      vlaImg.src = nextImg.src;
     };
     nextImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
   };
 
-  hudFeedConfigs.forEach(({ btn, type, tag }) => {
-    if (btn) {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        currentFeedType = type;
-        hudFeedConfigs.forEach((h) => {
-          if (h.btn) h.btn.classList.toggle('active', h.type === type);
-        });
-        if (sensorTypeTag) sensorTypeTag.innerText = tag;
-        syncFeedVisibility();
-        if (type === 'map') refreshMapImg();
-      });
-    }
-  });
+  if (vlaImg) {
+    vlaImg.style.display = 'block';
+    refreshMapImg();
+    setInterval(refreshMapImg, 450);
+  }
 
-  syncFeedVisibility();
-  setInterval(refreshMapImg, 450);
-
-  // 11b. Main Big-Screen Multi-View Manager (1 = full view, 2 = 2-way split, 3 = 3-way split, etc.)
+  // 11b. Main Big-Screen Multi-View Manager (1 = full view, 2 = 2-way split, 3 = 3-way split)
   const splitGrid = document.getElementById('split-screen-grid');
   const screenButtons = Array.from(document.querySelectorAll('.screen-btn[data-screen]'));
   const screenLayoutBadge = document.getElementById('screen-layout-badge');
@@ -1140,14 +1100,17 @@ document.addEventListener('DOMContentLoaded', () => {
     rgb: 'OVERHEAD RGB',
     wrist: 'WRIST (EYE-IN-HAND)',
     depth: 'METRIC DEPTH',
-    map: 'OCCUPANCY MAP',
   };
   let selectedMainScreens = ['studio'];
 
   const renderScreenLayout = () => {
     if (!splitGrid) return;
+    // Filter out any stale 'map' selection if persisted
+    selectedMainScreens = selectedMainScreens.filter(s => s !== 'map');
+    if (selectedMainScreens.length === 0) selectedMainScreens = ['studio'];
+
     const count = selectedMainScreens.length;
-    splitGrid.className = `split-${Math.min(5, Math.max(1, count))}`;
+    splitGrid.className = `split-${Math.min(4, Math.max(1, count))}`;
 
     screenButtons.forEach((btn) => {
       const s = btn.getAttribute('data-screen');
@@ -1167,14 +1130,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const pane = document.createElement('div');
       pane.className = 'split-pane';
       pane.setAttribute('data-screen', screenType);
-
-      if (screenType === 'map') {
-        const mapImg = document.createElement('img');
-        mapImg.className = 'split-map-img';
-        mapImg.alt = 'Occupancy & Frontier Map';
-        mapImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
-        pane.appendChild(mapImg);
-      }
 
       if (!isDefaultStudio) {
         const chip = document.createElement('div');
@@ -1208,9 +1163,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (simCanvas && typeof simCanvas.setMainScreens === 'function') {
       simCanvas.setMainScreens(selectedMainScreens, () => splitGrid.querySelectorAll('.split-pane'));
-    }
-    if (selectedMainScreens.includes('map')) {
-      refreshMapImg();
     }
   };
 
