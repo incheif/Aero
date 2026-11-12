@@ -7,7 +7,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.7">
+  <link rel="stylesheet" href="/css/style.css?v=3.8">
 </head>
 
 <body>
@@ -300,7 +300,7 @@
         <div class="mobile-drawer-bar">
           <div class="mobile-drawer-title-group">
             <span class="mobile-drawer-dot"></span>
-            <span class="mobile-drawer-title">VLA Telemetry & Logs</span>
+            <span class="mobile-drawer-title">Execution Telemetry &amp; Logs</span>
           </div>
           <button class="btn-close-drawer" id="btn-close-sidebar" aria-label="Close telemetry panel" title="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -332,18 +332,38 @@
 
       <!-- View 1: Telemetry & Evaluation Cards (Clean Essential View) -->
       <div id="telemetry-view" class="sidebar-view active">
-        <!-- 1. Agent Status & Progress -->
-        <div class="card">
+        <!-- 1. Agent Execution Status & Thought Stream -->
+        <div class="card agent-execution-card" id="agent-execution-card">
           <div class="card-title">
-            <span>Agent</span>
-            <span class="thought-status-badge" id="vla-status-badge">READY</span>
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <span class="agent-title-dot"></span>
+              <span>Agent Execution</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <!-- Thought Box Size Controls: Small, Normal, Expanded -->
+              <div class="thought-size-controls" title="Adjust Thought Stream size">
+                <button type="button" class="btn-thought-size" id="btn-thought-smaller" title="Decrease size">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+                <span class="thought-size-label" id="thought-size-label">M</span>
+                <button type="button" class="btn-thought-size" id="btn-thought-larger" title="Increase size">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+              </div>
+              <span class="thought-status-badge" id="vla-status-badge">READY</span>
+            </div>
           </div>
-          <div class="thought-box" id="vla-thought-box">
+          <div class="thought-box" id="vla-thought-box" style="resize: vertical;">
             Ready. Enter an instruction to begin.
           </div>
           <div class="plan-progress-container">
             <div class="progress-header">
-              <span>Progress</span>
+              <span>Action Progress</span>
               <span id="vla-progress-text">Idle</span>
             </div>
             <div class="progress-track">
@@ -489,8 +509,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.7"></script>
-  <script src="/js/app.js?v=3.7"></script>
+  <script src="/js/sim_canvas_3d.js?v=3.8"></script>
+  <script src="/js/app.js?v=3.8"></script>
 </body>
 
 </html>

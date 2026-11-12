@@ -1405,9 +1405,57 @@ header {
   line-height: 1.4;
 }
 
+/* Thought Box Size Adjuster & Indicators */
+.agent-title-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mono-white);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.thought-size-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-thought-size {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.btn-thought-size:hover {
+  color: var(--mono-white);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.thought-size-label {
+  font-family: var(--font-mono);
+  font-size: 0.60rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 10px;
+  text-align: center;
+}
+
 /* VLA Thought Stream Card */
 .thought-box {
-  background: rgba(9, 9, 11, 0.8);
+  background: rgba(9, 9, 11, 0.85);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 12px;
@@ -1415,10 +1463,40 @@ header {
   font-size: 0.76rem;
   line-height: 1.5;
   color: var(--mono-200);
-  max-height: 120px;
+  min-height: 56px;
+  max-height: 140px;
   overflow-y: auto;
+  resize: vertical;
   border-left: 2px solid var(--mono-white);
-  transition: all 0.3s ease;
+  transition: height 0.25s ease, max-height 0.25s ease, background 0.3s ease;
+}
+
+.thought-box.size-sm {
+  min-height: 50px;
+  max-height: 80px;
+  font-size: 0.72rem;
+  padding: 8px 10px;
+}
+
+.thought-box.size-md {
+  min-height: 70px;
+  max-height: 140px;
+  font-size: 0.76rem;
+  padding: 12px;
+}
+
+.thought-box.size-lg {
+  min-height: 120px;
+  max-height: 240px;
+  font-size: 0.80rem;
+  padding: 14px;
+}
+
+.thought-box.size-xl {
+  min-height: 180px;
+  max-height: 380px;
+  font-size: 0.82rem;
+  padding: 16px;
 }
 
 .thought-box.rejected {

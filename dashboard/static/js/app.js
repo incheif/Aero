@@ -573,6 +573,40 @@ document.addEventListener('DOMContentLoaded', () => {
     window.open(`/logs?session_id=${encodeURIComponent(sessionId)}`, '_blank');
   });
 
+  // 4b. Agent Execution Thought Stream Size Controls (S / M / L / XL)
+  const THOUGHT_SIZES = ['sm', 'md', 'lg', 'xl'];
+  const THOUGHT_SIZE_LABELS = { sm: 'S', md: 'M', lg: 'L', xl: 'XL' };
+  let currentThoughtSize = localStorage.getItem('AERO_THOUGHT_SIZE') || 'md';
+  const thoughtBoxEl = document.getElementById('vla-thought-box');
+  const thoughtSizeLabelEl = document.getElementById('thought-size-label');
+  const btnThoughtSmaller = document.getElementById('btn-thought-smaller');
+  const btnThoughtLarger = document.getElementById('btn-thought-larger');
+
+  function applyThoughtSize(size) {
+    if (!thoughtBoxEl) return;
+    THOUGHT_SIZES.forEach(s => thoughtBoxEl.classList.remove(`size-${s}`));
+    thoughtBoxEl.classList.add(`size-${size}`);
+    currentThoughtSize = size;
+    localStorage.setItem('AERO_THOUGHT_SIZE', size);
+    if (thoughtSizeLabelEl) {
+      thoughtSizeLabelEl.innerText = THOUGHT_SIZE_LABELS[size] || 'M';
+    }
+  }
+
+  btnThoughtSmaller?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const idx = THOUGHT_SIZES.indexOf(currentThoughtSize);
+    if (idx > 0) applyThoughtSize(THOUGHT_SIZES[idx - 1]);
+  });
+
+  btnThoughtLarger?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const idx = THOUGHT_SIZES.indexOf(currentThoughtSize);
+    if (idx < THOUGHT_SIZES.length - 1) applyThoughtSize(THOUGHT_SIZES[idx + 1]);
+  });
+
+  applyThoughtSize(currentThoughtSize);
+
   filterChips.forEach((chip) => {
     chip.addEventListener('click', () => {
       filterChips.forEach((c) => c.classList.remove('active'));
@@ -677,14 +711,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initial fetch of logs from REST endpoint on load
-  fetch('/api/logs')
-    .then(r => r.json())
-    .then(data => {
-      if (data && data.logs) {
-        updateLogsFromTelemetry(data.logs);
-      }
-    })
-    .catch(() => {});
+  function fetchSessionLogs() {
+    sessionFetch('/api/logs')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.logs && Array.isArray(data.logs)) {
+          updateLogsFromTelemetry(data.logs);
+        }
+      })
+      .catch(() => {});
+  }
+  fetchSessionLogs();
+  setInterval(fetchSessionLogs, 2500);
 
   let lastSemanticHtml = '';
   function updateSemanticTable(entities) {
@@ -774,17 +812,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Retain and display command in text box so user can reference what was queried
     cmdInput.value = text;
-
-    // Immediately clear execution logs on client and server before starting new instruction
-    localLogs = [];
-    lastLogsSignature = '';
-    renderLogs();
-    try {
-      await sessionFetch('/api/logs/clear', { method: 'POST' });
-    } catch (_) {}
-
-    const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
-    const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
 
     sendBtn.disabled = true;
     sendBtn.innerText = 'Reasoning...';
