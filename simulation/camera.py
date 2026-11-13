@@ -386,8 +386,7 @@ def render_occupancy_map_visual(
     tv = int(margin + clamp((VLA_Z_MAX - tcp_pos[2]) / (VLA_Z_MAX - VLA_Z_MIN), 0.05, 0.95) * (size - 2 * margin))
     draw.ellipse([tu - 5, tv - 5, tu + 5, tv + 5], fill=(56, 189, 248), outline=(255, 255, 255))
 
-    # Header and Coverage %
-    draw.text((4, 2), "OCCUPANCY GRID MAP", fill=(140, 160, 190))
+    # Coverage %
     draw.text((size - 44, 2), f"{int(pct)}%", fill=(56, 189, 248))
 
     return img

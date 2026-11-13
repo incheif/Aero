@@ -1072,24 +1072,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 11. Bottom-Left Map HUD: Live backend 2D occupancy grid & frontier map image polling.
+  // 11. Sensor HUD Switcher: Live 30 FPS WebGL perspective cameras for OVERHEAD / WRIST / DEPTH,
+  //     and backend 2D frontier map PNG polling for MAP mode.
   const vlaImg = document.getElementById('vla-pip-img');
-  let currentFeedType = 'map';
+  const vlaCanvas = document.getElementById('vla-pip-canvas');
+  let currentFeedType = 'rgb';
+  const btnFeedRgb = document.getElementById('btn-feed-rgb');
+  const btnFeedWrist = document.getElementById('btn-feed-wrist');
+  const btnFeedDepth = document.getElementById('btn-feed-depth');
+  const btnFeedMap = document.getElementById('btn-feed-map');
+  const sensorTypeTag = document.getElementById('hud-sensor-type-tag');
+
+  const hudFeedConfigs = [
+    { btn: btnFeedRgb, type: 'rgb', tag: 'OVERHEAD RGB' },
+    { btn: btnFeedWrist, type: 'wrist', tag: 'WRIST (EYE-IN-HAND)' },
+    { btn: btnFeedDepth, type: 'depth', tag: 'METRIC DEPTH' },
+    { btn: btnFeedMap, type: 'map', tag: 'FRONTIER MAP' },
+  ];
+
+  const syncFeedVisibility = () => {
+    const isMap = currentFeedType === 'map';
+    if (simCanvas) simCanvas.hudFeedMode = currentFeedType;
+    if (vlaCanvas) vlaCanvas.style.display = isMap ? 'none' : 'block';
+    if (vlaImg) vlaImg.style.display = isMap ? 'block' : 'none';
+  };
 
   const refreshMapImg = () => {
-    if (!vlaImg) return;
+    if (!vlaImg || currentFeedType !== 'map') return;
     const nextImg = new Image();
     nextImg.onload = () => {
-      vlaImg.src = nextImg.src;
+      if (currentFeedType === 'map') vlaImg.src = nextImg.src;
     };
     nextImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
   };
 
-  if (vlaImg) {
-    vlaImg.style.display = 'block';
-    refreshMapImg();
-    setInterval(refreshMapImg, 450);
-  }
+  hudFeedConfigs.forEach((cfg) => {
+    if (!cfg.btn) return;
+    cfg.btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hudFeedConfigs.forEach((c) => c.btn?.classList.remove('active'));
+      cfg.btn.classList.add('active');
+      currentFeedType = cfg.type;
+      if (sensorTypeTag) sensorTypeTag.innerText = cfg.tag;
+      syncFeedVisibility();
+      if (currentFeedType === 'map') {
+        refreshMapImg();
+      }
+    });
+  });
+
+  syncFeedVisibility();
+  setInterval(refreshMapImg, 500);
 
   // 11b. Main Big-Screen Multi-View Manager (1 = full view, 2 = 2-way split, 3 = 3-way split)
   const splitGrid = document.getElementById('split-screen-grid');
