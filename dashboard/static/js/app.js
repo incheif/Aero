@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hideSuspensionBanner();
     try {
       await sessionFetch('/api/session/resume', { method: 'POST' });
-    } catch (_) {}
+    } catch (_) { }
     if (!isConnected) {
       connectWebSocket();
     }
@@ -719,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
           updateLogsFromTelemetry(data.logs);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }
   fetchSessionLogs();
   setInterval(fetchSessionLogs, 2500);
@@ -1251,9 +1251,23 @@ document.addEventListener('DOMContentLoaded', () => {
     e.stopPropagation();
     cameraHudPip?.classList.toggle('minimized');
     const isMin = cameraHudPip?.classList.contains('minimized');
-    btnPipToggle.innerHTML = isMin 
+    btnPipToggle.innerHTML = isMin
       ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>'
       : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+    if (!isMin) {
+      refreshMapImg();
+    }
+  });
+
+  // Clicking on minimized bottom-left pill expands it
+  cameraHudPip?.addEventListener('click', (e) => {
+    if (cameraHudPip.classList.contains('minimized') && !e.target.closest('button')) {
+      cameraHudPip.classList.remove('minimized');
+      if (btnPipToggle) {
+        btnPipToggle.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+      }
+      refreshMapImg();
+    }
   });
 });
 

@@ -7,7 +7,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=3.9">
+  <link rel="stylesheet" href="/css/style.css?v=4.0">
 </head>
 
 <body>
@@ -123,62 +123,65 @@
           </div>
         </div>
 
-        <!-- Live AI Perception Map Feed (Bottom Left HUD) -->
-        <div id="camera-hud-pip" class="camera-hud-pip"
-          title="Active Occupancy & Frontier Navigation Map">
-          <div class="hud-pip-header">
-            <div class="hud-pip-title">
-              <span class="hud-pip-dot" style="background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
-              <span>MAP HUD</span>
+          <!-- Live AI Perception Map Feed (Bottom Left HUD - Closed by default) -->
+          <div id="camera-hud-pip" class="camera-hud-pip minimized" title="Occupancy Map (Click to expand/collapse)">
+            <div class="hud-pip-header">
+              <div class="hud-pip-title">
+                <span class="hud-pip-dot" style="background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                <span>OCCUPANCY MAP</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="hud-pip-badge" id="hud-pip-status"
+                  style="color: #6ee7b7; border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.15);">MAP</span>
+                <button class="btn-pip-toggle" id="btn-pip-toggle" title="Expand/Collapse Map"
+                  aria-label="Toggle Map">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <polyline points="9 21 3 21 3 15"></polyline>
+                    <line x1="21" y1="3" x2="14" y2="10"></line>
+                    <line x1="3" y1="21" x2="10" y2="14"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span class="hud-pip-badge" id="hud-pip-status" style="color: #6ee7b7; border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.15);">NAVIGATION</span>
-              <button class="btn-pip-toggle" id="btn-pip-toggle" title="Minimize/Maximize HUD"
-                aria-label="Toggle HUD">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2.5">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="hud-pip-body" id="hud-pip-body">
-            <div class="hud-pip-viewport">
-              <img id="vla-pip-img" src="/api/vla/map_image" alt="Occupancy Map Feed" width="128" height="128" style="display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;" />
-              <div class="hud-overlay-grid"></div>
-              <div class="hud-sensor-tag" id="hud-sensor-type-tag">OCCUPANCY MAP</div>
-            </div>
-            <div class="hud-pip-footer">
-              <span class="hud-pip-stat" id="hud-target-label">FRONTIER: ACTIVE</span>
-              <span class="hud-pip-metric" id="hud-cam-res">128×128 GRID</span>
+            <div class="hud-pip-body" id="hud-pip-body">
+              <div class="hud-pip-viewport">
+                <img id="vla-pip-img" src="/api/vla/map_image" alt="Occupancy Map Feed" width="128" height="128"
+                  style="display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;" />
+                <div class="hud-overlay-grid"></div>
+                <div class="hud-sensor-tag" id="hud-sensor-type-tag">OCCUPANCY MAP</div>
+              </div>
+              <div class="hud-pip-footer">
+                <span class="hud-pip-stat" id="hud-target-label">FRONTIER: ACTIVE</span>
+                <span class="hud-pip-metric" id="hud-cam-res">128×128 GRID</span>
+              </div>
             </div>
           </div>
         </div>
-          </div>
 
-          <!-- Live Workcell & Kinematics Quick Dock -->
-          <div id="workcell-dock">
-            <div class="dock-metric-pill">
-              <span class="dock-label">TCP POSE</span>
-              <span class="dock-val" id="dock-tcp-pos">X: 0.08 · Y: 0.85 · Z: 0.00</span>
-            </div>
-            <div class="dock-metric-pill">
-              <span class="dock-label">GRIPPER</span>
-              <span class="dock-val" id="dock-gripper-state">100% OPEN</span>
-            </div>
-            <div class="dock-metric-pill" title="Spatial Accuracy: 70% Position + 30% Upright Orientation">
-              <span class="dock-label">ACCURACY</span>
-              <span class="dock-val" id="dock-spatial-accuracy">--%</span>
-            </div>
-            <div class="dock-metric-pill" title="Physical Stability Hold (18 ticks = 0.30s post-release verification)">
-              <span class="dock-label">STABILITY</span>
-              <span class="dock-val" id="dock-stability-status">IDLE</span>
-            </div>
-            <div class="dock-metric-pill">
-              <span class="dock-label">SIM RATE</span>
-              <span class="dock-val" id="dock-fps-val">60.0 FPS</span>
-            </div>
+        <!-- Live Workcell & Kinematics Quick Dock -->
+        <div id="workcell-dock">
+          <div class="dock-metric-pill">
+            <span class="dock-label">TCP POSE</span>
+            <span class="dock-val" id="dock-tcp-pos">X: 0.08 · Y: 0.85 · Z: 0.00</span>
           </div>
+          <div class="dock-metric-pill">
+            <span class="dock-label">GRIPPER</span>
+            <span class="dock-val" id="dock-gripper-state">100% OPEN</span>
+          </div>
+          <div class="dock-metric-pill" title="Spatial Accuracy: 70% Position + 30% Upright Orientation">
+            <span class="dock-label">ACCURACY</span>
+            <span class="dock-val" id="dock-spatial-accuracy">--%</span>
+          </div>
+          <div class="dock-metric-pill" title="Physical Stability Hold (18 ticks = 0.30s post-release verification)">
+            <span class="dock-label">STABILITY</span>
+            <span class="dock-val" id="dock-stability-status">IDLE</span>
+          </div>
+          <div class="dock-metric-pill">
+            <span class="dock-label">SIM RATE</span>
+            <span class="dock-val" id="dock-fps-val">60.0 FPS</span>
+          </div>
+        </div>
     </main>
 
     <!-- Minimal Command Bar (Bottom) -->
@@ -488,8 +491,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=3.9"></script>
-  <script src="/js/app.js?v=3.9"></script>
+  <script src="/js/sim_canvas_3d.js?v=4.0"></script>
+  <script src="/js/app.js?v=4.0"></script>
 </body>
 
 </html>

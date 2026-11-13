@@ -1883,8 +1883,23 @@ header {
 
 .camera-hud-pip.minimized {
   width: auto;
-  min-width: 130px;
-  padding: 6px 10px;
+  min-width: 140px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(10, 11, 15, 0.88);
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.camera-hud-pip.minimized:hover {
+  background: rgba(14, 20, 26, 0.96);
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.camera-hud-pip.minimized .hud-pip-header {
+  margin-bottom: 0;
 }
 
 .camera-hud-pip.minimized .hud-pip-body {
@@ -1892,7 +1907,7 @@ header {
 }
 
 .camera-hud-pip.minimized #hud-pip-status {
-  display: none !important;
+  display: inline-block !important;
 }
 
 /* Mobile Drawer Header Elements (Hidden on Desktop/Laptop) */
