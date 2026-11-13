@@ -816,6 +816,9 @@ document.addEventListener('DOMContentLoaded', () => {
     sendBtn.disabled = true;
     sendBtn.innerText = 'Reasoning...';
 
+    const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
+    const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
+
     try {
       const resp = await sessionFetch('/api/vla/command', {
         method: 'POST',
