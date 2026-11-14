@@ -148,3 +148,44 @@ def test_simulation_reset_restores_actuator_state():
     for joint in sim.actuator_model.joint_names:
         assert act["torques"][joint] == 0.0
         assert act["temperatures_c"][joint] == pytest.approx(STS3215_SPECS["ambient_temp_c"], rel=1e-2)
+
+
+def test_actuator_edge_cases_dt_and_missing_keys():
+    """Verify actuator model robustly handles zero/negative dt, partial dicts, and extreme velocities."""
+    model = ActuatorModel()
+
+    # Edge case 1: dt <= 0 (must not raise ZeroDivisionError)
+    t1 = model.sample({}, {}, dt=0.0)
+    assert t1["total_power_watts"] > 0.0
+    t2 = model.sample({}, {}, dt=-0.05)
+    assert t2["total_power_watts"] > 0.0
+
+    # Edge case 2: partial joint dictionaries missing some keys
+    t3 = model.sample({"shoulderPitch": 0.5}, {"elbowPitch": -0.2}, dt=FIXED_DT)
+    assert "wristRoll" in t3["torques"]
+    assert "gripper" in t3["torques"]
+
+    # Edge case 3: rapid direction reversals (oscillations)
+    for i in range(10):
+        sign = 1.0 if i % 2 == 0 else -1.0
+        t4 = model.sample({"shoulderPitch": 0.2 * sign}, {"shoulderPitch": -0.2 * sign}, dt=FIXED_DT)
+        assert t4["torques"]["shoulderPitch"] <= STS3215_SPECS["torque_stall_shoulder"]
+
+
+def test_actuator_thermal_safety_clamp():
+    """Verify temperature cannot exceed the 75°C safety clamp even under indefinite maximum stall."""
+    model = ActuatorModel()
+
+    # Pre-set temperature high near safety threshold
+    for k in model.joint_names:
+        model.temperatures[k] = 74.0
+
+    pose = {"baseYaw": 0.0, "shoulderPitch": 0.0, "elbowPitch": 0.0, "wristPitch": 0.0, "wristRoll": 0.0, "gripper": 1.0}
+
+    # Step under maximum load for 3000 steps
+    for _ in range(3000):
+        t = model.sample(pose, pose, dt=FIXED_DT, has_grasped_block=True)
+
+    for k in model.joint_names:
+        assert t["temperatures_c"][k] <= 75.0
+

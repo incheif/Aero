@@ -103,3 +103,33 @@ class TestSO100Kinematics:
                 if k in JOINT_LIMITS:
                     low, high = JOINT_LIMITS[k]
                     assert low - 1e-4 <= val <= high + 1e-4, f"Joint {k}={val} exceeded limits [{low}, {high}]"
+
+    def test_07_unreachable_target_handled_gracefully(self):
+        """Validates that unreachable/extreme points return success=False without raising exceptions or NaNs."""
+        extreme_targets = [
+            (1.5, 0.85, 0.0),       # Far beyond forward reach (distance > 1.4m vs max reach 0.56m)
+            (0.08, 2.5, 0.0),       # Far above maximum reach ceiling
+            (0.08, 0.85, 1.8),      # Far beyond lateral side reach
+        ]
+        for pt in extreme_targets:
+            res = solve_ik(target=pt)
+            assert not res.success
+            assert res.reachability_status in ("UNREACHABLE_POSITION", "JOINT_LIMIT_VIOLATION", "RESIDUAL_EXCEEDED")
+            for k, val in res.joints.items():
+                assert not math.isnan(val), f"Joint {k} is NaN for target {pt}"
+
+    def test_08_forward_kinematics_handles_missing_wrist_roll(self):
+        """Validates that legacy 5-DOF joint dictionary without wristRoll defaults to 0.0 roll cleanly."""
+        legacy_joints = {
+            "baseYaw": 0.2,
+            "shoulderPitch": 0.5,
+            "elbowPitch": -0.4,
+            "wristPitch": 0.1,
+            "gripper": 0.5,
+        }
+        fk = forward_kinematics(legacy_joints)
+        assert "tcp" in fk
+        assert "palm" in fk
+        assert len(fk["tcp"]["position"]) == 3
+
+
