@@ -549,7 +549,7 @@ class UserSession:
         return snapshot
 
     def get_telemetry_payload(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
-        return {
+        payload = {
             "type": "telemetry",
             "session_id": self.session_id,
             "tick": snapshot["tick"],
@@ -560,6 +560,7 @@ class UserSession:
             "tcp": snapshot["tcp"],
             "blocks": snapshot["blocks"],
             "grasped_block_id": snapshot["grasped_block_id"],
+            "actuators": snapshot.get("actuators", {}),
             "target_zone": snapshot["target_zone"],
             "scores": snapshot.get("scores", {}),
             "tcp_trail": self.controller.tcp_trail[-60:],

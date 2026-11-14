@@ -77,6 +77,7 @@ JOINT_LIMITS: Dict[str, Tuple[float, float]] = {
     "shoulderPitch": (-0.35, 1.75),
     "elbowPitch": (-2.40, 0.15),
     "wristPitch": (-1.60, 1.60),
+    "wristRoll": (-3.14159, 3.14159),
     "gripper": (0.0, 1.0),
 }
 
@@ -86,6 +87,7 @@ DEFAULT_JOINTS: Dict[str, float] = {
     "shoulderPitch": 0.97,
     "elbowPitch": -1.92,
     "wristPitch": 0.83,
+    "wristRoll": 0.0,
     "gripper": 0.0,
 }
 

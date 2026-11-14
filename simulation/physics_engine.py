@@ -45,6 +45,7 @@ from .scoring import (
     spatial_accuracy,
     task_completion_score,
 )
+from .actuator_model import ActuatorModel
 
 def make_upright_quaternion(q: Tuple[float, float, float, float] | List[float]) -> List[float]:
     """Projects an arbitrary orientation quaternion to a stable upright pose (pure yaw around Y)."""
@@ -100,6 +101,7 @@ class RobotArmSimulation:
 
         # Telemetry & Playground Verification
         self.torque_tracker = TorqueTracker()
+        self.actuator_model = ActuatorModel()
         self.stability_validator = StabilityValidator()
         self.active_task_blocks: Optional[List[str]] = None
         self.active_task_targets: Optional[Dict[str, List[float]]] = None
@@ -126,6 +128,7 @@ class RobotArmSimulation:
         self.active_task_targets = None
         self.reset_blocks(randomize=randomize)
         self.torque_tracker.reset()
+        self.actuator_model.reset()
         self.stability_validator.reset()
 
     def set_active_task(self, block_ids: Optional[List[str]] = None, targets: Optional[Dict[str, List[float]]] = None):
@@ -363,8 +366,9 @@ class RobotArmSimulation:
 
         if blocked:
             # Physically stop positioning joints at contact face to enforce 100% solid barrier
-            for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"):
-                self.joints[k] = prev_joints[k]
+            for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"):
+                if k in self.joints and k in prev_joints:
+                    self.joints[k] = prev_joints[k]
             fk = forward_kinematics(self.joints)
 
         return fk
@@ -374,7 +378,9 @@ class RobotArmSimulation:
         prev_joints = copy.deepcopy(self.joints)
 
         # 1. Step joints toward targets using velocity limits
-        for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"):
+        for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"):
+            if k not in self.joints or k not in self.joint_targets:
+                continue
             cur = self.joints[k]
             tgt = self.joint_targets[k]
             step_max = JOINT_SPEED * dt
@@ -396,6 +402,12 @@ class RobotArmSimulation:
 
         # Sample joint torque / kinematic effort telemetry
         self.torque_tracker.sample(prev_joints, self.joints)
+        self.actuator_model.sample(
+            prev_joints,
+            self.joints,
+            dt=dt,
+            has_grasped_block=bool(self.grasped_block_id),
+        )
 
         # Enforce solid arm-to-block impassability (blocks cannot be passed through by the arm)
         fk = self._enforce_arm_block_impassability(prev_joints)
@@ -675,6 +687,7 @@ class RobotArmSimulation:
             },
             "blocks": blocks_data,
             "grasped_block_id": self.grasped_block_id,
+            "actuators": self.actuator_model.get_telemetry(),
             "target_zone": {
                 "position": STACK_ORIGIN,
                 "radius": STACK_TOLERANCE,

@@ -18,6 +18,7 @@ class SimCanvas3D {
       shoulder: null,
       elbow: null,
       wrist: null,
+      wristRoll: null,
       palm: null,
       jawLeft: null,
       jawRight: null,
@@ -355,104 +356,285 @@ class SimCanvas3D {
     this.targetPad = null;
   }
 
+  _createFeetechSTS3215(hasHorn = true, hornColor = 0x38bdf8) {
+    const group = new THREE.Group();
+
+    // 1. Dark matte charcoal composite body casing (45.2mm x 24.7mm x 35.0mm)
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0x14161a,
+      roughness: 0.72,
+      metalness: 0.15,
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.025, 0.035), bodyMat);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+
+    // 2. Anodized aluminum heatsink center band with cooling ridges
+    const heatSinkMat = new THREE.MeshStandardMaterial({
+      color: 0x383e4a,
+      roughness: 0.28,
+      metalness: 0.85,
+    });
+    const heatSink = new THREE.Mesh(new THREE.BoxGeometry(0.0456, 0.0256, 0.012), heatSinkMat);
+    group.add(heatSink);
+
+    // Subtle cooling fin grooves on heatsink
+    const finMat = new THREE.MeshStandardMaterial({ color: 0x111317, roughness: 0.5, metalness: 0.8 });
+    for (let f = -1; f <= 1; f++) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.0258, 0.0018), finMat);
+      fin.position.y = f * 0.0035;
+      group.add(fin);
+    }
+
+    // 3. Output Spline Gear Collar
+    const collarMat = new THREE.MeshStandardMaterial({ color: 0x1f242d, roughness: 0.4, metalness: 0.8 });
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.010, 0.006, 16), collarMat);
+    collar.position.set(0.012, 0.0135, 0.0);
+    group.add(collar);
+
+    // 4. Metallic Output Horn Flange (with radial fastener sockets)
+    if (hasHorn) {
+      const hornMat = new THREE.MeshStandardMaterial({
+        color: hornColor,
+        roughness: 0.22,
+        metalness: 0.88,
+      });
+      const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0135, 0.0035, 20), hornMat);
+      horn.position.set(0.012, 0.017, 0.0);
+      group.add(horn);
+
+      // Center lock screw
+      const screwMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2, metalness: 0.95 });
+      const centerScrew = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.004, 12), screwMat);
+      centerScrew.position.set(0.012, 0.018, 0.0);
+      group.add(centerScrew);
+    }
+
+    // 5. Dual 3-Pin JST Daisy-Chain Wire Connector on motor rear
+    const connMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.5 });
+    const socket = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.016), connMat);
+    socket.position.set(-0.021, -0.008, 0.0);
+    group.add(socket);
+
+    // Mini wiring harness leads (red/black/white)
+    const wireMatR = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const wireMatB = new THREE.MeshBasicMaterial({ color: 0x09090b });
+    const wireMatW = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+
+    const wireR = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.018, 6), wireMatR);
+    wireR.position.set(-0.024, -0.008, 0.004);
+    wireR.rotation.z = Math.PI / 2;
+    group.add(wireR);
+
+    const wireB = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.018, 6), wireMatB);
+    wireB.position.set(-0.024, -0.008, 0.0);
+    wireB.rotation.z = Math.PI / 2;
+    group.add(wireB);
+
+    const wireW = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.018, 6), wireMatW);
+    wireW.position.set(-0.024, -0.008, -0.004);
+    wireW.rotation.z = Math.PI / 2;
+    group.add(wireW);
+
+    return group;
+  }
+
   buildRobotArm() {
     // Mount position: [-0.28, 0.72, 0]
     const root = new THREE.Group();
     root.position.set(-0.28, 0.72, 0.0);
     this.arm.base = root;
 
-    // Pedestal Base (black flanged cylinder with bolts)
-    const baseMat = new THREE.MeshStandardMaterial({ color: this.PALETTE.BLACK, roughness: 0.6 });
-    const metalMat = new THREE.MeshStandardMaterial({ color: this.PALETTE.METAL, metalness: 0.85, roughness: 0.25 });
-    const whiteMat = new THREE.MeshStandardMaterial({ color: this.PALETTE.WHITE, roughness: 0.35 });
-    const rubberMat = new THREE.MeshStandardMaterial({ color: this.PALETTE.RUBBER, roughness: 0.9 });
+    // Materials Palette matching authentic SO-ARM100 / SO-101 3D printed PETG & Hardware
+    const petgDarkMat = new THREE.MeshStandardMaterial({ color: 0x16181d, roughness: 0.7, metalness: 0.12 });
+    const petgAccentMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.48, metalness: 0.22 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.88, roughness: 0.22 });
+    const fastenerMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.15 });
+    const rubberMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.92 }); // High-contrast emerald grip pads
+    const hornColor = 0x38bdf8;
 
-    const pedestalBase = new THREE.Mesh(new THREE.CylinderGeometry(0.096, 0.096, 0.036, 32), baseMat);
-    pedestalBase.position.y = 0.018;
-    pedestalBase.castShadow = true;
-    pedestalBase.receiveShadow = true;
-    root.add(pedestalBase);
+    // 1. Desk Mount Plate (octagonal with 4 stainless M4 corner bolts)
+    const basePlate = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.096, 0.016, 8), petgDarkMat);
+    basePlate.position.y = 0.008;
+    basePlate.castShadow = true;
+    basePlate.receiveShadow = true;
+    root.add(basePlate);
 
-    // Pedestal Taper
-    const pedestalTaper = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.068, 0.066, 32), baseMat);
-    pedestalTaper.position.y = 0.069;
-    pedestalTaper.castShadow = true;
-    root.add(pedestalTaper);
+    // 4 Corner Mounting Screws on tabletop flange
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI) / 2 + Math.PI / 4;
+      const bx = Math.cos(angle) * 0.076;
+      const bz = Math.sin(angle) * 0.076;
+      const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.004, 8), fastenerMat);
+      bolt.position.set(bx, 0.017, bz);
+      root.add(bolt);
+    }
 
-    // Turntable Flange
-    const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.008, 32), metalMat);
+    // Side-mounted Waveshare bus adapter PCB plate
+    const pcbMount = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.005, 0.068), new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.4 }));
+    pcbMount.position.set(-0.068, 0.012, 0.0);
+    root.add(pcbMount);
+
+    const pcbLed = new THREE.Mesh(new THREE.SphereGeometry(0.0025, 8, 8), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+    pcbLed.position.set(-0.078, 0.016, 0.022);
+    root.add(pcbLed);
+
+    // Upright Pedestal Tower with weight-saving ribbing
+    const pedestalTower = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.068, 0.076, 24), petgDarkMat);
+    pedestalTower.position.y = 0.054;
+    pedestalTower.castShadow = true;
+    root.add(pedestalTower);
+
+    // Embedded Feetech STS3215 #1 (Base Yaw Motor)
+    const servo1 = this._createFeetechSTS3215(true, hornColor);
+    servo1.position.set(0.0, 0.088, 0.0);
+    servo1.rotation.y = Math.PI / 2;
+    servo1.rotation.z = Math.PI;
+    root.add(servo1);
+
+    // Base Turntable Bearing Collar (at Pedestal Height 0.11m)
+    const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.008, 32), metalMat);
     flange.position.y = 0.106;
     root.add(flange);
 
-    // 1. Base Yaw Turntable Group (at Pedestal Height 0.11m)
+    // 2. Base Yaw Turntable Group (at Pedestal Height 0.11m)
     const yawGroup = new THREE.Group();
     yawGroup.position.set(0.0, 0.11, 0.0);
     root.add(yawGroup);
     this.arm.yaw = yawGroup;
 
-    // Shoulder Joint Can
-    const shoulderCan = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.072, 28), metalMat);
-    shoulderCan.rotation.x = Math.PI / 2;
-    yawGroup.add(shoulderCan);
+    // Dual-clevis Shoulder Bracket (SO-ARM100 U-fork with side lightening cutouts)
+    const shoulderForkBase = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.014, 24), petgDarkMat);
+    shoulderForkBase.position.y = 0.007;
+    yawGroup.add(shoulderForkBase);
 
-    // 2. Shoulder Group (Pitches in Z)
+    // Dual upright clevis ears
+    const leftEar = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.064, 0.044), petgDarkMat);
+    leftEar.position.set(0.0, 0.038, 0.036);
+    yawGroup.add(leftEar);
+
+    const rightEar = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.064, 0.044), petgDarkMat);
+    rightEar.position.set(0.0, 0.038, -0.036);
+    yawGroup.add(rightEar);
+
+    // Feetech STS3215 #2 (Shoulder Lift Motor) housed in left clevis
+    const servo2 = this._createFeetechSTS3215(true, hornColor);
+    servo2.position.set(0.0, 0.038, 0.036);
+    servo2.rotation.x = Math.PI / 2;
+    yawGroup.add(servo2);
+
+    // Passive Pivot Bearing Cap on right clevis
+    const bearingCap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.008, 16), metalMat);
+    bearingCap.rotation.x = Math.PI / 2;
+    bearingCap.position.set(0.0, 0.038, -0.045);
+    yawGroup.add(bearingCap);
+
+    // 3. Shoulder Group (Pitches in Z at Y=0.038m above yaw turntable)
     const shoulderGroup = new THREE.Group();
+    shoulderGroup.position.set(0.0, 0.038, 0.0);
     yawGroup.add(shoulderGroup);
     this.arm.shoulder = shoulderGroup;
 
     // Upper Arm Link (length 0.38m along local X)
-    const upperLink = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.052, 0.052), whiteMat);
-    upperLink.position.set(0.38 * 0.5, 0.0, 0.0);
-    upperLink.castShadow = true;
-    shoulderGroup.add(upperLink);
+    // Realistic SO-ARM100 Skeletal Twin-Rail Truss Arm
+    const upperLinkMat = petgDarkMat;
+    const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.014, 0.042), upperLinkMat);
+    topRail.position.set(0.19, 0.022, 0.0);
+    topRail.castShadow = true;
+    shoulderGroup.add(topRail);
 
-    // Conduit Pipe along upper arm
-    const conduitUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.32, 12), metalMat);
-    conduitUpper.rotation.z = Math.PI / 2;
-    conduitUpper.position.set(0.19, 0.032, 0.0);
-    shoulderGroup.add(conduitUpper);
+    const bottomRail = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.014, 0.042), upperLinkMat);
+    bottomRail.position.set(0.19, -0.022, 0.0);
+    bottomRail.castShadow = true;
+    shoulderGroup.add(bottomRail);
 
-    // 3. Elbow Group (at X=0.38m of upper arm)
+    // Diagonal truss reinforcement cross-ribs
+    for (let r = 0; r < 5; r++) {
+      const rx = 0.06 + r * 0.065;
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.032, 0.040), petgAccentMat);
+      rib.position.set(rx, 0.0, 0.0);
+      shoulderGroup.add(rib);
+    }
+
+    // Flexible cable harness clip routing along upper arm
+    const cableHarness = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.32, 10), new THREE.MeshBasicMaterial({ color: 0x1e293b }));
+    cableHarness.rotation.z = Math.PI / 2;
+    cableHarness.position.set(0.19, 0.030, 0.0);
+    shoulderGroup.add(cableHarness);
+
+    // Feetech STS3215 #3 (Elbow Flex Motor) at X=0.38m of upper arm
+    const servo3 = this._createFeetechSTS3215(true, hornColor);
+    servo3.position.set(0.38, 0.0, 0.034);
+    servo3.rotation.x = Math.PI / 2;
+    shoulderGroup.add(servo3);
+
+    // 4. Elbow Group (at X=0.38m of upper arm)
     const elbowGroup = new THREE.Group();
     elbowGroup.position.set(0.38, 0.0, 0.0);
     shoulderGroup.add(elbowGroup);
     this.arm.elbow = elbowGroup;
 
-    // Elbow Joint Can
-    const elbowCan = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.066, 28), metalMat);
-    elbowCan.rotation.x = Math.PI / 2;
-    elbowGroup.add(elbowCan);
-
     // Forearm Link (length 0.32m along local X)
-    const forearmLink = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.044, 0.044), whiteMat);
-    forearmLink.position.set(0.32 * 0.5, 0.0, 0.0);
+    // Sculpted tapered forearm beam
+    const forearmLink = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.038, 0.036), petgDarkMat);
+    forearmLink.position.set(0.16, 0.0, 0.0);
     forearmLink.castShadow = true;
     elbowGroup.add(forearmLink);
 
-    // 4. Wrist Group (at X=0.32m of forearm)
+    // Contrast accent spine on forearm
+    const forearmSpine = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.006, 0.038), petgAccentMat);
+    forearmSpine.position.set(0.16, 0.021, 0.0);
+    elbowGroup.add(forearmSpine);
+
+    // Feetech STS3215 #4 (Wrist Pitch Motor) at X=0.32m of forearm
+    const servo4 = this._createFeetechSTS3215(true, hornColor);
+    servo4.position.set(0.32, 0.0, 0.028);
+    servo4.rotation.x = Math.PI / 2;
+    elbowGroup.add(servo4);
+
+    // 5. Wrist Group (at X=0.32m of forearm, pitches in Z)
     const wristGroup = new THREE.Group();
     wristGroup.position.set(0.32, 0.0, 0.0);
     elbowGroup.add(wristGroup);
     this.arm.wrist = wristGroup;
 
-    // Wrist Joint Can
-    const wristCan = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.054, 24), metalMat);
-    wristCan.rotation.x = Math.PI / 2;
-    wristGroup.add(wristCan);
+    // Wrist pitch clevis
+    const wristClevis = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.036, 0.048), petgDarkMat);
+    wristClevis.position.set(0.016, 0.0, 0.0);
+    wristGroup.add(wristClevis);
 
-    // Wrist Link Extension (L_WRIST = 0.13m from wrist joint axis to palm)
-    const wristLink = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.115, 24), metalMat);
-    wristLink.rotation.z = Math.PI / 2;
-    wristLink.position.set(0.065, 0.0, 0.0);
-    wristLink.castShadow = true;
-    wristGroup.add(wristLink);
+    // In-line cylindrical housing for Feetech STS3215 #5 (Wrist Roll Motor)
+    const wristRollHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.075, 24), petgDarkMat);
+    wristRollHousing.rotation.z = Math.PI / 2;
+    wristRollHousing.position.set(0.065, 0.0, 0.0);
+    wristRollHousing.castShadow = true;
+    wristGroup.add(wristRollHousing);
+
+    // 6. Wrist Roll Group (Rotates around local X: approach axis)
+    const wristRollGroup = new THREE.Group();
+    wristRollGroup.position.set(0.0, 0.0, 0.0);
+    wristGroup.add(wristRollGroup);
+    this.arm.wristRoll = wristRollGroup;
+
+    // Feetech STS3215 #5 (Wrist Roll) Output Horn rotating at X=0.105m
+    const rollHorn = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.006, 24), new THREE.MeshStandardMaterial({ color: hornColor, metalness: 0.85, roughness: 0.25 }));
+    rollHorn.rotation.z = Math.PI / 2;
+    rollHorn.position.set(0.105, 0.0, 0.0);
+    wristRollGroup.add(rollHorn);
 
     // Palm / Gripper Base Plate (at X = 0.13m)
-    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.046, 0.072), baseMat);
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.048, 0.074), petgDarkMat);
     palm.position.set(0.13, 0.0, 0.0);
     palm.castShadow = true;
-    wristGroup.add(palm);
+    wristRollGroup.add(palm);
     this.arm.palm = palm;
+
+    // Feetech STS3215 #6 (Gripper Drive Motor) mounted on palm
+    const servo6 = this._createFeetechSTS3215(true, hornColor);
+    servo6.position.set(0.128, -0.018, 0.0);
+    servo6.scale.set(0.75, 0.75, 0.75);
+    wristRollGroup.add(servo6);
 
     // Eye-in-Hand Wrist Camera Pod + Status LED Ring mounted on top of palm
     const wristPod = new THREE.Mesh(
@@ -460,7 +642,7 @@ class SimCanvas3D {
       new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.7, roughness: 0.3 })
     );
     wristPod.position.set(0.122, 0.032, 0.0);
-    wristGroup.add(wristPod);
+    wristRollGroup.add(wristPod);
 
     const wristLens = new THREE.Mesh(
       new THREE.CylinderGeometry(0.0065, 0.0065, 0.008, 14),
@@ -468,7 +650,7 @@ class SimCanvas3D {
     );
     wristLens.rotation.z = Math.PI / 2;
     wristLens.position.set(0.139, 0.032, 0.0);
-    wristGroup.add(wristLens);
+    wristRollGroup.add(wristLens);
 
     const statusLedMat = new THREE.MeshStandardMaterial({
       color: 0x38bdf8,
@@ -478,7 +660,7 @@ class SimCanvas3D {
     });
     const statusLed = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 12, 12), statusLedMat);
     statusLed.position.set(0.124, 0.042, 0.012);
-    wristGroup.add(statusLed);
+    wristRollGroup.add(statusLed);
     this.arm.statusLed = statusLed;
 
     // Mounted Eye-in-Hand PerspectiveCamera looking forward/slightly down between jaws
@@ -490,37 +672,37 @@ class SimCanvas3D {
       new THREE.Vector3(0, 1, 0)
     );
     wristCam.quaternion.setFromRotationMatrix(wristLookMat);
-    wristGroup.add(wristCam);
+    wristRollGroup.add(wristCam);
     this.wristSensorCam = wristCam;
 
-    // 5. Parallel Gripper Sliding Jaws (JAW_LENGTH = 0.095m, centered at X = 0.18m matching TCP)
+    // 7. Parallel Gripper Sliding Jaws (JAW_LENGTH = 0.095m, centered at X = 0.18m matching TCP)
     const jawGeo = new THREE.BoxGeometry(0.095, 0.036, 0.012);
 
     // Left Jaw
-    const jawLeft = new THREE.Mesh(jawGeo, whiteMat);
+    const jawLeft = new THREE.Mesh(jawGeo, petgDarkMat);
     jawLeft.position.set(0.18, 0.0, 0.045);
     jawLeft.castShadow = true;
-    wristGroup.add(jawLeft);
+    wristRollGroup.add(jawLeft);
     this.arm.jawLeft = jawLeft;
 
-    // Left Jaw Rubber Gripper Pad (centered on inner face of left jaw at X = 0.18m)
+    // Left Jaw Rubber Gripper Pad
     const padLeft = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.028, 0.004), rubberMat);
     padLeft.position.set(0.0, 0.0, -0.008);
     jawLeft.add(padLeft);
 
     // Right Jaw
-    const jawRight = new THREE.Mesh(jawGeo, whiteMat);
+    const jawRight = new THREE.Mesh(jawGeo, petgDarkMat);
     jawRight.position.set(0.18, 0.0, -0.045);
     jawRight.castShadow = true;
-    wristGroup.add(jawRight);
+    wristRollGroup.add(jawRight);
     this.arm.jawRight = jawRight;
 
-    // Right Jaw Rubber Gripper Pad (centered on inner face of right jaw at X = 0.18m)
+    // Right Jaw Rubber Gripper Pad
     const padRight = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.028, 0.004), rubberMat);
     padRight.position.set(0.0, 0.0, 0.008);
     jawRight.add(padRight);
 
-    // 6. TCP Glowing Indicator (mid-finger pinch point: at X = 0.18m, exactly at pad center)
+    // 8. TCP Glowing Indicator (mid-finger pinch point: at X = 0.18m, exactly at pad center)
     const tcpGroup = new THREE.Group();
     tcpGroup.position.set(0.18, 0.0, 0.0);
 
@@ -529,7 +711,7 @@ class SimCanvas3D {
       new THREE.MeshBasicMaterial({ color: 0xffffff })
     );
     tcpGroup.add(tcpSphere);
-    wristGroup.add(tcpGroup);
+    wristRollGroup.add(tcpGroup);
     this.arm.tcpMarker = tcpGroup;
 
     this.scene.add(root);
@@ -700,6 +882,7 @@ class SimCanvas3D {
           shoulderPitch: joints.shoulderPitch || 0,
           elbowPitch: joints.elbowPitch || 0,
           wristPitch: joints.wristPitch || 0,
+          wristRoll: joints.wristRoll || 0,
           gripper: joints.gripper || 0,
         };
       }
@@ -708,6 +891,7 @@ class SimCanvas3D {
         shoulderPitch: joints.shoulderPitch || 0,
         elbowPitch: joints.elbowPitch || 0,
         wristPitch: joints.wristPitch || 0,
+        wristRoll: joints.wristRoll || 0,
         gripper: joints.gripper || 0,
       };
     }
@@ -969,12 +1153,14 @@ class SimCanvas3D {
       cur.shoulderPitch += (j.shoulderPitch - cur.shoulderPitch) * alpha;
       cur.elbowPitch += (j.elbowPitch - cur.elbowPitch) * alpha;
       cur.wristPitch += (j.wristPitch - cur.wristPitch) * alpha;
+      cur.wristRoll = (cur.wristRoll || 0) + ((j.wristRoll || 0) - (cur.wristRoll || 0)) * alpha;
       cur.gripper += (j.gripper - cur.gripper) * alpha;
 
       this.arm.yaw.rotation.y = cur.baseYaw;
       this.arm.shoulder.rotation.z = cur.shoulderPitch;
       this.arm.elbow.rotation.z = cur.elbowPitch;
       this.arm.wrist.rotation.z = cur.wristPitch;
+      if (this.arm.wristRoll) this.arm.wristRoll.rotation.x = cur.wristRoll;
 
       const minSep = 0.069 / 2;
       const maxSep = 0.125 / 2;

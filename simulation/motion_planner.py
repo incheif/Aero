@@ -187,10 +187,10 @@ class RRTConnectJointPlanner:
         self.step_size = step_size
         self.max_iterations = max_iterations
         self.checker = ArmCollisionChecker()
-        self.joint_names = ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"]
+        self.joint_names = ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"]
 
     def _dict_to_array(self, q: Dict[str, float]) -> np.ndarray:
-        return np.array([q[k] for k in self.joint_names], dtype=np.float32)
+        return np.array([q.get(k, 0.0) for k in self.joint_names], dtype=np.float32)
 
     def _array_to_dict(self, arr: np.ndarray, gripper: float = 0.0) -> Dict[str, float]:
         res = {k: float(arr[i]) for i, k in enumerate(self.joint_names)}
@@ -324,27 +324,27 @@ class RRTConnectJointPlanner:
                     idx_start_junction = idx_curr_b
                     idx_goal_junction = idx_new_a
 
-                    # Path from start to junction
-                    path_from_start = []
-                    curr = idx_start_junction
-                    while curr != -1:
-                        path_from_start.append(tree_start[curr])
-                        curr = parent_start[curr]
-                    path_from_start.reverse()  # now [arr_start, ..., junction]
+                # Path from start to junction
+                path_from_start = []
+                curr = idx_start_junction
+                while curr != -1:
+                    path_from_start.append(tree_start[curr])
+                    curr = parent_start[curr]
+                path_from_start.reverse()  # now [arr_start, ..., junction]
 
-                    # Path from junction to goal
-                    path_to_goal = []
-                    curr = idx_goal_junction
-                    while curr != -1:
-                        path_to_goal.append(tree_goal[curr])
-                        curr = parent_goal[curr]
-                    # path_to_goal is already [junction, ..., arr_goal]
+                # Path from junction to goal
+                path_to_goal = []
+                curr = idx_goal_junction
+                while curr != -1:
+                    path_to_goal.append(tree_goal[curr])
+                    curr = parent_goal[curr]
+                # path_to_goal is already [junction, ..., arr_goal]
 
-                    full_path = path_from_start + path_to_goal
+                full_path = path_from_start + path_to_goal
 
-                    # Short-cut smoothing
-                    smoothed = self._smooth_path(full_path, blocks, grasped_block_id, ignore_block_ids)
-                    return [self._array_to_dict(q, grip_val) for q in smoothed]
+                # Short-cut smoothing
+                smoothed = self._smooth_path(full_path, blocks, grasped_block_id, ignore_block_ids)
+                return [self._array_to_dict(q, grip_val) for q in smoothed]
 
             # Alternate tree roles for symmetric bidirectional growth
             t_a, t_b = t_b, t_a
@@ -390,11 +390,11 @@ class RRTConnectJointPlanner:
             q_a = path[i]
             q_b = path[i + 1]
             grip = q_b.get("gripper", q_a.get("gripper", 0.0))
-            max_d = max(abs(q_b[k] - q_a[k]) for k in self.joint_names)
+            max_d = max(abs(q_b.get(k, 0.0) - q_a.get(k, 0.0)) for k in self.joint_names)
             steps = max(1, int(math.ceil(max_d / max_step_rad)))
             for s in range(1, steps + 1):
                 alpha = s / float(steps)
-                interp = {k: q_a[k] + alpha * (q_b[k] - q_a[k]) for k in self.joint_names}
+                interp = {k: q_a.get(k, 0.0) + alpha * (q_b.get(k, 0.0) - q_a.get(k, 0.0)) for k in self.joint_names}
                 interp["gripper"] = float(grip)
                 dense.append(interp)
         return dense

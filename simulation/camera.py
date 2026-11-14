@@ -463,19 +463,19 @@ class SimulationRobotStateSensor:
         self.sim = sim
 
     def get_state(self) -> RobotStateObservation:
-        joint_names = ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "gripper"]
+        joint_names = ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll", "gripper"]
         sim_joints = getattr(self.sim, "joints", {})
         if not sim_joints and hasattr(self.sim, "joint_angles"):
             sim_joints = self.sim.joint_angles
         gripper_val = sim_joints.get("gripper", getattr(self.sim, "gripper_target", 0.04))
 
         joint_angles = {}
-        for j in ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"]:
+        for j in ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"]:
             joint_angles[j] = float(sim_joints.get(j, 0.0))
         joint_angles["gripper"] = float(gripper_val)
 
         joint_pos_list = [joint_angles[j] for j in joint_names]
-        joint_vel_list = [0.0] * 5
+        joint_vel_list = [0.0] * len(joint_names)
 
         grip_pos = float(joint_angles.get("gripper", 0.04))
         grip_closed = bool(getattr(self.sim, "grasped_block_id", False) or getattr(self.sim, "gripper_closed", False) or grip_pos > 0.6)

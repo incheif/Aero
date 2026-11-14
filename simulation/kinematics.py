@@ -133,6 +133,11 @@ def forward_kinematics(joints: Dict[str, float], mount: Tuple[float, float, floa
     palm_pos = tuple(origin)
     palm_rot = rot
 
+    # Apply 6th DOF: wristRoll around local X (approach axis)
+    wrist_roll = joints.get("wristRoll", 0.0)
+    if wrist_roll != 0.0:
+        rot = quat_mul(rot, quat_from_axis_angle(1.0, 0.0, 0.0, wrist_roll))
+
     tcp_pos = vec_add(origin, quat_rotate_vec(rot, (GRASP_DEPTH, 0.0, 0.0)))
     tcp_rot = rot
 
@@ -175,17 +180,17 @@ def compute_adaptive_pitch(local_x: float) -> float:
 def compute_manipulability(joints: Dict[str, float]) -> float:
     """
     Computes the Yoshikawa manipulability index w = sqrt(det(J * J^T))
-    for the 4-DOF planar/spatial arm chain using finite difference Jacobian.
+    for the 5-DOF/6-DOF arm chain using finite difference Jacobian.
     """
-    q_keys = ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"]
+    q_keys = ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"]
     eps = 1e-4
     fk_nominal = forward_kinematics(joints)
     p_nom = np.array(fk_nominal["tcp"]["position"])
 
-    J = np.zeros((3, 4))
+    J = np.zeros((3, len(q_keys)))
     for i, k in enumerate(q_keys):
         j_pert = dict(joints)
-        j_pert[k] += eps
+        j_pert[k] = j_pert.get(k, 0.0) + eps
         fk_pert = forward_kinematics(j_pert)
         p_pert = np.array(fk_pert["tcp"]["position"])
         J[:, i] = (p_pert - p_nom) / eps
@@ -200,11 +205,13 @@ def solve_ik(
     world_pitch: Optional[float] = None,
     candidate_pitches: Optional[List[float]] = None,
     tolerance: float = 0.008,
+    target_yaw: Optional[float] = None,
+    wrist_roll: Optional[float] = None,
 ) -> IKResult:
     """
     Rigorous Inverse Kinematics solver with explicit feasibility validation.
     Checks reachability, joint limits, forward kinematics residuals, and manipulability.
-    Never silently reports an unreachable or clamped configuration as successful.
+    Supports yaw-oriented grasping via wristRoll.
     """
     tx, ty, tz = target
     shoulder_origin = (ARM_MOUNT[0], ARM_MOUNT[1] + PEDESTAL_H, ARM_MOUNT[2])
@@ -217,6 +224,19 @@ def solve_ik(
     raw_yaw = math.atan2(-dz, dx)
     yaw_in_limit = yaw_limit[0] <= raw_yaw <= yaw_limit[1]
     base_yaw = clamp(raw_yaw, yaw_limit[0], yaw_limit[1])
+
+    # 6th DOF Wrist Roll solving for object orientation / grasp alignment
+    roll_lim = JOINT_LIMITS["wristRoll"]
+    if wrist_roll is not None:
+        raw_roll = wrist_roll
+    elif target_yaw is not None:
+        raw_diff = target_yaw - base_yaw
+        raw_roll = math.atan2(math.sin(raw_diff), math.cos(raw_diff))
+    else:
+        raw_roll = 0.0
+
+    roll_in_limit = roll_lim[0] <= raw_roll <= roll_lim[1]
+    final_roll = clamp(raw_roll, roll_lim[0], roll_lim[1])
 
     yaw_q = quat_from_axis_angle(0.0, 1.0, 0.0, base_yaw)
     local = quat_rotate_vec(quat_conjugate(yaw_q), (dx, dy, dz))
@@ -279,7 +299,7 @@ def solve_ik(
         wrist_in_limit = wrist_lim[0] <= raw_wrist <= wrist_lim[1]
         wrist_pitch = clamp(raw_wrist, wrist_lim[0], wrist_lim[1])
 
-        joint_limits_valid = yaw_in_limit and elbow_in_limit and shoulder_in_limit and wrist_in_limit
+        joint_limits_valid = yaw_in_limit and elbow_in_limit and shoulder_in_limit and wrist_in_limit and roll_in_limit
         if not joint_limits_valid and is_reachable:
             status = "JOINT_LIMIT_VIOLATION"
 
@@ -288,6 +308,7 @@ def solve_ik(
             "shoulderPitch": shoulder_pitch,
             "elbowPitch": elbow_pitch,
             "wristPitch": wrist_pitch,
+            "wristRoll": final_roll,
             "gripper": clamp(gripper, 0.0, 1.0),
         }
 
@@ -329,10 +350,19 @@ def inverse_kinematics(
     gripper: float = 0.0,
     world_pitch: Optional[float] = None,
     candidate_pitches: Optional[List[float]] = None,
+    target_yaw: Optional[float] = None,
+    wrist_roll: Optional[float] = None,
 ) -> JointDictionary:
     """
     Inverse Kinematics interface.
     Returns JointDictionary that behaves as Dict[str, float] with full IKResult metadata.
     """
-    res = solve_ik(target=target, gripper=gripper, world_pitch=world_pitch, candidate_pitches=candidate_pitches)
+    res = solve_ik(
+        target=target,
+        gripper=gripper,
+        world_pitch=world_pitch,
+        candidate_pitches=candidate_pitches,
+        target_yaw=target_yaw,
+        wrist_roll=wrist_roll,
+    )
     return JointDictionary(res.joints, result=res)

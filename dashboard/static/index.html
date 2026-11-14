@@ -7,7 +7,7 @@
   <title>AERO | Agentic Execution for Robotic Operations</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=4.3">
+  <link rel="stylesheet" href="/css/style.css?v=5.0">
 </head>
 
 <body>
@@ -185,6 +185,10 @@
           <div class="dock-metric-pill" title="Physical Stability Hold (18 ticks = 0.30s post-release verification)">
             <span class="dock-label">STABILITY</span>
             <span class="dock-val" id="dock-stability-status">IDLE</span>
+          </div>
+          <div class="dock-metric-pill" title="Feetech STS3215 Bus Power & Max Torque">
+            <span class="dock-label">ACTUATORS</span>
+            <span class="dock-val" id="dock-actuators-power">0.6W · 0.00Nm</span>
           </div>
           <div class="dock-metric-pill">
             <span class="dock-label">SIM RATE</span>
@@ -389,6 +393,35 @@
           </div>
         </div>
 
+        <!-- 2B. Feetech STS3215 Actuator Physics (SO-ARM100 Digital Twin) -->
+        <div class="card" id="actuators-card">
+          <div class="card-title">
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8;"></span>
+              <span>Feetech STS3215 Actuators</span>
+            </div>
+            <span class="thought-status-badge" id="actuator-bus-badge" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08);">7.4V BUS</span>
+          </div>
+          <div class="token-metrics-grid">
+            <div class="token-metric-item">
+              <span class="token-metric-label">Power Draw</span>
+              <span class="token-metric-val" id="actuator-power-display" style="color: #ffffff;">0.6 W</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Peak Torque</span>
+              <span class="token-metric-val" id="actuator-peak-torque">0.00 Nm</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Avg Load</span>
+              <span class="token-metric-val" id="actuator-avg-load">0.0%</span>
+            </div>
+            <div class="token-metric-item">
+              <span class="token-metric-label">Max Temp</span>
+              <span class="token-metric-val" id="actuator-max-temp">24.5°C</span>
+            </div>
+          </div>
+        </div>
+
         <!-- 3. Dedicated Rest Arm & Randomize Spawns Card -->
         <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-rest-hero" id="btn-rest-main">
@@ -500,8 +533,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=4.3"></script>
-  <script src="/js/app.js?v=4.3"></script>
+  <script src="/js/sim_canvas_3d.js?v=5.1"></script>
+  <script src="/js/app.js?v=5.1"></script>
 </body>
 
 </html>

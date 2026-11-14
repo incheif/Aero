@@ -117,11 +117,11 @@ class TestCoordinateFramesAndCalibration:
         center_depth = obs.depth[64, 64]
         assert abs(center_depth - (OVERHEAD_CAMERA_HEIGHT - TABLE_TOP_Y)) < 0.05
 
-        # Check RobotStateSensor
+        # Check RobotStateSensor (6-DOF with wristRoll)
         sensor = SimulationRobotStateSensor(sim)
         state = sensor.get_state()
         assert isinstance(state, RobotStateObservation)
-        assert len(state.joint_positions) == 5
+        assert len(state.joint_positions) == 6
         assert state.tcp_pose_estimated is not None
         assert abs(state.tcp_pose_estimated[1] - 0.80) < 0.10  # default TCP altitude near 0.8m
 

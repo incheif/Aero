@@ -214,6 +214,7 @@ class MujocoSimulation:
             f'              <joint name="wristPitch" type="hinge" axis="0 0 1" range="-1.60 1.60"/>',
             f'              <geom name="wrist_geom" type="capsule" fromto="0 0 0 {L_WRIST - 0.014} 0 0" size="0.014" mass="0.4" rgba="0.80 0.65 0.25 1"/>',
             f'              <body name="palm" pos="{L_WRIST} 0 0">',
+            f'                <joint name="wristRoll" type="hinge" axis="1 0 0" range="-3.14159 3.14159"/>',
             f'                <geom name="palm_geom" type="box" pos="-0.008 0 0" size="0.012 0.022 0.030" mass="0.25" rgba="0.22 0.22 0.25 1"/>',
             f'                <site name="tcp" pos="{GRASP_DEPTH} 0 0" size="0.008" rgba="1 0 0 1"/>',
             f'                <body name="finger_left" pos="{JAW_LENGTH * 0.5} 0 {JAW_MAX_SEP * 0.5}">',
@@ -268,7 +269,7 @@ class MujocoSimulation:
 
         # Cache robot arm joint addresses
         self.arm_joint_indices = {}
-        for jname in ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"]:
+        for jname in ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"]:
             j_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, jname)
             self.arm_joint_indices[jname] = {
                 "qpos_adr": self.model.jnt_qposadr[j_id],
@@ -569,8 +570,9 @@ class MujocoSimulation:
                 break
 
         if blocked:
-            for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"):
-                self.joints[k] = prev_joints[k]
+            for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"):
+                if k in self.joints and k in prev_joints:
+                    self.joints[k] = prev_joints[k]
             fk = forward_kinematics(self.joints)
 
         return fk
@@ -671,7 +673,9 @@ class MujocoSimulation:
         prev_joints = copy.deepcopy(self.joints)
 
         # 1. Step joints toward targets using velocity limits
-        for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch"):
+        for k in ("baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "wristRoll"):
+            if k not in self.joints or k not in self.joint_targets:
+                continue
             cur = self.joints[k]
             tgt = self.joint_targets[k]
             step_max = JOINT_SPEED * dt

@@ -283,6 +283,9 @@ document.addEventListener('DOMContentLoaded', () => {
       setVal('joint-shoulder', `${(j.shoulderPitch * 57.2958).toFixed(1)}° (${j.shoulderPitch.toFixed(2)})`);
       setVal('joint-elbow', `${(j.elbowPitch * 57.2958).toFixed(1)}° (${j.elbowPitch.toFixed(2)})`);
       setVal('joint-wrist', `${(j.wristPitch * 57.2958).toFixed(1)}° (${j.wristPitch.toFixed(2)})`);
+      if (j.wristRoll !== undefined) {
+        setVal('joint-roll', `${(j.wristRoll * 57.2958).toFixed(1)}° (${j.wristRoll.toFixed(2)})`);
+      }
       setVal('joint-gripper', `${((1.0 - j.gripper) * 100).toFixed(0)}% Open`);
     }
 
@@ -349,6 +352,29 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       }
+    }
+
+    // 6B-2. Feetech STS3215 Actuator Dynamics Telemetry
+    if (data.actuators) {
+      const act = data.actuators;
+      const pWatts = act.total_power_watts !== undefined ? `${act.total_power_watts.toFixed(1)} W` : '-- W';
+      const pkTorque = act.peak_torque !== undefined ? `${act.peak_torque.toFixed(2)} Nm` : '-- Nm';
+      setVal('actuator-power-display', pWatts);
+      setVal('actuator-peak-torque', pkTorque);
+
+      if (act.loads_pct) {
+        const loads = Object.values(act.loads_pct);
+        const avgLoad = loads.length ? (loads.reduce((a, b) => a + b, 0) / loads.length).toFixed(1) : '0.0';
+        setVal('actuator-avg-load', `${avgLoad}%`);
+      }
+
+      if (act.temperatures_c) {
+        const temps = Object.values(act.temperatures_c);
+        const maxT = temps.length ? Math.max(...temps).toFixed(1) : '24.5';
+        setVal('actuator-max-temp', `${maxT}°C`);
+      }
+
+      setVal('dock-actuators-power', `${pWatts} · ${pkTorque}`);
     }
 
     // 6C. Update Computer Vision & Camera HUD PiP Telemetry
