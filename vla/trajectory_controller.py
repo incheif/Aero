@@ -102,7 +102,7 @@ class TrajectoryController:
             self.current_setpoint[2] - current_tcp_pos[2]
         )
 
-        if lag > 0.075:
+        if lag > 0.035:
             self.lag_stall_count += 1
             if self.lag_stall_count > 10:
                 # Arm lagged or got stuck due to kinematic constraint at old setpoint; re-anchor setpoint to current TCP
@@ -120,7 +120,7 @@ class TrajectoryController:
         ease_in = min(1.0, 0.35 + 0.65 * (self.segment_ticks / 5.0))
         ease_out = 1.0 if dist_setpoint >= 0.045 else max(0.42, dist_setpoint / 0.045)
         max_step = 0.011 * ease_in * ease_out
-        if lag <= 0.075:
+        if lag <= 0.035:
             if dist_setpoint <= max_step:
                 self.current_setpoint = [float(target_pos[0]), float(target_pos[1]), float(target_pos[2])]
             else:

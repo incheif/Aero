@@ -1129,7 +1129,7 @@ Output a JSON object ONLY with the following schema:
         src_elev = max(0.0, src_y - (TABLE_TOP_Y + CUBE_HALF)) if src_y is not None else 0.0
         effective_pick_y = PICK_Y + (src_elev if src_elev > 0.015 else 0.0)
         # Calculate safe transit hover altitude above any existing stack layers or clearance planes
-        transit_y = max(SAFE_HOVER_Y, dst_y + 0.080, (src_y + 0.080 if src_y else 0.0), min_transit_y or 0.0)
+        transit_y = min(1.080, max(SAFE_HOVER_Y, dst_y + 0.055, (src_y + 0.055 if src_y else 0.0), min_transit_y or 0.0))
 
         # Place altitude corresponds to PICK_Y plus vertical layer offset above table.
         # For stacked layers (layer_offset > 0), add a 4mm lift buffer so parallel jaw tips
@@ -1172,8 +1172,8 @@ Output a JSON object ONLY with the following schema:
                 "target": (src_x, transit_y, src_z),
                 "gripper": 1.0,
                 "desc": f"Vertical lift of {obj_name} to transit height {transit_y:.3f}m",
-                "dwell_ticks": 12,
-                "candidate_pitches": [-1.25, -1.0, -0.80, -1.45],
+                "dwell_ticks": 14,
+                "candidate_pitches": [-0.60, -0.35, -0.12, -1.0, -1.25],
             },
             # 5. Horizontal transit to destination
             {
@@ -1182,7 +1182,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Transit {obj_name} to [{dst_x:.3f}, {dst_z:.3f}]",
                 "dwell_ticks": 15,
-                "candidate_pitches": [-1.25, -1.0, -0.60, -0.12],
+                "candidate_pitches": [-0.60, -0.35, -0.12, -1.0, -1.25],
             },
             # 6. Gentle descent to destination layer slot
             {

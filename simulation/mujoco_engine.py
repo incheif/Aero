@@ -504,8 +504,8 @@ class MujocoSimulation:
             is_targeted_pick = (
                 self.grasped_block_id is None
                 and grip_val <= GRASP_OPEN_THRESHOLD + 0.05
-                and dx_tcp < 0.026
-                and dz_tcp < 0.026
+                and dx_tcp < 0.045
+                and dz_tcp < 0.045
                 and tcp_pos[1] >= by - 0.005
             )
 

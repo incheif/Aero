@@ -303,8 +303,8 @@ class RobotArmSimulation:
             is_targeted_pick = (
                 self.grasped_block_id is None
                 and grip_val <= GRASP_OPEN_THRESHOLD + 0.05
-                and dx_tcp < 0.026
-                and dz_tcp < 0.026
+                and dx_tcp < 0.045
+                and dz_tcp < 0.045
                 and tcp_pos[1] >= by - 0.005
             )
 
@@ -335,10 +335,19 @@ class RobotArmSimulation:
 
             # Check all robot arm and claw proxies against this block
             for p_name, p_pos, p_rad, prev_p_pos in arm_proxies:
-                # If target pick or grasp pinch, jaws pinch or straddle outside faces of cube
-                if (is_targeted_pick or is_grasp_pinch) and p_name.startswith("jaw"):
-                    if abs(p_pos[0] - bx) >= CUBE_HALF - 0.005 or abs(p_pos[2] - bz) >= CUBE_HALF - 0.005:
-                        continue
+                if (is_targeted_pick or is_grasp_pinch):
+                    if p_name.startswith("jaw"):
+                        if abs(p_pos[0] - bx) >= CUBE_HALF - 0.005 or abs(p_pos[2] - bz) >= CUBE_HALF - 0.005:
+                            continue
+                    elif p_name.startswith("palm") or p_name.startswith("wrist"):
+                        if p_pos[1] >= by + CUBE_HALF - 0.008 or p_pos[0] <= bx - CUBE_HALF + 0.005:
+                            continue
+
+                # When carrying a block, carried block impassability is enforced above (lines 328-334),
+                # and palm/arm links are checked below. Exempt jaw finger proxies from phantom blocking
+                # during close multi-block assembly.
+                if self.grasped_block_id is not None and p_name.startswith("jaw"):
+                    continue
 
                 # Upward ascent away from contact is always allowed
                 if p_pos[1] >= by - 0.005 and p_pos[1] > prev_p_pos[1] + 0.0003:

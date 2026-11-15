@@ -210,6 +210,10 @@ class UserSession:
         )
 
     def handle_reset(self, randomize: bool = False, reset_blocks: bool = True):
+        if self.is_suspended:
+            self.resume()
+        self.last_active = time.time()
+        self.session_start_time = time.time()
         self.color_seek_active = False
         self.color_seek.reset()
         self.controller.stop()
@@ -237,8 +241,11 @@ class UserSession:
             )
 
     async def handle_vla_command(self, cmd: str) -> Dict[str, Any]:
+        if self.is_suspended:
+            self.resume()
         self.manual_mode = False
         self.last_active = time.time()
+        self.session_start_time = time.time()
 
         self.log_event(
             "vla",
@@ -688,8 +695,15 @@ async def simulation_loop():
 
             for sid, sess in list(session_manager.sessions.items()):
                 try:
-                    # 1. Automatically suspend session after 25 minutes of continuous run
-                    if not sess.is_suspended and (now - sess.session_start_time) >= SESSION_MAX_DURATION:
+                    # 1. Automatically suspend session after 25 minutes of inactivity
+                    # Never suspend while arm is actively executing a task/trajectory!
+                    if (
+                        not sess.is_suspended
+                        and not sess.controller.is_active
+                        and not sess.color_seek_active
+                        and not sess.explorer.is_exploring
+                        and (now - sess.last_active) >= SESSION_MAX_DURATION
+                    ):
                         await sess.suspend()
                         continue
 
