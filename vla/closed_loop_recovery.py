@@ -80,7 +80,8 @@ class ClosedLoopRecoveryOrchestrator:
             ready_subgoals = self.planner.get_ready_subgoals()
             if not ready_subgoals:
                 # Check if all subgoals are completed
-                all_done = all(sg.status == "COMPLETED" for sg in self.planner.subgoals.values())
+                has_subgoals = len(self.planner.subgoals) > 0
+                all_done = has_subgoals and all(sg.status == "COMPLETED" for sg in self.planner.subgoals.values())
                 if all_done:
                     return {
                         "success": True,
@@ -92,9 +93,10 @@ class ClosedLoopRecoveryOrchestrator:
                 else:
                     # Stalled or pending unrecoverable subgoals
                     failed_sgs = [sg for sg in self.planner.subgoals.values() if sg.status == "FAILED"]
+                    msg = f"Execution stalled with {len(failed_sgs)} failed subgoals" if has_subgoals else "No subgoals generated (insufficient blocks or invalid request)"
                     return {
                         "success": False,
-                        "message": f"Execution stalled with {len(failed_sgs)} failed subgoals",
+                        "message": msg,
                         "total_ticks": total_ticks,
                         "anomalies_healed": len(self.anomaly_events),
                     }

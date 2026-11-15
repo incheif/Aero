@@ -349,4 +349,3 @@ class RecursiveDAGPlanner:
             if recovery_subgoal.id not in failed_sg.dependencies:
                 failed_sg.dependencies.append(recovery_subgoal.id)
             failed_sg.status = "PENDING"
-            failed_sg.retry_count += 1

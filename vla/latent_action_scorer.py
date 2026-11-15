@@ -119,7 +119,7 @@ def copy_and_update_snapshot(snapshot: Dict[str, Any], subgoal: Subgoal) -> Dict
     target_snap = copy.deepcopy(snapshot)
     if subgoal.skill_type in ("DEPOSIT", "PICK_AND_PLACE", "CLEAR_OBSTACLE"):
         b_id = subgoal.parameters.get("block_id")
-        t_slot = subgoal.parameters.get("target_slot")
+        t_slot = subgoal.parameters.get("target_slot") or subgoal.parameters.get("staging_slot")
         if b_id and t_slot:
             for b in target_snap.get("blocks", []):
                 if b["id"] == b_id:
