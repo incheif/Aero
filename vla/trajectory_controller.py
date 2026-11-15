@@ -32,6 +32,9 @@ class TrajectoryController:
         self.max_trail_points: int = 120
         self.current_setpoint: Optional[List[float]] = None
         self.segment_ticks: int = 0
+        self.start_dist: float = 0.0
+        self.start_pitch: float = 0.0
+        self.lag_stall_count: int = 0
 
     def load_plan(self, plan: List[Dict[str, Any]]):
         self.current_plan = list(plan)
@@ -77,6 +80,13 @@ class TrajectoryController:
         # Initialize Cartesian setpoint to current TCP if starting fresh
         if self.current_setpoint is None:
             self.current_setpoint = [float(current_tcp_pos[0]), float(current_tcp_pos[1]), float(current_tcp_pos[2])]
+            self.start_dist = math.hypot(
+                target_pos[0] - self.current_setpoint[0],
+                target_pos[1] - self.current_setpoint[1],
+                target_pos[2] - self.current_setpoint[2]
+            )
+            self.start_pitch = current_joints.get("shoulderPitch", 0.0) + current_joints.get("elbowPitch", 0.0) + current_joints.get("wristPitch", 0.0)
+            self.lag_stall_count = 0
 
         # Advance Cartesian setpoint linearly toward target_pos only when tracking lag is bounded.
         # If joints lag behind (e.g. accelerating under load), hold setpoint stationary to let arm catch up,
@@ -92,12 +102,25 @@ class TrajectoryController:
             self.current_setpoint[2] - current_tcp_pos[2]
         )
 
+        if lag > 0.075:
+            self.lag_stall_count += 1
+            if self.lag_stall_count > 10:
+                # Arm lagged or got stuck due to kinematic constraint at old setpoint; re-anchor setpoint to current TCP
+                self.current_setpoint = [float(current_tcp_pos[0]), float(current_tcp_pos[1]), float(current_tcp_pos[2])]
+                self.lag_stall_count = 0
+                dx = target_pos[0] - self.current_setpoint[0]
+                dy = target_pos[1] - self.current_setpoint[1]
+                dz = target_pos[2] - self.current_setpoint[2]
+                dist_setpoint = math.hypot(dx, dy, dz)
+        else:
+            self.lag_stall_count = 0
+
         # Smooth S-curve velocity profile: gentle ease-in over first 5 ticks and smooth deceleration on approach
         self.segment_ticks += 1
         ease_in = min(1.0, 0.35 + 0.65 * (self.segment_ticks / 5.0))
         ease_out = 1.0 if dist_setpoint >= 0.045 else max(0.42, dist_setpoint / 0.045)
         max_step = 0.011 * ease_in * ease_out
-        if lag <= 0.050:
+        if lag <= 0.075:
             if dist_setpoint <= max_step:
                 self.current_setpoint = [float(target_pos[0]), float(target_pos[1]), float(target_pos[2])]
             else:
@@ -110,19 +133,25 @@ class TrajectoryController:
         if target_pos[1] >= SAFE_HOVER_Y - 0.01:
             self.current_setpoint[1] = max(self.current_setpoint[1], SAFE_HOVER_Y - 0.005)
 
-        # Candidate pitches for IK: step-specified candidates, or continuity from current pitch
+        # Candidate pitches for IK: step-specified candidates first, fallbacks if unreachable
         step_pitches = current_step.get("candidate_pitches")
         if step_pitches is None and current_step.get("world_pitch") is not None:
             step_pitches = [current_step["world_pitch"]]
         cur_pitch = current_joints.get("shoulderPitch", 0.0) + current_joints.get("elbowPitch", 0.0) + current_joints.get("wristPitch", 0.0)
-        if step_pitches is None:
-            step_pitches = [cur_pitch, -1.25, -1.0, -1.45, -0.60, -0.12]
+
+        candidates: List[float] = []
+        if step_pitches:
+            candidates = sorted(step_pitches, key=lambda p: abs(p - cur_pitch))
         else:
-            # Preserve pitch continuity across ticks to avoid mid-trajectory joint branch flipping
-            step_pitches = sorted(step_pitches, key=lambda p: abs(p - cur_pitch))
+            candidates = [cur_pitch, -1.25, -1.0, -1.45, -0.60, -0.12]
+
+        # Append reachable fallbacks in case step-specified pitches are out of reach along transit
+        for fb in [cur_pitch, -0.60, -0.35, -0.12, -1.0, -1.25]:
+            if not any(abs(fb - c) < 0.02 for c in candidates):
+                candidates.append(fb)
 
         # Compute IK targets for the interpolated setpoint along the 3D line segment
-        joint_targets = inverse_kinematics(tuple(self.current_setpoint), gripper=desired_gripper, candidate_pitches=step_pitches)
+        joint_targets = inverse_kinematics(tuple(self.current_setpoint), gripper=desired_gripper, candidate_pitches=candidates)
 
         # Distance from actual current TCP to final step target
         actual_dx = target_pos[0] - current_tcp_pos[0]

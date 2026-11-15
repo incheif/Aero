@@ -1146,7 +1146,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 0.60,
                 "desc": f"Hover over {obj_name} at [{src_x:.3f}, {src_z:.3f}]",
                 "dwell_ticks": 10,
-                "candidate_pitches": [-1.25, -1.0, -1.45],
+                "candidate_pitches": [-1.25, -1.0, -0.80, -1.45],
             },
             # 2. Descend to pick height (clearing table surface or underlying cube)
             {
@@ -1155,7 +1155,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 0.60,
                 "desc": f"Descend to grip {obj_name}",
                 "dwell_ticks": 12,
-                "candidate_pitches": [-1.25, -1.0, -1.45],
+                "candidate_pitches": [-1.25, -1.0, -0.80, -1.45],
             },
             # 3. Grip closure
             {
@@ -1164,7 +1164,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Close parallel jaws around {obj_name}",
                 "dwell_ticks": 18,
-                "candidate_pitches": [-1.25, -1.0, -1.45],
+                "candidate_pitches": [-1.25, -1.0, -0.80, -1.45],
             },
             # 4. Clean vertical lift to safe transit altitude
             {
@@ -1173,7 +1173,7 @@ Output a JSON object ONLY with the following schema:
                 "gripper": 1.0,
                 "desc": f"Vertical lift of {obj_name} to transit height {transit_y:.3f}m",
                 "dwell_ticks": 12,
-                "candidate_pitches": [-1.25, -1.0, -1.45],
+                "candidate_pitches": [-1.25, -1.0, -0.80, -1.45],
             },
             # 5. Horizontal transit to destination
             {

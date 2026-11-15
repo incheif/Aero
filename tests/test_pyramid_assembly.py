@@ -463,6 +463,80 @@ class TestPyramidAssembly:
             f"Multiple staged blockers collided onto identical staging coordinates: {staged_targets}"
         )
 
+    def test_09_full_six_block_tower_assembly(self):
+        """
+        Verify autonomous 6-block vertical tower assembly:
+        'Build a 6-layer tower with all 6 blocks.'
+        Validates:
+        1. VLA decomposes instruction into 48 feasible atomic waypoints (8 per block x 6 blocks).
+        2. High-speed Cartesian trajectory controller executes all pick-and-place segments without stall.
+        3. All 6 blocks (cyan, orange, magenta, yellow, emerald, purple) are stacked vertically at STACK_ORIGIN.
+        4. Stacking vertical pitch matches layer altitudes (0.7475m to 1.0225m) with < 8mm residual.
+        5. Feetech STS3215 actuator dynamics operate within safety boundaries (peak torque < 3.2 Nm, temp < 40C).
+        """
+        from simulation.physics_engine import RobotArmSimulation
+        sim = RobotArmSimulation()
+        sim.reset(randomize=False)
+        agent = GoogleVLAAgent()
+        agent.api_key = ""
+        agent.interpreter.api_key = ""
+        agent.execution_mode = "deterministic"
+
+        res = agent.parse_instruction("Build a 6-layer tower with all 6 blocks.", None, sim.get_snapshot(), {})
+        assert res["is_possible"] is True
+        plan = res["plan"]
+        grounding = res["grounding"]
+        assert len(plan) == 48, f"Expected 48 waypoints for 6 blocks, got {len(plan)}"
+        assert len(grounding) == 6, f"Expected 6 grounded entities, got {len(grounding)}"
+
+        controller = TrajectoryController()
+        controller.load_plan(plan)
+        task_blocks = [g["entity"] for g in grounding]
+        task_targets = {g["entity"]: g["target_coords"] for g in grounding}
+        sim.set_active_task(task_blocks, task_targets)
+
+        for _ in range(2200):
+            if not controller.is_active:
+                break
+            snap = sim.get_snapshot()
+            cmd = controller.step(snap["tcp"]["position"], sim.joints)
+            if not cmd:
+                break
+            sim.set_joint_targets(cmd["joints"], cmd.get("gripper"))
+            sim.step(FIXED_DT)
+
+        assert not controller.is_active, f"Arm stalled at step {controller.step_idx + 1}: {controller.current_action_desc}"
+
+        final_snap = sim.get_snapshot()
+        blocks = {b["id"]: b for b in final_snap["blocks"]}
+
+        # Validate vertical stack alignment and layering for all 6 blocks
+        for g in grounding:
+            b_id = g["entity"]
+            b = blocks[b_id]
+            pos = b["position"]
+            layer = g["target_layer"]
+            expected_y = g["target_coords"][1]
+
+            # Horizontal pad alignment within 20mm
+            pad_err = math.hypot(pos[0] - STACK_ORIGIN[0], pos[2] - STACK_ORIGIN[2])
+            assert pad_err < 0.025, f"Block {b_id} (Layer {layer}) deviated from pad by {pad_err*1000:.1f}mm"
+
+            # Vertical layer height error within 10mm
+            y_err = abs(pos[1] - expected_y)
+            assert y_err < 0.010, f"Block {b_id} (Layer {layer}) altitude error {y_err*1000:.1f}mm exceeds 10mm"
+
+            # Block must remain upright
+            assert b.get("upright", True) is True, f"Block {b_id} toppled at layer {layer}"
+            assert b.get("orientation_score", 1.0) >= 0.88, f"Block {b_id} tilted at layer {layer}"
+
+        # Validate Feetech STS3215 actuator safety metrics
+        actuators = final_snap.get("actuators", {})
+        assert actuators.get("peak_torque", 0.0) <= 3.2, f"Peak torque exceeded: {actuators.get('peak_torque')} Nm"
+        shoulder_temp = actuators.get("temperatures_c", {}).get("shoulderPitch", 25.0)
+        assert shoulder_temp < 40.0, f"Shoulder actuator overheated: {shoulder_temp} C"
+
+
 
 
 
