@@ -356,6 +356,9 @@ class MujocoSimulation:
             b.position = list(pos)
             b.rotation = list(rot) if rot is not None else [0.0, 0.0, 0.0, 1.0]
             b.velocity = [0.0, 0.0, 0.0]
+            if self.grasped_block_id == block_id:
+                self.grasped_block_id = None
+            b.is_grasped = False
 
         mujoco.mj_forward(self.model, self.data)
 

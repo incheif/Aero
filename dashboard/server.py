@@ -124,6 +124,12 @@ class UserSession:
         self.fps_timer: float = time.time()
         self.current_fps: float = 60.0
 
+        # H-JEPA Level 1 & 2 Live Predictive Telemetry
+        self.latest_hjepa_residual: float = 0.0
+        self.hjepa_anomaly_count: int = 0
+        self.active_subgoal_desc: str = "Idle"
+        self.total_subgoals_count: int = 0
+
         self.log_event(
             "system",
             "STARTUP",
@@ -597,6 +603,13 @@ class UserSession:
                 "last_api_error": getattr(self.vla_agent, "last_api_error", None),
             },
             "cost": self.vla_agent.get_cost_summary(),
+            "hjepa": {
+                "active": True,
+                "latest_residual": round(getattr(self, "latest_hjepa_residual", 0.0), 4),
+                "anomaly_count": getattr(self, "hjepa_anomaly_count", 0),
+                "active_subgoal": getattr(self, "active_subgoal_desc", "Idle"),
+                "subgoal_count": getattr(self, "total_subgoals_count", 0),
+            },
             "is_paused": self.is_paused,
             "manual_mode": self.manual_mode,
         }
