@@ -735,36 +735,9 @@ class SimCanvas3D {
   }
 
   setupPlannedPreview() {
-    // Remaining future waypoint trajectory line (emerald dashed/solid cue)
-    const maxPts = 64;
-    const planGeo = new THREE.BufferGeometry();
-    planGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPts * 3), 3));
-    const planMat = new THREE.LineBasicMaterial({
-      color: 0x10b981,
-      transparent: true,
-      opacity: 0.72,
-    });
-    this.plannedPathLine = new THREE.Line(planGeo, planMat);
-    this.plannedPathLine.geometry.setDrawRange(0, 0);
-    this.scene.add(this.plannedPathLine);
-
-    // Translucent target destination ghost cube
-    const ghostGeo = new THREE.BoxGeometry(0.056, 0.056, 0.056);
-    const ghostMat = new THREE.MeshBasicMaterial({
-      color: 0x10b981,
-      transparent: true,
-      opacity: 0.16,
-      depthWrite: false,
-    });
-    const ghostMesh = new THREE.Mesh(ghostGeo, ghostMat);
-    const ghostEdges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(ghostGeo),
-      new THREE.LineBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.75 })
-    );
-    ghostMesh.add(ghostEdges);
-    ghostMesh.visible = false;
-    this.scene.add(ghostMesh);
-    this.ghostTargetMesh = ghostMesh;
+    // Disabled: green ghost destination cube and planned trajectory lines removed per user request
+    this.plannedPathLine = null;
+    this.ghostTargetMesh = null;
   }
 
   setupSensorCameras() {
@@ -995,32 +968,13 @@ class SimCanvas3D {
       this.tcpTrailLine.geometry.setDrawRange(0, 0);
     }
 
-    // 4b. Update Planned Path Preview & Target Ghost Cube
-    if (this.plannedPathLine && data.planned_path && data.planned_path.length > 1) {
-      const pPts = data.planned_path;
-      const count = Math.min(64, pPts.length);
-      const posArr = this.plannedPathLine.geometry.attributes.position.array;
-      for (let i = 0; i < count; i++) {
-        posArr[i * 3] = pPts[i][0];
-        posArr[i * 3 + 1] = pPts[i][1];
-        posArr[i * 3 + 2] = pPts[i][2];
-      }
-      this.plannedPathLine.geometry.setDrawRange(0, count);
-      this.plannedPathLine.geometry.attributes.position.needsUpdate = true;
-      this.plannedPathLine.visible = true;
-    } else if (this.plannedPathLine) {
+    // 4b. Planned Path Preview & Target Ghost Cube (disabled per user request)
+    if (this.plannedPathLine) {
       this.plannedPathLine.geometry.setDrawRange(0, 0);
       this.plannedPathLine.visible = false;
     }
-
     if (this.ghostTargetMesh) {
-      if (data.planned_target && data.planned_target.length >= 3) {
-        const gt = data.planned_target;
-        this.ghostTargetMesh.position.set(gt[0], Math.max(0.7475, gt[1]), gt[2]);
-        this.ghostTargetMesh.visible = true;
-      } else {
-        this.ghostTargetMesh.visible = false;
-      }
+      this.ghostTargetMesh.visible = false;
     }
 
     // 4c. Update Wrist Status LED Color (amber grasp / green active / red error / cyan idle)
