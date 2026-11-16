@@ -93,6 +93,7 @@ class PrimitiveSkillExecutor:
             block_id = params["block_id"]
             staging_slot = params.get("staging_slot", list(SAFE_STAGING_SLOTS[0]))
             subgoal_copy = copy.deepcopy(subgoal)
+            subgoal_copy.skill_type = "DEPOSIT"
             subgoal_copy.parameters["target_slot"] = staging_slot
             subgoal_copy.parameters["block_id"] = block_id
             return self.subgoal_to_plan_steps(sim, subgoal_copy)

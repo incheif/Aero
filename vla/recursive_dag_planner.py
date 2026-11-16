@@ -15,6 +15,7 @@ Features:
 
 import math
 import copy
+import re
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Tuple, Optional, Any, Set
 import numpy as np
@@ -32,6 +33,7 @@ from simulation.constants import (
     get_train_slots,
     stack_slot_y,
 )
+from vla.spatial_geometry import SpatialGeometryEngine
 
 
 @dataclass
@@ -96,8 +98,44 @@ class RecursiveDAGPlanner:
         structure_type = "custom"
 
         # 1. Structure Geometric Resolution
+        letter_match = re.search(r"\b(?:letter|char|character)\s+([a-zA-Z])\b", inst_lower)
+        if not letter_match:
+            letter_match = re.search(r"\b([a-zA-Z])\s+(?:shape|pattern|letter)\b", inst_lower)
+        if not letter_match:
+            letter_match = re.search(r"\b(?:shape|make|build|form|assemble|create)\s+(?:a\s+|an\s+)?([a-zA-Z])\s*(?:with|using)?\s*(?:the\s+)?(?:blocks|cubes)?\b", inst_lower)
+            if letter_match and letter_match.group(1).lower() in ("a", "i", "to", "in"):
+                letter_match = None
+
         if custom_slots:
             slots = list(custom_slots)
+        elif letter_match:
+            char = letter_match.group(1).upper()
+            structure_type = f"letter_{char}"
+            slots = SpatialGeometryEngine.get_letter_slots(char, num_blocks=len(current_blocks))
+        elif any(w in inst_lower for w in ("triangle", "triangular")):
+            structure_type = "triangle"
+            slots = SpatialGeometryEngine.get_shape_slots("triangle", num_blocks=len(current_blocks))
+        elif any(w in inst_lower for w in ("cross", "plus")):
+            structure_type = "cross"
+            slots = SpatialGeometryEngine.get_shape_slots("cross", num_blocks=len(current_blocks))
+        elif any(w in inst_lower for w in ("circle", "circular", "ring")):
+            structure_type = "circle"
+            slots = SpatialGeometryEngine.get_shape_slots("circle", num_blocks=len(current_blocks))
+        elif any(w in inst_lower for w in ("diamond", "rhombus")):
+            structure_type = "diamond"
+            slots = SpatialGeometryEngine.get_shape_slots("diamond", num_blocks=len(current_blocks))
+        elif any(w in inst_lower for w in ("square", "rectangle", "box pattern")):
+            structure_type = "square"
+            slots = SpatialGeometryEngine.get_shape_slots("square", num_blocks=len(current_blocks))
+        elif any(w in inst_lower for w in ("enclosure", "corral")):
+            structure_type = "enclosure"
+            slots = SpatialGeometryEngine.get_shape_slots("enclosure", num_blocks=len(current_blocks))
+        elif any(w in inst_lower for w in ("sort", "separate", "segregate", "divide", "partition")) and any(w in inst_lower for w in ("warm", "cool", "left", "right", "sides")):
+            structure_type = "spatial_sort"
+            sort_mode = "warm_cool" if any(w in inst_lower for w in ("warm", "cool", "temperature")) else "left_right"
+            slots, pref_blocks = SpatialGeometryEngine.get_sorting_slots(sort_mode, current_blocks)
+            if not preferred_block_ids:
+                preferred_block_ids = pref_blocks
         elif "bridge" in inst_lower or "arch" in inst_lower:
             structure_type = "arch_bridge"
             # 2 base pillars separated by 58mm (3mm air gap) spanned by a top bridging block
@@ -146,6 +184,9 @@ class RecursiveDAGPlanner:
                     break
             ox, oz = STACK_ORIGIN[0], STACK_ORIGIN[2]
             slots = [(ox, stack_slot_y(i), oz) for i in range(count)]
+        elif any(w in inst_lower for w in ("arrange", "pattern", "layout", "formation", "place", "put", "organize")):
+            structure_type = "open_ended_layout"
+            slots = SpatialGeometryEngine.get_shape_slots("line", num_blocks=len(current_blocks))
         else:
             # Default single pick-place target
             structure_type = "single_pick_place"

@@ -63,6 +63,7 @@ from vla.execution_monitor import ExecutionMonitor
 from vla.google_vla_agent import GoogleVLAAgent
 from vla.trajectory_controller import TrajectoryController
 from vla.color_seek_policy import ColorSeekPolicy, find_blobs
+from vla.closed_loop_recovery import ClosedLoopRecoveryOrchestrator
 
 VLA_STRIDE = 12  # 5 Hz policy updates over 60 Hz physics (vsarena standard)
 SESSION_MAX_DURATION = 25 * 60  # 25 minutes (1500 seconds) auto-suspension timeout
@@ -102,6 +103,8 @@ class UserSession:
         self.vla_agent = GoogleVLAAgent()
         self.controller = TrajectoryController()
         self.color_seek = ColorSeekPolicy()
+        self.orchestrator = ClosedLoopRecoveryOrchestrator()
+        self.prev_subgoal_id: Optional[str] = None
 
         self.is_paused: bool = False
         self.manual_mode: bool = False
@@ -223,6 +226,7 @@ class UserSession:
         self.color_seek_active = False
         self.color_seek.reset()
         self.controller.stop()
+        self.orchestrator.stop_task()
         self.active_target_block_id = None
         self.detected_blobs = {}
         self.explorer.is_exploring = False
@@ -414,10 +418,11 @@ class UserSession:
         # If active frontier exploration was requested:
         if result.get("action_type") == "EXPLORE" or (
             any(w in cmd.lower() for w in ("explore", "scan table", "survey", "frontier"))
-            and not any(w in cmd.lower() for w in ("wave", "tower", "stack", "pick"))
+            and not any(w in cmd.lower() for w in ("wave", "tower", "stack", "pick", "letter", "shape", "triangle", "cross", "sort"))
         ):
             self.explorer.start_exploration()
             self.controller.stop()
+            self.orchestrator.stop_task()
             self.color_seek_active = False
             self.vla_agent.execution_status = "EXECUTING"
             self.vla_agent.latest_thought = f"Google VLA: Executing active frontier exploration for '{cmd}'."
@@ -429,8 +434,46 @@ class UserSession:
             )
             return {"status": "ok", "action": "EXPLORATION_STARTED", "thought": self.vla_agent.latest_thought}
 
-        # Load and execute trajectory plan (gestures, stacking, pick-and-place)
+        # Handle communicative gestures through direct kinematic controller
+        if result.get("action_type") in ("GESTURE", "SWEEP_TRAJECTORY"):
+            self.color_seek_active = False
+            self.orchestrator.stop_task()
+            plan = result.get("plan", [])
+            if plan:
+                self.controller.load_plan(plan)
+                self.log_event(
+                    "motion",
+                    "IK TRAJECTORY",
+                    f"Calculated 5-DOF IK trajectory with {len(plan)} waypoints.",
+                    f"Action: {result.get('action_type', 'TASK')} · CoT reasoning: {result.get('reasoning', result.get('thought', 'Metric waypoint sequence dispatched.'))}"
+                )
+            return result
+
+        # For all complex manipulation tasks: Dispatch through H-JEPA Closed-Loop Recovery Orchestrator
         self.color_seek_active = False
+        self.controller.stop()
+        orch_started = self.orchestrator.start_task(self.sim, cmd)
+        if orch_started:
+            self.total_subgoals_count = len(self.orchestrator.planner.subgoals)
+            self.vla_agent.execution_status = "EXECUTING"
+            self.vla_agent.latest_thought = (
+                f"H-JEPA + VLA Recursive DAG: Dispatched {self.total_subgoals_count} subgoals for \"{cmd}\". "
+                f"Real-time 60 Hz predictive monitoring active."
+            )
+            self.log_event(
+                "vla",
+                "H-JEPA DAG",
+                f"Compiled {self.total_subgoals_count} subgoals for \"{cmd}\".",
+                f"Action: {result.get('action_type', 'TASK')} · Level 1 & 2 H-JEPA energy validation engaged."
+            )
+            return {
+                "status": "ok",
+                "action_type": result.get("action_type", "TASK"),
+                "subgoals_count": self.total_subgoals_count,
+                "thought": self.vla_agent.latest_thought,
+            }
+
+        # Fallback to legacy trajectory controller if orchestrator could not compile subgoals
         plan = result.get("plan", [])
         if plan:
             self.controller.load_plan(plan)
@@ -449,8 +492,48 @@ class UserSession:
         fk_data = self.sim.get_snapshot()["tcp"]["position"]
         tcp_pos = (fk_data[0], fk_data[1], fk_data[2])
 
+        # 0. H-JEPA Closed-Loop Recovery Orchestrator step if active
+        if self.orchestrator.is_task_active and not self.manual_mode:
+            orch_res = self.orchestrator.step_task(self.sim)
+            self.latest_hjepa_residual = orch_res.get("residual", 0.0)
+            if orch_res.get("is_anomaly"):
+                self.hjepa_anomaly_count += 1
+                self.log_event(
+                    "vla",
+                    "H-JEPA ANOMALY",
+                    f"Latent energy anomaly spike (residual={self.latest_hjepa_residual:.2f}).",
+                    "Dynamic recovery subgoal spliced into active DAG."
+                )
+
+            self.active_subgoal_desc = orch_res.get("subgoal_desc", "Active")
+            cur_sg_id = orch_res.get("subgoal_id", "")
+            if cur_sg_id and cur_sg_id != getattr(self, "prev_subgoal_id", None):
+                self.prev_subgoal_id = cur_sg_id
+                self.log_event(
+                    "motion",
+                    "SUBGOAL",
+                    f"Executing Subgoal: {self.active_subgoal_desc}",
+                    f"H-JEPA residual: {self.latest_hjepa_residual:.2f} · Target: {cur_sg_id}"
+                )
+
+            if not orch_res.get("is_active"):
+                self.active_target_block_id = None
+                self.active_subgoal_desc = "Idle"
+                if orch_res.get("success"):
+                    self.vla_agent.execution_status = "COMPLETED"
+                    self.vla_agent.latest_thought = "H-JEPA: Task successfully completed and physically verified!"
+                    self.log_event(
+                        "system",
+                        "COMPLETED",
+                        "All subgoals completed and physically verified.",
+                        f"Autonomous execution finished with {self.hjepa_anomaly_count} self-healing interventions."
+                    )
+                else:
+                    self.vla_agent.execution_status = "FAILED"
+                    self.vla_agent.latest_thought = f"H-JEPA: Task halted ({orch_res.get('message', 'Unresolved failure')})."
+
         # 1. Controller step if active plan
-        if self.controller.is_active and not self.manual_mode:
+        elif self.controller.is_active and not self.manual_mode:
             target_cmd = self.controller.step(tcp_pos, self.sim.joints)
             if target_cmd:
                 self.sim.set_joint_targets(target_cmd["joints"], target_cmd["gripper"])

@@ -959,6 +959,119 @@ class InstructionInterpreter:
                 "thought": thought,
             }
 
+        # -------------------------------------------------------------
+        # 10. OPEN-ENDED LETTER FORMATIONS (e.g. 'Letter D', 'make a letter D', 'L shape', 'T shape')
+        # -------------------------------------------------------------
+        letter_match = re.search(r"\b(?:letter|char|character)\s+([a-zA-Z])\b", cmd)
+        if not letter_match:
+            letter_match = re.search(r"\b([a-zA-Z])\s+(?:shape|pattern|letter)\b", cmd)
+        if not letter_match:
+            letter_match = re.search(r"\b(?:shape|make|build|form|assemble|create)\s+(?:a\s+|an\s+)?([a-zA-Z])\s*(?:with|using)?\s*(?:the\s+)?(?:blocks|cubes)?\b", cmd)
+            if letter_match and letter_match.group(1).lower() in ("a", "i", "to", "in"):
+                letter_match = None
+
+        if letter_match:
+            target_char = letter_match.group(1).upper()
+            all_blocks = ["block_magenta", "block_cyan", "block_yellow", "block_emerald", "block_orange", "block_purple"]
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "BUILD_LETTER",
+                "letter": target_char,
+                "target_blocks": all_blocks,
+                "thought": (
+                    f"Interpreted open-ended instruction for letter formation: Letter '{target_char}'. "
+                    f"Synthesizing 3D metric coordinate layout for '{target_char}' on tabletop workspace. "
+                    f"Compiling atomic manipulation DAG: Approach -> Compliant Lift -> High Clearance Transit -> Precision Deposit."
+                ),
+            }
+
+        # -------------------------------------------------------------
+        # 11. OPEN-ENDED GEOMETRIC SHAPES (e.g. 'triangle', 'cross', 'plus', 'square', 'circle', 'diamond', 'enclosure')
+        # -------------------------------------------------------------
+        shape_keywords = [
+            ("triangle", "triangle"),
+            ("triangular", "triangle"),
+            ("cross", "cross"),
+            ("plus sign", "plus"),
+            ("plus", "plus"),
+            ("circle", "circle"),
+            ("circular", "circle"),
+            ("ring", "circle"),
+            ("diamond", "diamond"),
+            ("rhombus", "diamond"),
+            ("square", "square"),
+            ("rectangle", "square"),
+            ("box pattern", "square"),
+            ("enclosure", "enclosure"),
+            ("corral", "enclosure"),
+        ]
+        matched_shape = None
+        for kw, s_name in shape_keywords:
+            if re.search(rf"\b{re.escape(kw)}\b", cmd):
+                matched_shape = s_name
+                break
+
+        if matched_shape and not any(w in cmd for w in ("pyramid", "tower", "distinct tower")):
+            all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple"]
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "BUILD_SHAPE",
+                "shape_name": matched_shape,
+                "target_blocks": all_blocks,
+                "thought": (
+                    f"Interpreted open-ended geometric shape instruction: '{matched_shape.capitalize()}'. "
+                    f"Synthesizing tabletop coordinate slots for '{matched_shape}' within the robot's reachable workspace. "
+                    f"Dispatching to Recursive DAG Planner for collision-free trajectory execution."
+                ),
+            }
+
+        # -------------------------------------------------------------
+        # 12. SPATIAL SORTING & PARTITIONING (e.g. 'warm vs cool', 'sort left and right')
+        # -------------------------------------------------------------
+        is_spatial_sort = (
+            any(w in cmd for w in ("sort", "separate", "segregate", "divide", "group", "partition"))
+            and any(w in cmd for w in ("warm", "cool", "color", "colors", "left", "right", "sides", "opposite"))
+        )
+        if is_spatial_sort:
+            sort_mode = "warm_cool" if any(w in cmd for w in ("warm", "cool", "temperature")) else "left_right"
+            all_blocks = ["block_magenta", "block_orange", "block_yellow", "block_cyan", "block_emerald", "block_purple"]
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "SPATIAL_SORT",
+                "sort_mode": sort_mode,
+                "target_blocks": all_blocks,
+                "thought": (
+                    f"Interpreted spatial sorting instruction ({sort_mode}). "
+                    f"Synthesizing partitioned landing slots across tabletop quadrants. "
+                    f"Sequencing transfer operations to avoid inter-block spatial collisions."
+                ),
+            }
+
+        # -------------------------------------------------------------
+        # 13. GENERAL OPEN-ENDED SPATIAL ARRANGEMENT (Novel Unseen Complex Tasks)
+        # -------------------------------------------------------------
+        is_general_arrangement = (
+            any(w in cmd for w in ("arrange", "pattern", "layout", "formation", "place the blocks", "put the blocks", "organize", "position the cubes", "construct a"))
+            and any(w in cmd for w in ("blocks", "cubes", "boxes", "table", "layout", "pattern"))
+        )
+        if is_general_arrangement:
+            all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple"]
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "OPEN_ENDED_ARRANGEMENT",
+                "instruction": raw_cmd,
+                "target_blocks": all_blocks,
+                "thought": (
+                    f"Interpreted novel spatial arrangement task: '{raw_cmd}'. "
+                    f"Generating optimal non-overlapping 3D coordinates on the tabletop. "
+                    f"Compiling atomic manipulation DAG with H-JEPA energy validation."
+                ),
+            }
+
         # Check if user explicitly requested full 6-block assembly
         is_explicit_full_stack = any(w in cmd for w in (
             "stack all", "build all", "assemble all", "stack everything", "all blocks",
@@ -1021,6 +1134,10 @@ Workcell Constraints:
 - Structural primitives supported:
   - "BUILD_PYRAMID": 3-block stepped, 5-block square, or 6-block stepped pyramid.
   - "BLOCK_TRAIN": aligns all boxes in one line.
+  - "BUILD_LETTER": creates 2D tabletop letter formation (e.g. 'D', 'L', 'T', 'H', 'C', 'U', etc.).
+  - "BUILD_SHAPE": creates 2D geometric patterns (triangle, cross, circle, square, diamond, enclosure).
+  - "SPATIAL_SORT": sorts and partitions blocks (e.g. warm vs cool colors, left vs right).
+  - "OPEN_ENDED_ARRANGEMENT": novel unseen spatial manipulation layout.
 - Gestures supported: "wave_high", "wave_hello", "nod", "celebrate", "point_pad", "shake_head".
 
 User Instruction: "{raw_cmd}"
@@ -1031,6 +1148,9 @@ Determine:
    - If user asks for gestures ("wave high", "nod", "say hi", etc.) -> "is_possible": true, "action_type": "GESTURE", "gesture_name": "wave_high" (or appropriate gesture).
    - If user asks for pyramid -> "is_possible": true, "action_type": "BUILD_PYRAMID".
    - If user asks for block train or line of boxes -> "is_possible": true, "action_type": "BLOCK_TRAIN".
+   - If user asks for letter -> "is_possible": true, "action_type": "BUILD_LETTER", "letter": "D" (or specified letter).
+   - If user asks for geometric shape -> "is_possible": true, "action_type": "BUILD_SHAPE", "shape_name": "triangle" (or shape).
+   - If user asks for spatial sorting -> "is_possible": true, "action_type": "SPATIAL_SORT", "sort_mode": "warm_cool" (or mode).
    - If user asks to build a tower with N layers -> "is_possible": true, "action_type": "STACK_TOWER", "layer_count": N.
 
 Respond with ONLY a JSON object with this format:
@@ -1038,9 +1158,12 @@ Respond with ONLY a JSON object with this format:
   "is_possible": true or false,
   "status": "OK" or "IMPOSSIBLE",
   "reason": "Clear explanation if impossible",
-  "action_type": "STACK_TOWER" or "STACK_DUAL_TOWERS" or "BUILD_PYRAMID" or "BLOCK_TRAIN" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
+  "action_type": "STACK_TOWER" or "BUILD_LETTER" or "BUILD_SHAPE" or "SPATIAL_SORT" or "OPEN_ENDED_ARRANGEMENT" or "STACK_DUAL_TOWERS" or "BUILD_PYRAMID" or "BLOCK_TRAIN" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
   "gesture_name": "wave_high" or null,
   "layer_count": 3 or null,
+  "letter": "D" or null,
+  "shape_name": "triangle" or null,
+  "sort_mode": "warm_cool" or null,
   "target_blocks": ["block_magenta", "block_cyan", "block_yellow"] or [],
   "thought": "Your cognitive reasoning explanation"
 }}
