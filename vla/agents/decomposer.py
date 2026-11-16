@@ -28,6 +28,16 @@ class InstructionDecomposerAgent:
         """
         Decomposes an instruction into executable subgoals and plain-English step summaries.
         """
+        if not instruction or not str(instruction).strip():
+            return {
+                "is_possible": False,
+                "status": "EMPTY_INSTRUCTION",
+                "reason": "Please provide a valid robotic instruction.",
+                "subgoals": [],
+                "easy_steps": [],
+                "proposal_message": "Instruction was empty. Please provide a command.",
+            }
+
         # Step 1: Pre-process with cognitive interpreter
         interp = self.interpreter.interpret(instruction)
         if not interp.get("is_possible", True) or interp.get("status") == "IMPOSSIBLE":

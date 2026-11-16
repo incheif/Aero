@@ -128,3 +128,59 @@ def test_human_dialogue_supervisor_flow(tmp_path):
     # Check that episodic memory captured the interaction
     assert len(supervisor.memory.episodes) == 1
     assert supervisor.memory.episodes[0]["adaptation"]["new_entity"] == "block_purple"
+
+
+def test_multi_agent_defensive_edge_cases(tmp_path):
+    sim = RobotArmSimulation()
+    decomposer = InstructionDecomposerAgent()
+
+    # Empty / whitespace / None decompositions
+    for empty_input in ["", "   ", None]:
+        res = decomposer.decompose(empty_input, sim)
+        assert res["is_possible"] is False
+        assert res["status"] == "EMPTY_INSTRUCTION"
+        assert len(res["subgoals"]) == 0
+
+    # Dialogue supervisor with no active orchestrator
+    mem = EpisodicMemoryAgent(storage_path=str(tmp_path / "edge_memory.json"))
+    supervisor = HumanDialogueSupervisorAgent(memory_agent=mem)
+    res_no_task = supervisor.process_guidance("retry", orchestrator=None, sim=sim)
+    assert res_no_task["action"] == "NO_TASK"
+    assert res_no_task["resumed"] is False
+
+    # Dialogue supervisor with empty or whitespace guidance
+    for empty_guidance in ["", "  \n\t ", None]:
+        res_empty = supervisor.process_guidance(empty_guidance, orchestrator=None, sim=sim)
+        assert res_empty["action"] == "NO_OP"
+        assert res_empty["resumed"] is False
+
+    # Episodic memory with numpy and None types
+    import numpy as np
+    mem.record_episode(
+        task_instruction=None,
+        subgoal_id=None,
+        failure_type=None,
+        entity=None,
+        human_guidance=None,
+        adaptation={"arr": np.array([1.0, 2.0, 3.0]), "val": np.float64(4.5)},
+        outcome="RESOLVED",
+    )
+    assert len(mem.episodes) == 1
+    # Verify it queries safely with None without raising exceptions
+    assert mem.query_experience(task_instruction=None, entity=None) is None
+
+    # Verify querying with matching entity works after storing numpy types
+    mem.record_episode(
+        task_instruction="stack blocks",
+        subgoal_id="sg_1",
+        failure_type="COLLISION",
+        entity="block_green",
+        human_guidance="lift higher",
+        adaptation={"height": np.float32(0.05)},
+        outcome="RESOLVED",
+    )
+    match = mem.query_experience(task_instruction="stack blocks", entity="block_green")
+    assert match is not None
+    assert match["learned_from_guidance"] == "lift higher"
+    assert match["recommended_adaptation"]["height"] == pytest.approx(0.05, 1e-4)
+

@@ -122,8 +122,16 @@ class HumanDialogueSupervisorAgent:
         Interprets human guidance given in the chat while paused, applies adaptations
         to the active orchestrator/DAG, records the experience, and resumes.
         """
-        guidance = text.strip().lower()
+        if not text or not str(text).strip():
+            return {"action": "NO_OP", "resumed": False, "reply": "Please specify what you would like me to do."}
+
+        guidance = str(text).strip().lower()
         self.post_user_message(text)
+
+        if orchestrator is None:
+            reply_text = "No active task to guide."
+            self.post_robot_message(reply_text, status_tag="IDLE")
+            return {"action": "NO_TASK", "resumed": False, "reply": reply_text}
 
         adaptation: Dict[str, Any] = {}
         action_taken = ""

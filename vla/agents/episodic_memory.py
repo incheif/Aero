@@ -15,6 +15,21 @@ import time
 from typing import Dict, List, Any, Optional
 
 
+def _sanitize_for_json(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {str(k): _sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(v) for v in obj]
+    elif hasattr(obj, "tolist") and callable(obj.tolist):
+        return obj.tolist()
+    elif hasattr(obj, "item") and callable(obj.item):
+        try:
+            return obj.item()
+        except Exception:
+            return str(obj)
+    return obj
+
+
 class EpisodicMemoryAgent:
     """
     Learns from mistakes and human interventions by storing and indexing
@@ -65,12 +80,12 @@ class EpisodicMemoryAgent:
         episode = {
             "episode_id": f"ep_{int(time.time() * 1000)}",
             "timestamp": time.time(),
-            "task_instruction": task_instruction,
-            "subgoal_id": subgoal_id,
-            "failure_type": failure_type,
+            "task_instruction": str(task_instruction or ""),
+            "subgoal_id": str(subgoal_id or ""),
+            "failure_type": str(failure_type or ""),
             "entity": entity,
-            "human_guidance": human_guidance,
-            "adaptation": adaptation,
+            "human_guidance": str(human_guidance or ""),
+            "adaptation": _sanitize_for_json(adaptation or {}),
             "outcome": outcome,
         }
         self.episodes.append(episode)
@@ -89,11 +104,11 @@ class EpisodicMemoryAgent:
         Retrieves relevant past experiences to proactively avoid repeating a mistake.
         Matches on entity, failure_type, or semantic keywords in task_instruction.
         """
-        task_lower = task_instruction.lower()
+        task_lower = str(task_instruction or "").lower()
         candidates = []
 
         for ep in reversed(self.episodes):
-            if ep.get("outcome") != "SUCCESS":
+            if ep.get("outcome") not in ("SUCCESS", "RESOLVED", "RESOLVED_BY_USER"):
                 continue
             
             score = 0
