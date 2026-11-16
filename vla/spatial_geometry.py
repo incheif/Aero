@@ -354,3 +354,4 @@ class SpatialGeometryEngine:
                 ordered_blocks.append(b_id)
 
         return slots, ordered_blocks
+

@@ -509,12 +509,19 @@ class UserSession:
             cur_sg_id = orch_res.get("subgoal_id", "")
             if cur_sg_id and cur_sg_id != getattr(self, "prev_subgoal_id", None):
                 self.prev_subgoal_id = cur_sg_id
+                if self.orchestrator.active_subgoal and self.orchestrator.active_subgoal.entity:
+                    ent = self.orchestrator.active_subgoal.entity
+                    self.active_target_block_id = ent if ent.startswith("block_") else f"block_{ent}"
                 self.log_event(
                     "motion",
                     "SUBGOAL",
                     f"Executing Subgoal: {self.active_subgoal_desc}",
                     f"H-JEPA residual: {self.latest_hjepa_residual:.2f} · Target: {cur_sg_id}"
                 )
+
+            prog = self.orchestrator.get_progress()
+            self.vla_agent.execution_status = "EXECUTING"
+            self.vla_agent.latest_thought = f"H-JEPA Subgoal {prog['step']}/{prog['total_steps']}: {self.active_subgoal_desc} (Latent Residual: {self.latest_hjepa_residual:.2f})"
 
             if not orch_res.get("is_active"):
                 self.active_target_block_id = None
@@ -659,9 +666,9 @@ class UserSession:
             "actuators": snapshot.get("actuators", {}),
             "target_zone": snapshot["target_zone"],
             "scores": snapshot.get("scores", {}),
-            "tcp_trail": self.controller.tcp_trail[-60:],
-            "planned_path": self.controller.get_remaining_waypoints(snapshot["tcp"]["position"]),
-            "planned_target": self.controller.get_final_target(),
+            "tcp_trail": (self.orchestrator.executor.controller.tcp_trail if self.orchestrator.is_task_active else self.controller.tcp_trail)[-60:],
+            "planned_path": (self.orchestrator.executor.controller if self.orchestrator.is_task_active else self.controller).get_remaining_waypoints(snapshot["tcp"]["position"]),
+            "planned_target": (self.orchestrator.executor.controller if self.orchestrator.is_task_active else self.controller).get_final_target(),
             "semantic_map": self.mapper.to_dict(),
             "perception": {
                 "tracks": [t.to_dict() for t in self.tracker.tracks.values()],
@@ -679,10 +686,13 @@ class UserSession:
                 "model": "ColorSeek (Visual Servoing)" if self.color_seek_active else self.vla_agent.model_name,
                 "status": self.vla_agent.execution_status,
                 "thought": self.vla_agent.latest_thought,
-                "progress": self.controller.get_progress() if not self.color_seek_active else {"current_step": self.color_seek.target_idx + 1, "total_steps": len(self.color_seek.order), "pct": int((self.color_seek.target_idx / max(1, len(self.color_seek.order))) * 100)},
+                "progress": self.orchestrator.get_progress() if self.orchestrator.is_task_active else (
+                    {"is_active": True, "step": self.color_seek.target_idx + 1, "total_steps": len(self.color_seek.order), "pct": int((self.color_seek.target_idx / max(1, len(self.color_seek.order))) * 100), "action": f"ColorSeek: {self.color_seek.order[min(self.color_seek.target_idx, len(self.color_seek.order)-1)]}"}
+                    if self.color_seek_active else self.controller.get_progress()
+                ),
                 "grounding": self.vla_agent.latest_grounding,
                 "has_api_key": bool(self.vla_agent.api_key),
-                "mode": "colorseek" if self.color_seek_active else getattr(self.vla_agent, "active_mode", "embedded"),
+                "mode": "hjepa_dag" if self.orchestrator.is_task_active else ("colorseek" if self.color_seek_active else getattr(self.vla_agent, "active_mode", "embedded")),
                 "last_api_error": getattr(self.vla_agent, "last_api_error", None),
             },
             "cost": self.vla_agent.get_cost_summary(),

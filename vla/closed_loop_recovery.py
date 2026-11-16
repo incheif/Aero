@@ -63,6 +63,24 @@ class ClosedLoopRecoveryOrchestrator:
         self.active_subgoal = None
         self.executor.controller.stop()
 
+    def get_progress(self) -> Dict[str, Any]:
+        """Returns progress metadata compatible with UI telemetry."""
+        if not self.planner.subgoals:
+            return {"is_active": False, "step": 0, "total_steps": 0, "pct": 0, "action": "Idle"}
+        total = len(self.planner.subgoals)
+        completed = sum(1 for s in self.planner.subgoals.values() if s.status == "COMPLETED")
+        active = self.active_subgoal
+        cur_step = min(total, completed + (1 if active else 0))
+        pct = round((completed / max(1, total)) * 100.0, 1)
+        action_desc = active.description if active else ("Completed" if self.task_success else "Idle")
+        return {
+            "is_active": self.is_task_active,
+            "step": cur_step,
+            "total_steps": total,
+            "pct": pct,
+            "action": action_desc,
+        }
+
     def start_task(self, sim: Any, instruction: str) -> bool:
         """
         Initializes an asynchronous tick-by-tick execution of an instruction.
