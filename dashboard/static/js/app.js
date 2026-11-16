@@ -36,6 +36,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvasEl = document.getElementById('canvas-3d');
   const simCanvas = new window.SimCanvas3D(canvasEl);
 
+  // 1B. Light / Dark Monochromatic UI Theme Manager
+  const btnToggleTheme = document.getElementById('btn-toggle-theme');
+  const btnThemeLabel = document.getElementById('btn-theme-label');
+
+  function applyTheme(theme, save = true) {
+    const isLight = theme === 'light';
+    const themeName = isLight ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', themeName);
+    if (btnThemeLabel) {
+      btnThemeLabel.textContent = isLight ? 'Dark' : 'Light';
+    }
+    if (btnToggleTheme) {
+      btnToggleTheme.setAttribute(
+        'title',
+        isLight ? 'Switch to Dark Noir Monochromatic UI (Alt+T)' : 'Switch to Light Monochromatic UI (Alt+T)'
+      );
+      btnToggleTheme.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+    }
+    if (simCanvas && typeof simCanvas.setTheme === 'function') {
+      simCanvas.setTheme(themeName);
+    }
+    if (save) {
+      try {
+        localStorage.setItem('AERO_THEME', themeName);
+      } catch (e) { }
+    }
+  }
+
+  // Initialize theme from HTML attribute or localStorage
+  const currentInitialTheme =
+    document.documentElement.getAttribute('data-theme') ||
+    localStorage.getItem('AERO_THEME') ||
+    'dark';
+  applyTheme(currentInitialTheme, false);
+
+  btnToggleTheme?.addEventListener('click', () => {
+    const active = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = active === 'light' ? 'dark' : 'light';
+    applyTheme(next, true);
+  });
+
+  // Global Keyboard Shortcut: Alt+T to toggle Light/Dark Monochromatic UI
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && (e.key === 't' || e.key === 'T')) {
+      e.preventDefault();
+      const active = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = active === 'light' ? 'dark' : 'light';
+      applyTheme(next, true);
+    }
+  });
+
   // 2. WebSocket Telemetry Client
   let ws = null;
   let isConnected = false;

@@ -163,16 +163,80 @@ class SimCanvas3D {
     // Trigger initial adjustment once DOM is fully rendered
     setTimeout(() => this.onWindowResize(), 60);
 
+    // Initialize Theme (Monochromatic Noir or Monochromatic Blanc)
+    const activeTheme = (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme')) || 'dark';
+    if (activeTheme === 'light') {
+      this.setTheme('light');
+    }
+
     // Animation Loop
     this.animate();
+  }
+
+  setTheme(themeName) {
+    const isLight = themeName === 'light';
+    this.currentTheme = isLight ? 'light' : 'dark';
+    const bgColor = isLight ? 0xf4f4f6 : 0x09090b;
+
+    if (this.scene) {
+      if (this.scene.background) {
+        this.scene.background.setHex(bgColor);
+      }
+      if (this.scene.fog) {
+        this.scene.fog.color.setHex(bgColor);
+      }
+    }
+
+    if (this.floorMat) {
+      this.floorMat.color.setHex(isLight ? 0xeeeeef : 0x09090b);
+    }
+
+    if (this.tableMat) {
+      this.tableMat.color.setHex(isLight ? 0xe4e4e7 : 0x18181b);
+    }
+
+    if (this.trimMat) {
+      this.trimMat.color.setHex(isLight ? 0xd4d4d8 : 0x27272a);
+    }
+
+    if (this.gridHelper && this.scene) {
+      this.scene.remove(this.gridHelper);
+      if (this.gridHelper.geometry) this.gridHelper.geometry.dispose();
+      if (this.gridHelper.material) this.gridHelper.material.dispose();
+      const primaryColor = isLight ? 0xa1a1aa : 0x3f3f46;
+      const secondaryColor = isLight ? 0xd4d4d8 : 0x18181b;
+      this.gridHelper = new THREE.GridHelper(16, 32, primaryColor, secondaryColor);
+      this.gridHelper.position.y = 0.001;
+      this.gridHelper.matrixAutoUpdate = false;
+      this.gridHelper.updateMatrix();
+      this.scene.add(this.gridHelper);
+    }
+
+    if (this.ambLight) {
+      this.ambLight.intensity = isLight ? 0.65 : 0.4;
+    }
+
+    if (this.hemiLight) {
+      if (isLight) {
+        this.hemiLight.color.setHex(0xffffff);
+        this.hemiLight.groundColor.setHex(0xd4d4d8);
+        this.hemiLight.intensity = 0.85;
+      } else {
+        this.hemiLight.color.setHex(0xd4d4d8);
+        this.hemiLight.groundColor.setHex(0x18181b);
+        this.hemiLight.intensity = 0.7;
+      }
+    }
   }
 
   setupLighting() {
     const hemiLight = new THREE.HemisphereLight(0xd4d4d8, 0x18181b, 0.7);
     this.scene.add(hemiLight);
+    this.hemiLight = hemiLight;
 
     const ambLight = new THREE.AmbientLight(0xffffff, 0.4);
     this.scene.add(ambLight);
+    this.ambLight = ambLight;
 
     // Key Spotlight casting sharp shadows (balanced intensity to preserve vibrant saturation)
     const keySpot = new THREE.SpotLight(0xffffff, 2.2);
@@ -209,6 +273,7 @@ class SimCanvas3D {
     gridHelper.matrixAutoUpdate = false;
     gridHelper.updateMatrix();
     this.scene.add(gridHelper);
+    this.gridHelper = gridHelper;
 
     // Floor Contact Shadow Plane (Pure Noir)
     const floorGeo = new THREE.PlaneGeometry(16, 16);
@@ -223,6 +288,7 @@ class SimCanvas3D {
     floor.matrixAutoUpdate = false;
     floor.updateMatrix();
     this.scene.add(floor);
+    this.floorMat = floorMat;
 
     // 2. Workcell Table (dimensions: 1.4m x 0.08m x 0.9m at Y=0.72m top)
     const tableTopGeo = new THREE.BoxGeometry(1.4, 0.08, 0.9);
@@ -238,6 +304,7 @@ class SimCanvas3D {
     tableTop.matrixAutoUpdate = false;
     tableTop.updateMatrix();
     this.scene.add(tableTop);
+    this.tableMat = tableMat;
 
     // Table Rim Bevel Trim (Zinc Metallic Accent)
     const trimGeo = new THREE.BoxGeometry(1.42, 0.02, 0.92);
@@ -251,6 +318,7 @@ class SimCanvas3D {
     trim.matrixAutoUpdate = false;
     trim.updateMatrix();
     this.scene.add(trim);
+    this.trimMat = trimMat;
 
     // 4 Brushed Steel Table Legs
     const legGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.64, 16);

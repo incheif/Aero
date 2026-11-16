@@ -7,11 +7,23 @@
   <title>AERO | Execution Stream &amp; Audit Terminal</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/style.css?v=5.0">
+  <script>
+    (function () {
+      try {
+        var savedTheme = localStorage.getItem('AERO_THEME') || 'dark';
+        if (savedTheme === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (e) { }
+    })();
+  </script>
+  <link rel="stylesheet" href="/css/style.css?v=5.1">
   <style>
     body {
-      background-color: #09090b;
-      color: #f4f4f5;
+      background-color: var(--bg-primary, #09090b);
+      color: var(--text-main, #f4f4f5);
       margin: 0;
       padding: 0;
       height: 100vh;
@@ -20,6 +32,106 @@
       flex-direction: column;
       overflow: hidden;
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    [data-theme="light"] body {
+      background-color: #f4f4f6;
+      color: #09090b;
+    }
+
+    [data-theme="light"] .logs-standalone-header {
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+    }
+
+    [data-theme="light"] .brand-standalone .brand-icon {
+      background: #ffffff;
+      border-color: rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .brand-standalone .brand-title {
+      color: #09090b;
+    }
+
+    [data-theme="light"] .live-status-pill {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.10);
+      color: #3f3f46;
+    }
+
+    [data-theme="light"] #session-display {
+      color: #09090b !important;
+    }
+
+    [data-theme="light"] .btn-return-studio {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: #09090b;
+    }
+
+    [data-theme="light"] .btn-return-studio:hover {
+      background: #09090b;
+      color: #ffffff;
+      border-color: #09090b;
+    }
+
+    [data-theme="light"] .logs-toolbar {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .log-filter-chip {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.08);
+      color: #52525b;
+    }
+
+    [data-theme="light"] .log-filter-chip.active {
+      background: #09090b;
+      border-color: #09090b;
+      color: #ffffff;
+    }
+
+    [data-theme="light"] .log-filter-chip:hover:not(.active) {
+      background: rgba(0, 0, 0, 0.08);
+      color: #09090b;
+    }
+
+    [data-theme="light"] .logs-search-input {
+      background: #ffffff;
+      border-color: rgba(0, 0, 0, 0.12);
+      color: #09090b;
+    }
+
+    [data-theme="light"] .logs-search-input:focus {
+      border-color: #09090b;
+    }
+
+    [data-theme="light"] .logs-scroll-viewport {
+      background: #ffffff;
+      border-color: rgba(0, 0, 0, 0.09);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="light"] .log-card {
+      background: #f8f8fa;
+      border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .log-summary-text {
+      color: #09090b;
+    }
+
+    [data-theme="light"] .log-step-badge {
+      background: rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 0, 0, 0.10);
+      color: #09090b;
+    }
+
+    [data-theme="light"] .log-details-block {
+      background: #ffffff;
+      border-color: rgba(0, 0, 0, 0.08);
+      color: #18181b;
     }
 
     .logs-standalone-header {
@@ -304,6 +416,28 @@
         <strong id="session-display" style="color: #fff;">--</strong>
       </div>
 
+      <!-- Light / Dark Monochromatic Theme Toggle Button -->
+      <button class="btn-header" id="btn-toggle-theme" title="Toggle Light / Dark Monochromatic UI (Alt+T)"
+        aria-label="Toggle Light / Dark Monochromatic UI" style="padding: 5px 10px; font-size: 0.74rem;">
+        <svg class="theme-icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="theme-icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <span class="btn-theme-label" id="btn-theme-label">Light</span>
+      </button>
+
       <a href="/studio" class="btn-return-studio" title="Return to 3D Simulation Studio">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -560,6 +694,48 @@
       }
 
       connectWS();
+
+      // Theme Manager (Light / Dark Monochromatic UI)
+      const btnToggleTheme = document.getElementById('btn-toggle-theme');
+      const btnThemeLabel = document.getElementById('btn-theme-label');
+
+      function applyTheme(theme, save = true) {
+        const isLight = theme === 'light';
+        const themeName = isLight ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', themeName);
+        if (btnThemeLabel) {
+          btnThemeLabel.textContent = isLight ? 'Dark' : 'Light';
+        }
+        if (btnToggleTheme) {
+          btnToggleTheme.setAttribute(
+            'title',
+            isLight ? 'Switch to Dark Noir Monochromatic UI (Alt+T)' : 'Switch to Light Monochromatic UI (Alt+T)'
+          );
+        }
+        if (save) {
+          try {
+            localStorage.setItem('AERO_THEME', themeName);
+          } catch (e) { }
+        }
+      }
+
+      const initialTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('AERO_THEME') || 'dark';
+      applyTheme(initialTheme, false);
+
+      btnToggleTheme?.addEventListener('click', () => {
+        const active = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = active === 'light' ? 'dark' : 'light';
+        applyTheme(next, true);
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.altKey && (e.key === 't' || e.key === 'T')) {
+          e.preventDefault();
+          const active = document.documentElement.getAttribute('data-theme') || 'dark';
+          const next = active === 'light' ? 'dark' : 'light';
+          applyTheme(next, true);
+        }
+      });
 
       // Poll periodically as fallback
       setInterval(() => {
