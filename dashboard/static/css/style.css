@@ -59,7 +59,8 @@
   --border-glass-bright: rgba(0, 0, 0, 0.22);
   --border-subtle: rgba(0, 0, 0, 0.05);
 
-  --mono-white: #09090b;       /* Inverted for maximum high-contrast ink on paper */
+  --mono-white: #09090b;
+  /* Inverted for maximum high-contrast ink on paper */
   --mono-100: #18181b;
   --mono-200: #27272a;
   --mono-300: #3f3f46;
@@ -83,18 +84,33 @@
 .theme-icon-sun {
   display: block;
 }
+
 .theme-icon-moon {
   display: none;
 }
+
 [data-theme="light"] .theme-icon-sun {
   display: none;
 }
+
 [data-theme="light"] .theme-icon-moon {
   display: block;
 }
 
 /* Smooth Theme Transitions */
-body, header, #main-stage, #viewport-container, #command-bar-container, #telemetry-panel, .card, .thought-box, .btn-header, .prompt-chip, .command-input-wrapper, #workcell-dock, .screen-manager-bar {
+body,
+header,
+#main-stage,
+#viewport-container,
+#command-bar-container,
+#telemetry-panel,
+.card,
+.thought-box,
+.btn-header,
+.prompt-chip,
+.command-input-wrapper,
+#workcell-dock,
+.screen-manager-bar {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 

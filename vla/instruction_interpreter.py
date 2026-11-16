@@ -126,7 +126,7 @@ class InstructionInterpreter:
             return feasibility_rejection
 
         # Step 2: LLM Classification if configured
-        if self.api_key:
+        if self.api_key and getattr(self, "execution_mode", "auto") != "deterministic":
             try:
                 llm_result = self._call_llm_interpreter(raw_cmd)
                 if llm_result:

@@ -64,6 +64,12 @@ from vla.google_vla_agent import GoogleVLAAgent
 from vla.trajectory_controller import TrajectoryController
 from vla.color_seek_policy import ColorSeekPolicy, find_blobs
 from vla.closed_loop_recovery import ClosedLoopRecoveryOrchestrator
+from vla.agents import (
+    EpisodicMemoryAgent,
+    NarrativeLoggerAgent,
+    InstructionDecomposerAgent,
+    HumanDialogueSupervisorAgent,
+)
 
 VLA_STRIDE = 12  # 5 Hz policy updates over 60 Hz physics (vsarena standard)
 SESSION_MAX_DURATION = 25 * 60  # 25 minutes (1500 seconds) auto-suspension timeout
@@ -72,6 +78,18 @@ class CommandRequest(BaseModel):
     command: str
     api_key: Optional[str] = None
     model: Optional[str] = "gemini-2.5-flash"
+    session_id: Optional[str] = None
+
+class PauseRequest(BaseModel):
+    reason: Optional[str] = "Operator requested pause"
+    session_id: Optional[str] = None
+
+class GuidanceRequest(BaseModel):
+    guidance: str
+    session_id: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    message: str
     session_id: Optional[str] = None
 
 class TestKeyRequest(BaseModel):
@@ -105,6 +123,16 @@ class UserSession:
         self.color_seek = ColorSeekPolicy()
         self.orchestrator = ClosedLoopRecoveryOrchestrator()
         self.prev_subgoal_id: Optional[str] = None
+
+        # Multi-Agent Collaborative Framework
+        self.memory_agent = EpisodicMemoryAgent()
+        self.narrator_agent = NarrativeLoggerAgent()
+        self.decomposer_agent = InstructionDecomposerAgent()
+        self.supervisor = HumanDialogueSupervisorAgent(
+            memory_agent=self.memory_agent,
+            narrator_agent=self.narrator_agent,
+            decomposer_agent=self.decomposer_agent,
+        )
 
         self.is_paused: bool = False
         self.manual_mode: bool = False
@@ -294,11 +322,20 @@ class UserSession:
         if not result.get("is_possible", True) or result.get("status") == "IMPOSSIBLE":
             self.controller.stop()
             self.active_target_block_id = None
+            rej_reason = result.get('reason') or result.get('thought') or result.get('reasoning') or 'Action violates spatial reachability or semantic stability constraint.'
             self.log_event(
                 "vla",
                 "REJECT",
                 f"Instruction rejected as infeasible: \"{cmd}\"",
-                f"Reason: {result.get('reason') or result.get('thought') or result.get('reasoning') or 'Action violates spatial reachability or semantic stability constraint.'}"
+                f"Reason: {rej_reason}"
+            )
+            self.supervisor.post_user_message(cmd)
+            self.supervisor.post_robot_message(f"🚫 I cannot do this: {rej_reason}", status_tag="REJECTED")
+            self.narrator_agent.log(
+                category="anomaly",
+                title="Command Infeasible",
+                explanation=rej_reason,
+                severity="error",
             )
             return result
 
@@ -466,11 +503,29 @@ class UserSession:
                 f"Compiled {self.total_subgoals_count} subgoals for \"{cmd}\".",
                 f"Action: {result.get('action_type', 'TASK')} · Level 1 & 2 H-JEPA energy validation engaged."
             )
+
+            # Multi-agent breakdown and conversational proposal
+            decomp = self.decomposer_agent.decompose(cmd, self.sim)
+            self.supervisor.current_instruction = cmd
+            self.supervisor.active_steps = decomp.get("easy_steps", [])
+            self.supervisor.current_step_idx = 0
+            self.supervisor.state = "EXECUTING"
+            self.supervisor.post_user_message(cmd)
+            proposal = decomp.get("proposal_message", f"Planned {self.total_subgoals_count} steps for \"{cmd}\". Starting now.")
+            self.supervisor.post_robot_message(proposal, steps=self.supervisor.active_steps, status_tag="EXECUTING")
+            self.narrator_agent.log(
+                category="planning",
+                title=f"Plan Initialized ({self.total_subgoals_count} Steps)",
+                explanation=f"Starting autonomous execution of \"{cmd}\".",
+                severity="info",
+            )
+
             return {
                 "status": "ok",
                 "action_type": result.get("action_type", "TASK"),
                 "subgoals_count": self.total_subgoals_count,
                 "thought": self.vla_agent.latest_thought,
+                "easy_steps": self.supervisor.active_steps,
             }
 
         # Fallback to legacy trajectory controller if orchestrator could not compile subgoals
@@ -507,21 +562,31 @@ class UserSession:
 
             self.active_subgoal_desc = orch_res.get("subgoal_desc", "Active")
             cur_sg_id = orch_res.get("subgoal_id", "")
+            prog = self.orchestrator.get_progress()
+            self.vla_agent.execution_status = "EXECUTING"
+            self.vla_agent.latest_thought = f"H-JEPA Subgoal {prog['step']}/{prog['total_steps']}: {self.active_subgoal_desc} (Latent Residual: {self.latest_hjepa_residual:.2f})"
+            self.supervisor.current_step_idx = max(0, prog['step'] - 1)
+
             if cur_sg_id and cur_sg_id != getattr(self, "prev_subgoal_id", None):
                 self.prev_subgoal_id = cur_sg_id
-                if self.orchestrator.active_subgoal and self.orchestrator.active_subgoal.entity:
-                    ent = self.orchestrator.active_subgoal.entity
+                ent = self.orchestrator.active_subgoal.entity if self.orchestrator.active_subgoal else None
+                sk_type = self.orchestrator.active_subgoal.skill_type if self.orchestrator.active_subgoal else "STEP"
+                if ent:
                     self.active_target_block_id = ent if ent.startswith("block_") else f"block_{ent}"
+                    self.supervisor.active_entity = ent
                 self.log_event(
                     "motion",
                     "SUBGOAL",
                     f"Executing Subgoal: {self.active_subgoal_desc}",
                     f"H-JEPA residual: {self.latest_hjepa_residual:.2f} · Target: {cur_sg_id}"
                 )
-
-            prog = self.orchestrator.get_progress()
-            self.vla_agent.execution_status = "EXECUTING"
-            self.vla_agent.latest_thought = f"H-JEPA Subgoal {prog['step']}/{prog['total_steps']}: {self.active_subgoal_desc} (Latent Residual: {self.latest_hjepa_residual:.2f})"
+                self.narrator_agent.explain_subgoal_transition(
+                    subgoal_idx=prog['step'],
+                    total_subgoals=prog['total_steps'],
+                    skill_type=sk_type,
+                    entity=ent,
+                    slot_desc=self.active_subgoal_desc,
+                )
 
             if not orch_res.get("is_active"):
                 self.active_target_block_id = None
@@ -529,6 +594,14 @@ class UserSession:
                 if orch_res.get("success"):
                     self.vla_agent.execution_status = "COMPLETED"
                     self.vla_agent.latest_thought = "H-JEPA: Task successfully completed and physically verified!"
+                    self.supervisor.state = "COMPLETED"
+                    self.supervisor.post_robot_message("🎉 All steps successfully executed and physically verified!", status_tag="COMPLETED")
+                    self.narrator_agent.log(
+                        category="success",
+                        title="Task Completed",
+                        explanation="All blocks placed and verified in target formation.",
+                        severity="success",
+                    )
                     self.log_event(
                         "system",
                         "COMPLETED",
@@ -538,6 +611,8 @@ class UserSession:
                 else:
                     self.vla_agent.execution_status = "FAILED"
                     self.vla_agent.latest_thought = f"H-JEPA: Task halted ({orch_res.get('message', 'Unresolved failure')})."
+                    self.supervisor.state = "FAILED"
+                    self.supervisor.post_robot_message(f"Task halted: {orch_res.get('message', 'Unresolved failure')}", status_tag="FAILED")
 
         # 1. Controller step if active plan
         elif self.controller.is_active and not self.manual_mode:
@@ -703,6 +778,8 @@ class UserSession:
                 "active_subgoal": getattr(self, "active_subgoal_desc", "Idle"),
                 "subgoal_count": getattr(self, "total_subgoals_count", 0),
             },
+            "dialogue": self.supervisor.to_dict(),
+            "narrative_logs": self.narrator_agent.flush_pending(),
             "is_paused": self.is_paused,
             "manual_mode": self.manual_mode,
         }
@@ -938,6 +1015,49 @@ async def api_command(req: CommandRequest, request: Request):
 
     res = await sess.handle_vla_command(req.command)
     return res
+
+
+@app.post("/api/vla/pause")
+async def api_pause(req: PauseRequest, request: Request):
+    sid = extract_session_id(request, req.session_id)
+    sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
+    sess.is_paused = True
+    pause_res = sess.supervisor.handle_pause_request(requested_by_user=True, reason=req.reason)
+    return {"status": "ok", "paused": True, "dialogue": pause_res}
+
+
+@app.post("/api/vla/guidance")
+async def api_guidance(req: GuidanceRequest, request: Request):
+    sid = extract_session_id(request, req.session_id)
+    sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
+    guide_res = sess.supervisor.process_guidance(req.guidance, sess.orchestrator, sess.sim)
+    if guide_res.get("resumed"):
+        sess.is_paused = False
+    return {"status": "ok", **guide_res}
+
+
+@app.post("/api/vla/chat")
+async def api_chat(req: ChatRequest, request: Request):
+    sid = extract_session_id(request, req.session_id)
+    sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
+    msg = req.message.strip().lower()
+    if any(w in msg for w in ("pause", "wait", "hold", "stop")) and not sess.is_paused and sess.orchestrator.is_task_active:
+        sess.is_paused = True
+        pause_res = sess.supervisor.handle_pause_request(requested_by_user=True, reason="Operator paused via chat")
+        return {"status": "ok", "action": "PAUSED", "dialogue": pause_res}
+    elif sess.supervisor.state in ("PAUSED_BY_USER", "PAUSED_BY_ANOMALY"):
+        guide_res = sess.supervisor.process_guidance(req.message, sess.orchestrator, sess.sim)
+        if guide_res.get("resumed"):
+            sess.is_paused = False
+        return {"status": "ok", "action": "GUIDANCE_PROCESSED", **guide_res}
+    else:
+        return await sess.handle_vla_command(req.message)
 
 
 @app.post("/api/vla/explore")

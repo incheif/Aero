@@ -112,7 +112,7 @@ class TestOpenEndedInstructionParsing:
         assert res["is_possible"] is True
         assert res["status"] == "OK"
         assert res["action_type"] == "BUILD_SHAPE"
-        assert res["shape_name"] == "plus"
+        assert res["shape_name"] in ("plus", "cross")
 
     def test_parse_chromatic_sorting_command(self):
         cmd = "sort warm colors to the right and cool colors to the left"

@@ -308,8 +308,11 @@
       <div class="command-input-wrapper">
         <span class="cmd-icon">✦</span>
         <input type="text" id="command-input"
-          placeholder="Type instruction (e.g. 'Build a 3-layer tower', 'Build 2 distinct towers')..."
+          placeholder="Type instruction (e.g. 'Build a 3-layer tower', 'make a letter D')..."
           autocomplete="off" />
+        <button class="pause-btn" id="btn-pause-guide" title="Pause arm motion and guide it" style="display: inline-flex; align-items: center; gap: 5px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b; padding: 7px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          <span>⏸️ Pause &amp; Guide</span>
+        </button>
         <button class="send-btn" id="send-command-btn">
           <span>Execute</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -343,6 +346,13 @@
 
       <!-- Sidebar Tab Switcher -->
       <div class="sidebar-tab-switcher">
+        <button class="tab-btn" id="tab-btn-chat">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Chat &amp; Guide</span>
+          <span class="tab-badge" id="chat-badge-dot" style="display:none; background:#10b981; width:7px; height:7px; border-radius:50%; margin-left:3px;"></span>
+        </button>
         <button class="tab-btn active" id="tab-btn-telemetry">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -354,7 +364,7 @@
             <polyline points="4 17 10 11 4 5" />
             <line x1="12" y1="19" x2="20" y2="19" />
           </svg>
-          <span>Execution Logs</span>
+          <span>Execution Story</span>
           <span class="tab-badge" id="logs-badge-count">0</span>
         </button>
       </div>
@@ -552,9 +562,59 @@
           <!-- Bottom Status Footer -->
           <div class="logs-footer-bar">
             <span class="logs-footer-text">
-              <span class="logs-dot-pulse"></span> Real-time execution audit · <strong>WHAT</strong> occurred &
-              <strong>HOW</strong> (kinematics, tolerances)
+              <span class="logs-dot-pulse"></span> Explainable narrative audit · Human-understandable story stream
             </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- View 3: Conversational Human-in-the-Loop & Guidance Panel -->
+      <div id="chat-view" class="sidebar-view">
+        <div class="chat-container" style="display: flex; flex-direction: column; height: 100%; gap: 10px; padding: 12px 14px;">
+          <!-- Chat Header -->
+          <div class="chat-header" style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08));">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="chat-status-dot" id="chat-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+              <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.2px;">AERO Assistant</span>
+              <span class="chat-state-badge" id="chat-state-badge" style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); text-transform: uppercase;">IDLE</span>
+            </div>
+            <div class="chat-memory-indicator" id="chat-memory-indicator" title="Episodic experience buffer (learning from human interventions)" style="font-size: 11px; opacity: 0.75;">
+              <span>📚 <span id="chat-memory-count">0</span> memories</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Step Checklist Card -->
+          <div class="chat-steps-card" id="chat-steps-card" style="display: none; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 8px; padding: 10px 12px;">
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mono-300, #a1a1aa); margin-bottom: 6px; display: flex; justify-content: space-between;">
+              <span>Active Plan Breakdown</span>
+              <span id="chat-plan-progress-badge" style="color: #10b981;">0%</span>
+            </div>
+            <div class="chat-steps-list" id="chat-steps-list" style="display: flex; flex-direction: column; gap: 5px; font-size: 12px; max-height: 120px; overflow-y: auto;"></div>
+          </div>
+
+          <!-- Message History Stream -->
+          <div class="chat-messages-stream" id="chat-messages-stream" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0;">
+            <div class="chat-bubble chat-bubble-robot" style="display: flex; gap: 8px; align-items: flex-start;">
+              <div style="font-size: 16px; line-height: 1.2;">🤖</div>
+              <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 10px; padding: 8px 11px; font-size: 12.5px; line-height: 1.45; max-width: 90%;">
+                <div style="font-size: 11px; font-weight: 600; color: #a1a1aa; margin-bottom: 3px;">AERO Robot Arm</div>
+                <div>Hello! I'm ready to build patterns, towers, and shapes. Type any instruction or click a challenge chip. If I make a mistake or get stuck, click <strong>Pause &amp; Guide</strong> to tell me what to do!</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Action Guidance Chips (Active when paused or anomaly) -->
+          <div class="chat-intervention-chips" id="chat-intervention-chips" style="display: none; flex-wrap: wrap; gap: 6px; padding: 6px 0; border-top: 1px dashed var(--border-subtle, rgba(255,255,255,0.1));"></div>
+
+          <!-- Chat Input Row -->
+          <div class="chat-input-row" style="display: flex; gap: 6px; align-items: center; margin-top: auto;">
+            <input type="text" id="chat-input" placeholder="Talk or guide arm ('use purple', 'retry', 'lift higher')..." style="flex: 1; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle, rgba(255,255,255,0.15)); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: inherit; outline: none;" />
+            <button class="chat-send-btn" id="btn-chat-send" style="background: #ffffff; color: #09090b; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
           </div>
         </div>
       </div>

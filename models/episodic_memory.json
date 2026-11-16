@@ -1,0 +1,191 @@
+[
+  {
+    "episode_id": "ep_1794863381674",
+    "timestamp": 1794863381.6745303,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "subgoal",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": "block_cyan",
+    "human_guidance": "use purple instead of cyan",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794863443930",
+    "timestamp": 1794863443.9302182,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "subgoal",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": "block_cyan",
+    "human_guidance": "use purple instead of cyan",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794863459754",
+    "timestamp": 1794863459.7540307,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": "block_cyan",
+    "human_guidance": "use purple instead of cyan",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794863952657",
+    "timestamp": 1794863952.6576588,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "use purple instead",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794863952667",
+    "timestamp": 1794863952.667502,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "continue",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864038695",
+    "timestamp": 1794864038.6950202,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "use purple instead",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864038705",
+    "timestamp": 1794864038.705764,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "continue",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864149849",
+    "timestamp": 1794864149.8494208,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "use purple instead",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864149859",
+    "timestamp": 1794864149.8594637,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "continue",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864584295",
+    "timestamp": 1794864584.2959802,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "use purple instead",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864584306",
+    "timestamp": 1794864584.3069706,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "continue",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864809073",
+    "timestamp": 1794864809.073374,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "use purple instead",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794864809082",
+    "timestamp": 1794864809.0826592,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "continue",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794865042918",
+    "timestamp": 1794865042.918359,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "use purple instead",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794865042927",
+    "timestamp": 1794865042.9278605,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "continue",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  }
+]

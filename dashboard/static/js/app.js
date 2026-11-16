@@ -525,6 +525,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.logs && Array.isArray(data.logs)) {
       updateLogsFromTelemetry(data.logs);
     }
+
+    // 10. Update Conversational Dialogue & Human-in-the-Loop
+    if (data.dialogue) {
+      updateDialogueUI(data.dialogue);
+    }
+
+    // 11. Process Narrative Story Logs
+    if (data.narrative_logs && Array.isArray(data.narrative_logs) && data.narrative_logs.length > 0) {
+      appendNarrativeLogs(data.narrative_logs);
+    }
   }
 
   function updateCostMetrics(cost) {
@@ -602,25 +612,31 @@ document.addEventListener('DOMContentLoaded', () => {
   let localLogs = [];
   let lastLogsSignature = '';
 
+  const tabBtnChat = document.getElementById('tab-btn-chat');
+  const chatView = document.getElementById('chat-view');
+
   function switchTab(tabName) {
     activeTab = tabName;
-    if (tabName === 'telemetry') {
-      tabBtnTelemetry?.classList.add('active');
-      tabBtnLogs?.classList.remove('active');
-      if (telemetryView) telemetryView.style.display = 'flex';
-      if (logsView) logsView.style.display = 'none';
-    } else {
-      tabBtnLogs?.classList.add('active');
-      tabBtnTelemetry?.classList.remove('active');
-      if (telemetryView) telemetryView.style.display = 'none';
-      if (logsView) logsView.style.display = 'flex';
+    tabBtnTelemetry?.classList.toggle('active', tabName === 'telemetry');
+    tabBtnLogs?.classList.toggle('active', tabName === 'logs');
+    tabBtnChat?.classList.toggle('active', tabName === 'chat');
+
+    if (telemetryView) telemetryView.style.display = tabName === 'telemetry' ? 'flex' : 'none';
+    if (logsView) logsView.style.display = tabName === 'logs' ? 'flex' : 'none';
+    if (chatView) chatView.style.display = tabName === 'chat' ? 'flex' : 'none';
+
+    if (tabName === 'logs') {
       renderLogs();
       if (autoScrollEnabled && logsContainer) {
         logsContainer.scrollTop = logsContainer.scrollHeight;
       }
+    } else if (tabName === 'chat') {
+      const stream = document.getElementById('chat-messages-stream');
+      if (stream) stream.scrollTop = stream.scrollHeight;
     }
   }
 
+  tabBtnChat?.addEventListener('click', () => switchTab('chat'));
   tabBtnTelemetry?.addEventListener('click', () => switchTab('telemetry'));
   tabBtnLogs?.addEventListener('click', () => switchTab('logs'));
 
@@ -786,6 +802,228 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
+
+  // --------------------------------------------------------------------------
+  // Conversational Human-in-the-Loop & Dialogue Supervisor
+  // --------------------------------------------------------------------------
+  let lastRenderedChatMsgId = '';
+  let lastStepsSignature = '';
+
+  function appendNarrativeLogs(narratives) {
+    if (!narratives || narratives.length === 0) return;
+    const existingIds = new Set(localLogs.map(l => l.id));
+    let hasNew = false;
+    for (const n of narratives) {
+      if (!existingIds.has(n.id)) {
+        localLogs.push({
+          id: n.id,
+          timestamp: n.timestamp,
+          category: n.category,
+          badge: `${n.icon || '📖'} ${n.category.toUpperCase()}`,
+          what: n.title,
+          how: n.explanation,
+        });
+        existingIds.add(n.id);
+        hasNew = true;
+      }
+    }
+    if (hasNew && activeTab === 'logs') {
+      renderLogs();
+    }
+  }
+
+  function updateDialogueUI(d) {
+    if (!d) return;
+
+    // 1. State badge & Dot
+    const badge = document.getElementById('chat-state-badge');
+    const dot = document.getElementById('chat-status-dot');
+    const badgeDot = document.getElementById('chat-badge-dot');
+
+    if (badge) {
+      badge.innerText = d.state || 'IDLE';
+      if (d.state === 'PAUSED_BY_USER' || d.state === 'PAUSED_BY_ANOMALY') {
+        badge.style.color = '#f59e0b';
+        badge.style.background = 'rgba(245, 158, 11, 0.15)';
+        badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        if (dot) dot.style.background = '#f59e0b';
+        if (badgeDot) badgeDot.style.display = 'inline-block';
+      } else if (d.state === 'EXECUTING') {
+        badge.style.color = '#10b981';
+        badge.style.background = 'rgba(16, 185, 129, 0.15)';
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        if (dot) dot.style.background = '#10b981';
+        if (badgeDot) badgeDot.style.display = 'none';
+      } else if (d.state === 'FAILED' || d.state === 'REJECTED') {
+        badge.style.color = '#ef4444';
+        badge.style.background = 'rgba(239, 68, 68, 0.15)';
+        badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        if (dot) dot.style.background = '#ef4444';
+        if (badgeDot) badgeDot.style.display = 'none';
+      } else {
+        badge.style.color = '';
+        badge.style.background = '';
+        badge.style.borderColor = '';
+        if (dot) dot.style.background = '#a1a1aa';
+        if (badgeDot) badgeDot.style.display = 'none';
+      }
+    }
+
+    // 2. Memory Summary Count
+    const memEl = document.getElementById('chat-memory-count');
+    if (memEl && d.memory_summary) {
+      memEl.innerText = d.memory_summary.total_episodes || 0;
+    }
+
+    // 3. Step Checklist Card
+    const stepsCard = document.getElementById('chat-steps-card');
+    const stepsList = document.getElementById('chat-steps-list');
+    const progBadge = document.getElementById('chat-plan-progress-badge');
+
+    if (d.active_steps && d.active_steps.length > 0) {
+      if (stepsCard) stepsCard.style.display = 'block';
+      const curIdx = d.current_step_idx || 0;
+      const total = d.total_steps || d.active_steps.length;
+      const pct = Math.min(100, Math.round((curIdx / total) * 100));
+      if (progBadge) progBadge.innerText = `${pct}%`;
+
+      const sig = `${curIdx}_${total}_${d.active_steps.length}`;
+      if (sig !== lastStepsSignature && stepsList) {
+        lastStepsSignature = sig;
+        stepsList.innerHTML = d.active_steps.map((st, i) => {
+          const isDone = i < curIdx;
+          const isCurrent = i === curIdx;
+          const statusIcon = isDone ? '✅' : (isCurrent ? '▶️' : '⚪');
+          const style = isDone ? 'opacity: 0.55; text-decoration: line-through;' : (isCurrent ? 'font-weight: 700; color: #38bdf8;' : 'opacity: 0.85;');
+          return `<div style="${style} display: flex; align-items: center; gap: 6px;">
+            <span>${statusIcon}</span>
+            <span><strong>Step ${st.step_number || (i + 1)}:</strong> ${escapeHtml(st.title || st.description || '')}</span>
+          </div>`;
+        }).join('');
+      }
+    } else {
+      if (stepsCard) stepsCard.style.display = 'none';
+    }
+
+    // 4. Quick Action Guidance Chips
+    const chipsContainer = document.getElementById('chat-intervention-chips');
+    if (chipsContainer) {
+      if (d.suggested_actions && d.suggested_actions.length > 0) {
+        chipsContainer.style.display = 'flex';
+        chipsContainer.innerHTML = d.suggested_actions.map(act => `
+          <button class="chip-guidance-btn" data-guidance="${escapeHtml(act.label || act.id)}" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s;">
+            ${escapeHtml(act.label)}
+          </button>
+        `).join('');
+
+        chipsContainer.querySelectorAll('.chip-guidance-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const guidanceText = btn.getAttribute('data-guidance');
+            sendGuidanceMessage(guidanceText);
+          });
+        });
+      } else {
+        chipsContainer.style.display = 'none';
+      }
+    }
+
+    // 5. Message Stream
+    if (d.chat_history && d.chat_history.length > 0) {
+      const lastMsg = d.chat_history[d.chat_history.length - 1];
+      if (lastMsg && lastMsg.id !== lastRenderedChatMsgId) {
+        lastRenderedChatMsgId = lastMsg.id;
+        renderChatHistory(d.chat_history);
+      }
+    }
+  }
+
+  function renderChatHistory(msgs) {
+    const stream = document.getElementById('chat-messages-stream');
+    if (!stream) return;
+    stream.innerHTML = msgs.map(m => {
+      const isUser = m.sender === 'user';
+      const avatar = isUser ? '👤' : '🤖';
+      const author = isUser ? 'You (Operator)' : 'AERO Robot Arm';
+      const bg = isUser ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.05)';
+      const border = isUser ? 'rgba(56, 189, 248, 0.25)' : 'var(--border-subtle, rgba(255,255,255,0.08))';
+      const align = isUser ? 'flex-direction: row-reverse;' : '';
+      return `
+        <div class="chat-bubble" style="display: flex; gap: 8px; align-items: flex-start; ${align}">
+          <div style="font-size: 16px; line-height: 1.2;">${avatar}</div>
+          <div style="background: ${bg}; border: 1px solid ${border}; border-radius: 10px; padding: 8px 11px; font-size: 12px; line-height: 1.45; max-width: 85%;">
+            <div style="font-size: 10.5px; font-weight: 600; color: #a1a1aa; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 8px;">
+              <span>${author}</span>
+              <span style="opacity: 0.6; font-size: 10px;">${m.timestamp || ''}</span>
+            </div>
+            <div style="white-space: pre-wrap;">${escapeHtml(m.text || '')}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  async function sendGuidanceMessage(text) {
+    if (!text) return;
+    try {
+      const res = await sessionFetch('/api/vla/guidance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guidance: text })
+      });
+      const data = await res.json();
+      console.log('[Guidance Sent]:', data);
+    } catch (err) {
+      console.error('[Guidance Error]:', err);
+    }
+  }
+
+  async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+
+    try {
+      const res = await sessionFetch('/api/vla/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+      console.log('[Chat Sent]:', data);
+    } catch (err) {
+      console.error('[Chat Error]:', err);
+    }
+  }
+
+  // Wire Chat and Pause & Guide Listeners
+  const btnChatSend = document.getElementById('btn-chat-send');
+  const chatInput = document.getElementById('chat-input');
+  btnChatSend?.addEventListener('click', sendChatMessage);
+  chatInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+
+  const btnPauseGuide = document.getElementById('btn-pause-guide');
+  btnPauseGuide?.addEventListener('click', async () => {
+    switchTab('chat');
+    try {
+      const res = await sessionFetch('/api/vla/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Operator clicked Pause & Guide' })
+      });
+      const data = await res.json();
+      console.log('[Pause & Guide]:', data);
+    } catch (err) {
+      console.error('[Pause & Guide Error]:', err);
+    }
+  });
 
   // Initial fetch of logs from REST endpoint on load
   function fetchSessionLogs() {

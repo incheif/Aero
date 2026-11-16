@@ -57,6 +57,24 @@ class Subgoal:
     max_retries: int = 3
     description: str = ""
 
+    @property
+    def entity(self) -> Optional[str]:
+        return self.required_objects[0] if self.required_objects else None
+
+    @entity.setter
+    def entity(self, value: Optional[str]):
+        if value:
+            self.required_objects = [value]
+        else:
+            self.required_objects = []
+
+    @property
+    def target_pose(self) -> Optional[Tuple[float, float, float]]:
+        tgt = self.parameters.get("target_pose") or self.parameters.get("target_position")
+        if tgt:
+            return tuple(tgt)
+        return None
+
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 

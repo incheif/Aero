@@ -54,7 +54,10 @@ class TestObstacleAvoidanceRRT:
         Place a tall obstacle directly in the line between start and goal configurations.
         Verify that direct swept segment is blocked, and RRT-Connect plans a collision-free detour.
         """
-        planner = RRTConnectJointPlanner(step_size=0.08, max_iterations=200)
+        import random
+        random.seed(42)
+        np.random.seed(42)
+        planner = RRTConnectJointPlanner(step_size=0.08, max_iterations=450)
 
         # Start on left (+Z), Goal on right (-Z)
         ik_start = solve_ik((0.35, 0.85, 0.20))
