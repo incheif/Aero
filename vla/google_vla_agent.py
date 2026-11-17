@@ -78,6 +78,17 @@ class GoogleVLAAgent:
         self.active_mode: str = "embedded"  # 'live_cloud' or 'embedded'
         self.last_api_error: Optional[str] = None
         self.cost_tracker = VLACostTracker()
+        self._execution_mode: str = "auto"
+
+    @property
+    def execution_mode(self) -> str:
+        return getattr(self, "_execution_mode", "auto")
+
+    @execution_mode.setter
+    def execution_mode(self, mode: str):
+        self._execution_mode = mode
+        if hasattr(self, "interpreter") and self.interpreter is not None:
+            self.interpreter.execution_mode = mode
 
     def set_api_key(self, api_key: str):
         self.api_key = (api_key or "").strip()
@@ -268,7 +279,7 @@ class GoogleVLAAgent:
             }
 
         # 2. Try live Google Gemini VLA API if configured
-        if self.api_key and GOOGLE_GENAI_AVAILABLE:
+        if self.api_key and GOOGLE_GENAI_AVAILABLE and self.execution_mode != "deterministic":
             try:
                 live_result = self._call_gemini_vla(instruction, image, snapshot, semantic_summary, interpretation, semantic_mapper=semantic_mapper)
                 if live_result:
