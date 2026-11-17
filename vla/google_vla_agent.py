@@ -11,7 +11,6 @@ import re
 import math
 from typing import Dict, List, Any, Optional, Tuple
 from PIL import Image
-import numpy as np
 
 from simulation.constants import (
     ARM_MOUNT,
@@ -79,17 +78,6 @@ class GoogleVLAAgent:
         self.active_mode: str = "embedded"  # 'live_cloud' or 'embedded'
         self.last_api_error: Optional[str] = None
         self.cost_tracker = VLACostTracker()
-        self._execution_mode: str = "auto"
-
-    @property
-    def execution_mode(self) -> str:
-        return self._execution_mode
-
-    @execution_mode.setter
-    def execution_mode(self, val: str):
-        self._execution_mode = val
-        if hasattr(self, "interpreter") and self.interpreter:
-            self.interpreter.execution_mode = val
 
     def set_api_key(self, api_key: str):
         self.api_key = (api_key or "").strip()
@@ -217,16 +205,12 @@ class GoogleVLAAgent:
         """
         if image is None:
             image = Image.new("RGB", (128, 128), (30, 30, 30))
-        elif isinstance(image, np.ndarray):
-            image = Image.fromarray(image.astype(np.uint8))
         if snapshot is None:
             snapshot = {}
         self.execution_status = "REASONING"
         self.latest_thought = f"Google VLA analyzing visual frame for instruction: '{instruction}'..."
 
         # 1. Cognitive Pre-Processing & Feasibility Validation (LLM or deterministic rule engine)
-        if getattr(self, "execution_mode", "auto") == "deterministic":
-            self.interpreter.execution_mode = "deterministic"
         interpretation = self.interpreter.interpret(instruction)
 
         # Handle physically impossible or out-of-scope instructions
@@ -284,7 +268,7 @@ class GoogleVLAAgent:
             }
 
         # 2. Try live Google Gemini VLA API if configured
-        if self.api_key and GOOGLE_GENAI_AVAILABLE and getattr(self, "execution_mode", "auto") != "deterministic":
+        if self.api_key and GOOGLE_GENAI_AVAILABLE:
             try:
                 live_result = self._call_gemini_vla(instruction, image, snapshot, semantic_summary, interpretation, semantic_mapper=semantic_mapper)
                 if live_result:
@@ -436,7 +420,7 @@ Output a JSON object ONLY with the following schema:
                 self.latest_grounding = embedded_res.get("grounding", [])
             else:
                 is_stack_cmd = any(w in instruction.lower() for w in ("stack", "tower", "layer", "tier", "pad", "build", "twer", "towr"))
-                target_layers = (interpretation.get("layer_count") if interpretation and interpretation.get("layer_count") else None) or (len(grounded_seq) or 6)
+                target_layers = interpretation.get("layer_count", len(grounded_seq) or 6) if interpretation else 6
 
                 # If interpretation provided target blocks (handles color mapping like red->magenta, blue->cyan), prioritize them
                 if interpretation and interpretation.get("target_blocks"):
@@ -875,9 +859,53 @@ Output a JSON object ONLY with the following schema:
                 {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.00), "gripper": 0.0, "dwell_ticks": 10, "desc": "Return to Standby Pose"},
             ]
 
+        # 6B. Multi-Layer Structure Assembly (e.g. 2 layers of 2 blocks each)
+        elif action_type == "MULTI_LAYER_STRUCTURE":
+            from vla.spatial_geometry import SpatialGeometryEngine
+            layer_counts = interpretation.get("layer_counts", [2, 2])
+            slots = SpatialGeometryEngine.get_layered_structure_slots(layer_counts)
+            interp_targets = interpretation.get("target_blocks", [])
+            blocks_to_use = [b for b in interp_targets if b in blocks][:len(slots)]
+            for b_id in all_block_ids:
+                if len(blocks_to_use) >= len(slots):
+                    break
+                if b_id not in blocks_to_use:
+                    blocks_to_use.append(b_id)
+            blocks_to_use = blocks_to_use[:len(slots)]
+
+            step_strs = []
+            slot_idx = 0
+            for l_idx, count in enumerate(layer_counts):
+                for c_idx in range(count):
+                    if slot_idx >= len(blocks_to_use):
+                        break
+                    b_id = blocks_to_use[slot_idx]
+                    slot_pos = slots[slot_idx]
+                    self._append_pick_and_place_with_clearance(
+                        plan,
+                        grounding,
+                        sim_blocks,
+                        b_id,
+                        slot_pos,
+                        f"Tier {l_idx} Block {c_idx+1}",
+                        placed_ids,
+                        [s for s in slots[:slot_idx]],
+                        cleared_log,
+                        grounding_extra={"target_layer": l_idx, "target_coords": list(slot_pos)},
+                    )
+                    b_name = sim_blocks[b_id]["name"] if b_id in sim_blocks else b_id
+                    step_strs.append(f"Tier {l_idx}: {b_name} at [{slot_pos[0]:.2f}, {slot_pos[2]:.2f}]")
+                    slot_idx += 1
+
+            thought = (
+                f"Google VLA Multi-Tier Assembly: Constructing a {len(layer_counts)}-layer structure ({len(blocks_to_use)} blocks total: {layer_counts} per tier). "
+                f"Sequence: {' | '.join(step_strs)}. "
+                "Base tier anchored to tabletop plane before placing upper tiers to guarantee physical equilibrium."
+            )
+
         # 7. Single Tower Stacking & Specific Pick-and-Place (Strict Layer Count and Color Mapping)
         else:
-            target_layers = (interpretation.get("layer_count") if interpretation and interpretation.get("layer_count") else None) or 6
+            target_layers = interpretation.get("layer_count") or 6
             interp_targets = interpretation.get("target_blocks", [])
             blocks_to_use = [b for b in interp_targets if b in blocks][:target_layers]
 

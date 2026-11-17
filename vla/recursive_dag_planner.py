@@ -33,7 +33,7 @@ from simulation.constants import (
     get_train_slots,
     stack_slot_y,
 )
-from vla.spatial_geometry import SpatialGeometryEngine
+from vla.spatial_geometry import SpatialGeometryEngine, parse_multi_layer_spec
 
 
 @dataclass
@@ -124,8 +124,13 @@ class RecursiveDAGPlanner:
             if letter_match and letter_match.group(1).lower() in ("a", "i", "to", "in"):
                 letter_match = None
 
+        multi_layers = parse_multi_layer_spec(inst_lower)
+
         if custom_slots:
             slots = list(custom_slots)
+        elif multi_layers:
+            structure_type = "multi_layer_structure"
+            slots = SpatialGeometryEngine.get_layered_structure_slots(multi_layers)
         elif letter_match:
             char = letter_match.group(1).upper()
             structure_type = f"letter_{char}"
@@ -211,7 +216,12 @@ class RecursiveDAGPlanner:
             slots = [(STACK_ORIGIN[0], TABLE_TOP_Y + CUBE_HALF, STACK_ORIGIN[2])]
 
         # 2. Block Assignment (color-aware and reachability checked)
-        avail_blocks = [b["id"] for b in current_blocks if not b.get("is_grasped")]
+        avail_blocks = []
+        for b in current_blocks:
+            is_grasped = b.is_grasped if hasattr(b, "is_grasped") else b.get("is_grasped", False)
+            b_id = b.id if hasattr(b, "id") else b.get("id")
+            if not is_grasped and b_id:
+                avail_blocks.append(b_id)
         assigned_blocks: List[str] = []
 
         if preferred_block_ids:
@@ -277,8 +287,11 @@ class RecursiveDAGPlanner:
 
             # Check if target slot is currently blocked by another ungrasped block
             for b in current_blocks:
-                if b["id"] != block_id and not b.get("is_grasped"):
-                    bx, by, bz = b["position"]
+                b_is_grasped = b.is_grasped if hasattr(b, "is_grasped") else b.get("is_grasped", False)
+                curr_b_id = b.id if hasattr(b, "id") else b.get("id")
+                b_pos = b.position if hasattr(b, "position") else b.get("position", (0, 0, 0))
+                if curr_b_id != block_id and not b_is_grasped:
+                    bx, by, bz = b_pos
                     if (
                         abs(bx - target_slot[0]) < (CUBE_SIZE * 0.75)
                         and abs(by - target_slot[1]) < (CUBE_SIZE * 0.75)

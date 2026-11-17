@@ -212,5 +212,41 @@
     "human_guidance": "continue",
     "adaptation": {},
     "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794865473062",
+    "timestamp": 1794865473.06294,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "use purple instead",
+    "adaptation": {
+      "old_entity": "block_orange",
+      "new_entity": "block_purple"
+    },
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794865473083",
+    "timestamp": 1794865473.0832427,
+    "task_instruction": "make a letter D with blocks",
+    "subgoal_id": "clear_obstacle_block_orange",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "continue",
+    "adaptation": {},
+    "outcome": "SUCCESS"
+  },
+  {
+    "episode_id": "ep_1794939030820",
+    "timestamp": 1794939030.820421,
+    "task_instruction": "",
+    "subgoal_id": "subgoal",
+    "failure_type": "PAUSED_BY_USER",
+    "entity": null,
+    "human_guidance": "resume",
+    "adaptation": {},
+    "outcome": "SUCCESS"
   }
 ]

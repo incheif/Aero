@@ -8,6 +8,7 @@ using pretrained basic manipulation skills without hardcoded category restrictio
 """
 
 import math
+import re
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 
@@ -279,6 +280,28 @@ class SpatialGeometryEngine:
         return [clamp_to_reach(s[0], s[1], s[2]) for s in slots[:num_blocks]]
 
     @classmethod
+    def get_layered_structure_slots(
+        cls,
+        layer_counts: List[int],
+        origin: Tuple[float, float, float] = (DEFAULT_CENTER_X, BASE_SURFACE_Y, DEFAULT_CENTER_Z),
+        scale: float = SLOT_SPACING,
+    ) -> List[Tuple[float, float, float]]:
+        """
+        Synthesizes 3D slot coordinates for a multi-layered structure with specified blocks per tier.
+        Bottom tier (layer 0) is placed on tabletop, subsequent tiers are stacked directly above.
+        """
+        ox, oy, oz = origin
+        slots: List[Tuple[float, float, float]] = []
+        for l_idx, count in enumerate(layer_counts):
+            y = oy + l_idx * CUBE_SIZE
+            half = (count - 1) / 2.0
+            for i in range(count):
+                z_offset = (i - half) * scale
+                slot = (ox, y, oz + z_offset)
+                slots.append(clamp_to_reach(slot[0], slot[1], slot[2]))
+        return slots
+
+    @classmethod
     def get_sorting_slots(
         cls,
         sort_mode: str,
@@ -354,4 +377,58 @@ class SpatialGeometryEngine:
                 ordered_blocks.append(b_id)
 
         return slots, ordered_blocks
+
+
+def parse_multi_layer_spec(instruction: str) -> Optional[List[int]]:
+    """
+    Parses multi-layer structure commands like:
+    - 'make a structure using 4 blocks, 1st layer with 2 blocks and 2nd layer with 2 blocks'
+    - 'build a structure with layer 1 having 2 blocks and layer 2 having 2 blocks'
+    - 'first layer with 2 blocks and second layer with 2 blocks'
+    - 'build 2 layers of 2 blocks each'
+    - 'make a 2x2 wall of blocks'
+    - 'structure with bottom layer of 2 blocks and top layer of 2 blocks'
+    Returns a list of block counts per layer, e.g. [2, 2] (base to top).
+    """
+    cmd = (instruction or "").lower().strip()
+    if not cmd:
+        return None
+
+    # Pattern 1: Explicit per-layer declarations
+    layer_pat = r'(?:(?:(\d+(?:st|nd|rd|th)?|first|second|third|fourth|bottom|top|base|ground|upper|lower)\s+layer|layer\s*(\d+|one|two|three|four))[a-z\s]*?(\d+|one|two|three|four)\s+(?:blocks?|cubes?))'
+    matches = re.findall(layer_pat, cmd)
+    if len(matches) >= 2:
+        num_map = {
+            '1': 1, '1st': 1, 'first': 1, 'bottom': 1, 'base': 1, 'ground': 1, 'lower': 1,
+            '2': 2, '2nd': 2, 'second': 2, 'top': 2, 'upper': 2,
+            '3': 3, '3rd': 3, 'third': 3,
+            '4': 4, '4th': 4, 'fourth': 4,
+            'one': 1, 'two': 2, 'three': 3, 'four': 4
+        }
+        layers = []
+        for g1, g2, cnt_term in matches:
+            l_term = g1 or g2
+            l_num = num_map.get(l_term, len(layers) + 1)
+            cnt = int(cnt_term) if cnt_term.isdigit() else num_map.get(cnt_term, 2)
+            layers.append((l_num, cnt))
+        layers.sort(key=lambda x: x[0])
+        return [cnt for _, cnt in layers]
+
+    # Pattern 2: '2 layers of 2 blocks' / '2 layers with 2 blocks each'
+    m2 = re.search(r'(\d+|one|two|three)\s+layers?\s+(?:of|with)\s+(\d+|one|two|three)\s+(?:blocks?|cubes?)(?:\s+each)?', cmd)
+    if m2:
+        num_map = {'one': 1, 'two': 2, 'three': 3, '1': 1, '2': 2, '3': 3}
+        nl = num_map.get(m2.group(1), 2)
+        nc = num_map.get(m2.group(2), 2)
+        return [nc] * nl
+
+    # Pattern 3: '2x2 wall' / '2 by 2 structure' / '2x2 block structure'
+    m3 = re.search(r'(\d+)\s*(?:x|by)\s*(\d+)\s*(?:wall|structure|grid|formation|block)', cmd)
+    if m3:
+        w = int(m3.group(1))
+        h = int(m3.group(2))
+        return [w] * h
+
+    return None
+
 

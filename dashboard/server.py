@@ -270,6 +270,8 @@ class UserSession:
         self.mapper.update_from_perception(tracks, robot_obs)
         self.vla_agent.execution_status = "RESTING"
         self.vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
+        self.supervisor.reset()
+        self.narrator_agent.flush_pending()
         if reset_blocks:
             self.log_event(
                 "system",
@@ -1058,6 +1060,20 @@ async def api_chat(req: ChatRequest, request: Request):
         return {"status": "ok", "action": "GUIDANCE_PROCESSED", **guide_res}
     else:
         return await sess.handle_vla_command(req.message)
+
+
+@app.post("/api/vla/chat/reset")
+async def api_chat_reset(request: Request):
+    sid = extract_session_id(request)
+    sess = session_manager.get_or_create(sid)
+    if sess.is_suspended:
+        sess.resume()
+    sess.supervisor.reset()
+    return {
+        "status": "ok",
+        "message": "Chat section and dialogue state reset.",
+        "dialogue": sess.supervisor.chat_history,
+    }
 
 
 @app.post("/api/vla/explore")

@@ -205,6 +205,34 @@ class TestRecursiveDAGExecutionNovelTasks:
         orch.stop_task()
         assert orch.is_task_active is False
 
+    def test_dag_decomposes_multi_layer_structure(self):
+        """Verifies decomposition of 'make a structure using 4 blocks, 1st layer with 2 blocks and 2nd layer with 2 blocks'."""
+        sim = RobotArmSimulation()
+        planner = RecursiveDAGPlanner()
+        cmd = "make a structure using 4 blocks, 1st layer with 2 blocks and 2nd layer with 2 blocks"
+        blocks = sim.get_snapshot()["blocks"]
+        subgoals = planner.decompose(cmd, blocks)
+
+        assert len(subgoals) == 4
+        base_sgs = [sg for sg in subgoals if sg.level == 1]
+        top_sgs = [sg for sg in subgoals if sg.level == 2]
+        assert len(base_sgs) == 2
+        assert len(top_sgs) == 2
+
+        # Upper layer subgoals must depend on base layer
+        base_ids = {sg.id for sg in base_sgs}
+        for top_sg in top_sgs:
+            assert any(dep in base_ids for dep in top_sg.dependencies)
+
+    def test_multi_layer_spec_parser(self):
+        """Tests natural-language parsing of per-tier block structure commands."""
+        from vla.spatial_geometry import parse_multi_layer_spec
+        cmd = "make a structure using 4 blocks, 1st layer with 2 blocks and 2nd layer with 2 blocks"
+        assert parse_multi_layer_spec(cmd) == [2, 2]
+        assert parse_multi_layer_spec("build a 2x2 wall of blocks") == [2, 2]
+        assert parse_multi_layer_spec("build 2 layers of 2 blocks each") == [2, 2]
+        assert parse_multi_layer_spec("layer 1 with 2 blocks and layer 2 with 2 blocks") == [2, 2]
+
 
 def math_dist(p1, p2):
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2)

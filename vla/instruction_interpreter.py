@@ -34,6 +34,8 @@ for b_id, info in AVAILABLE_BLOCKS.items():
     for alias in info["aliases"]:
         COLOR_ALIAS_MAP[alias] = b_id
 
+from vla.spatial_geometry import parse_multi_layer_spec
+
 # Word-to-number dictionary for parsing natural language numbers
 WORD_TO_NUM = {
     "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
@@ -857,6 +859,66 @@ class InstructionInterpreter:
             }
 
         # -------------------------------------------------------------
+        # 8E. MULTI-LAYER STRUCTURE (Per-Layer Block Counts, e.g. 2 on bottom, 2 on top)
+        # -------------------------------------------------------------
+        multi_layers = parse_multi_layer_spec(cmd)
+        if multi_layers:
+            total_blocks_needed = sum(multi_layers)
+            if total_blocks_needed > MAX_PHYSICAL_BLOCKS:
+                return {
+                    "is_possible": False,
+                    "status": "IMPOSSIBLE",
+                    "reason": f"Requested {total_blocks_needed} blocks across {len(multi_layers)} tiers, but workcell only has {MAX_PHYSICAL_BLOCKS} blocks.",
+                }
+
+            known_colors = [
+                ("red", "block_magenta", "Red Cube"),
+                ("blue", "block_cyan", "Blue Cube"),
+                ("yellow", "block_yellow", "Yellow Cube"),
+                ("green", "block_emerald", "Green Cube"),
+                ("orange", "block_orange", "Orange Cube"),
+                ("purple", "block_purple", "Purple Cube"),
+                ("cyan", "block_cyan", "Blue Cube"),
+                ("magenta", "block_magenta", "Red Cube"),
+                ("emerald", "block_emerald", "Green Cube"),
+            ]
+            found_colors = []
+            for alias, b_id, label in known_colors:
+                for match in re.finditer(rf"\b{re.escape(alias)}\b", cmd):
+                    found_colors.append((match.start(), b_id, label))
+            found_colors.sort(key=lambda x: x[0])
+
+            mentioned_b_ids = []
+            for _, b_id, _ in found_colors:
+                if b_id not in mentioned_b_ids:
+                    mentioned_b_ids.append(b_id)
+
+            all_blocks = ["block_cyan", "block_yellow", "block_magenta", "block_emerald", "block_orange", "block_purple"]
+            pool = list(mentioned_b_ids)
+            for b in all_blocks:
+                if b not in pool:
+                    pool.append(b)
+
+            target_blocks = pool[:total_blocks_needed]
+            block_names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in target_blocks]
+
+            thought = (
+                f"Interpreted request for a {len(multi_layers)}-layer structure ({total_blocks_needed} blocks total: {multi_layers} per tier). "
+                f"Assigned cubes: [{', '.join(block_names)}]. "
+                "Establishing base foundation before stacking upper tiers to preserve multi-contact equilibrium."
+            )
+
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "MULTI_LAYER_STRUCTURE",
+                "layer_counts": multi_layers,
+                "total_blocks": total_blocks_needed,
+                "target_blocks": target_blocks,
+                "thought": thought,
+            }
+
+        # -------------------------------------------------------------
         # 9. TOWER STACKING (Normalized Layer Count & Color Mapping)
         # -------------------------------------------------------------
         # Typo tolerance: "twer", "towr", "stack", "build", "layer"
@@ -891,7 +953,7 @@ class InstructionInterpreter:
             # Extract color sequence mentioned by user
             color_mentions = []
             notes = []
-            
+
             known_colors = [
                 ("red", "block_magenta", "Red Cube"),
                 ("crimson", "block_magenta", "Red Cube"),
@@ -922,7 +984,7 @@ class InstructionInterpreter:
 
             # Sort by order of appearance in instruction
             found_items.sort(key=lambda x: x[0])
-            
+
             target_blocks = []
             for _, b_id, alias, label in found_items:
                 if b_id not in target_blocks:

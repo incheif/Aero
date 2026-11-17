@@ -38,6 +38,21 @@ class HumanDialogueSupervisorAgent:
         self.active_entity: Optional[str] = None
         self.suggested_actions: List[Dict[str, str]] = []
 
+    def reset(self) -> None:
+        """Resets the dialogue supervisor state and clears chat history."""
+        self.chat_history.clear()
+        self.state = "IDLE"
+        self.pause_reason = None
+        self.current_instruction = ""
+        self.active_steps.clear()
+        self.current_step_idx = 0
+        self.active_entity = None
+        self.suggested_actions.clear()
+        self.post_robot_message(
+            "Chat session reset. I am standing by for your next instruction.",
+            status_tag="IDLE"
+        )
+
     def post_user_message(self, text: str) -> Dict[str, Any]:
         """Records an incoming user chat message."""
         msg = {

@@ -110,17 +110,17 @@ class EpisodicMemoryAgent:
         for ep in reversed(self.episodes):
             if ep.get("outcome") not in ("SUCCESS", "RESOLVED", "RESOLVED_BY_USER"):
                 continue
-            
+
             score = 0
             if entity and ep.get("entity") == entity:
                 score += 3
             if failure_type and ep.get("failure_type") == failure_type:
                 score += 2
-            
+
             ep_task = ep.get("task_instruction", "").lower()
             if ep_task and any(word in task_lower for word in ep_task.split() if len(word) > 3):
                 score += 1
-            
+
             if score >= 3:
                 candidates.append((score, ep))
 
