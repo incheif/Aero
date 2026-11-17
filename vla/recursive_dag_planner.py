@@ -96,6 +96,36 @@ class RecursiveDAGPlanner:
         self.root_instruction = ""
         self.step_counter = 0
 
+    @staticmethod
+    def get_blocks_above(block_id: str, current_blocks: List[Any]) -> List[str]:
+        """
+        Finds all blocks resting on top of or occluding the top-down pick access of block_id.
+        Returns a list of occluding block IDs sorted in descending order of Y altitude (topmost first).
+        """
+        block_dict = {}
+        for b in current_blocks:
+            bid = b.id if hasattr(b, "id") else b.get("id")
+            pos = b.position if hasattr(b, "position") else b.get("position", (0, 0, 0))
+            grasped = b.is_grasped if hasattr(b, "is_grasped") else b.get("is_grasped", False)
+            if bid and not grasped:
+                block_dict[bid] = (pos[0], pos[1], pos[2])
+
+        if block_id not in block_dict:
+            return []
+
+        target_x, target_y, target_z = block_dict[block_id]
+        above_ids = []
+        for other_id, (ox, oy, oz) in block_dict.items():
+            if other_id == block_id:
+                continue
+            dist_xz = math.hypot(ox - target_x, oz - target_z)
+            if dist_xz < 0.045 and oy > (target_y + 0.025):
+                above_ids.append((oy, other_id))
+
+        # Sort descending by altitude (highest block first)
+        above_ids.sort(key=lambda item: -item[0])
+        return [bid for _, bid in above_ids]
+
     def decompose(
         self,
         instruction: str,
@@ -114,6 +144,50 @@ class RecursiveDAGPlanner:
 
         slots: List[Tuple[float, float, float]] = []
         structure_type = "custom"
+
+        # Check for pure unstack / deconstruction request
+        is_unstack_command = any(w in inst_lower for w in (
+            "unstack", "dismantle", "deconstruct", "disassemble",
+            "bring down", "take down", "tear down", "unpack", "un-stack",
+            "bring the blocks down", "take the blocks down"
+        )) or bool(re.search(r"\b(?:unstack|dismantle|deconstruct)\b", inst_lower))
+
+        if is_unstack_command:
+            elevated = []
+            for b in current_blocks:
+                bid = b.id if hasattr(b, "id") else b.get("id")
+                pos = b.position if hasattr(b, "position") else b.get("position", (0, 0, 0))
+                grasped = b.is_grasped if hasattr(b, "is_grasped") else b.get("is_grasped", False)
+                if bid and not grasped and pos[1] > (TABLE_TOP_Y + CUBE_HALF + 0.015):
+                    elevated.append((pos[1], bid, pos))
+
+            # Sort descending by Y (highest first)
+            elevated.sort(key=lambda x: -x[0])
+
+            prev_sg_id = None
+            for idx, (by, bid, bpos) in enumerate(elevated):
+                staging_slot = SAFE_STAGING_SLOTS[idx % len(SAFE_STAGING_SLOTS)]
+                sg_id = f"unstack_{idx}_{bid}"
+                deps = [prev_sg_id] if prev_sg_id else []
+                sg = Subgoal(
+                    id=sg_id,
+                    parent_id="root_task",
+                    level=1,
+                    skill_type="CLEAR_OBSTACLE",
+                    required_objects=[bid],
+                    parameters={
+                        "block_id": bid,
+                        "staging_slot": list(staging_slot),
+                    },
+                    preconditions={"block_present": True, "gripper_free": True},
+                    desired_effects={"obstacle_cleared": True},
+                    dependencies=deps,
+                    description=f"Unstack {bid} from height Y={by:.3f}m to table staging slot",
+                )
+                self.subgoals[sg_id] = sg
+                prev_sg_id = sg_id
+
+            return list(self.subgoals.values())
 
         # 1. Structure Geometric Resolution
         letter_match = re.search(r"\b(?:letter|char|character)\s+([a-zA-Z])\b", inst_lower)
@@ -285,7 +359,36 @@ class RecursiveDAGPlanner:
                 if dy > (CUBE_SIZE * 0.6) and dx < (CUBE_SIZE * 1.1) and dz < (CUBE_SIZE * 1.1):
                     deps.append(prev_sg.id)
 
-            # Check if target slot is currently blocked by another ungrasped block
+            # Prerequisite Check 1: Are there any blocks resting ON TOP of block_id?
+            # Must unstack them in top-down sequence before block_id can be picked!
+            blocks_above = self.get_blocks_above(block_id, current_blocks)
+            prev_above_sg_id = None
+            for a_idx, above_id in enumerate(blocks_above):
+                clear_above_id = f"unstack_occlusion_{above_id}_for_{block_id}"
+                if clear_above_id not in self.subgoals:
+                    staging_slot = SAFE_STAGING_SLOTS[(order_idx + a_idx) % len(SAFE_STAGING_SLOTS)]
+                    above_deps = [prev_above_sg_id] if prev_above_sg_id else []
+                    above_sg = Subgoal(
+                        id=clear_above_id,
+                        parent_id="root_task",
+                        level=1,
+                        skill_type="CLEAR_OBSTACLE",
+                        required_objects=[above_id],
+                        parameters={
+                            "block_id": above_id,
+                            "staging_slot": list(staging_slot),
+                        },
+                        preconditions={"block_present": True, "gripper_free": True},
+                        desired_effects={"obstacle_cleared": True},
+                        dependencies=above_deps,
+                        description=f"Unstack occluding {above_id} sitting above {block_id} to safe staging",
+                    )
+                    self.subgoals[clear_above_id] = above_sg
+                    created_subgoals.insert(0, above_sg)
+                    prev_above_sg_id = clear_above_id
+                deps.append(clear_above_id)
+
+            # Prerequisite Check 2: Check if target slot is currently blocked by another ungrasped block
             for b in current_blocks:
                 b_is_grasped = b.is_grasped if hasattr(b, "is_grasped") else b.get("is_grasped", False)
                 curr_b_id = b.id if hasattr(b, "id") else b.get("id")
@@ -294,27 +397,27 @@ class RecursiveDAGPlanner:
                     bx, by, bz = b_pos
                     if (
                         abs(bx - target_slot[0]) < (CUBE_SIZE * 0.75)
-                        and abs(by - target_slot[1]) < (CUBE_SIZE * 0.75)
                         and abs(bz - target_slot[2]) < (CUBE_SIZE * 0.75)
+                        and by >= (target_slot[1] - CUBE_SIZE * 0.5)
                     ):
                         # Generate Prerequisite Clearance Subgoal
-                        clear_id = f"clear_obstacle_{b['id']}"
-                        clear_sg = Subgoal(
-                            id=clear_id,
-                            parent_id="root_task",
-                            level=1,
-                            skill_type="CLEAR_OBSTACLE",
-                            required_objects=[b["id"]],
-                            parameters={
-                                "block_id": b["id"],
-                                "staging_slot": list(SAFE_STAGING_SLOTS[0]),
-                            },
-                            preconditions={"block_present": True, "gripper_free": True},
-                            desired_effects={"obstacle_cleared": True},
-                            dependencies=[],
-                            description=f"Clear obstructing {b['id']} from slot to safe staging",
-                        )
+                        clear_id = f"clear_obstacle_{curr_b_id}"
                         if clear_id not in self.subgoals:
+                            clear_sg = Subgoal(
+                                id=clear_id,
+                                parent_id="root_task",
+                                level=1,
+                                skill_type="CLEAR_OBSTACLE",
+                                required_objects=[curr_b_id],
+                                parameters={
+                                    "block_id": curr_b_id,
+                                    "staging_slot": list(SAFE_STAGING_SLOTS[(order_idx + 3) % len(SAFE_STAGING_SLOTS)]),
+                                },
+                                preconditions={"block_present": True, "gripper_free": True},
+                                desired_effects={"obstacle_cleared": True},
+                                dependencies=[],
+                                description=f"Clear obstructing {curr_b_id} from slot to safe staging",
+                            )
                             self.subgoals[clear_id] = clear_sg
                             created_subgoals.insert(0, clear_sg)
                         deps.append(clear_id)

@@ -621,6 +621,62 @@ Output a JSON object ONLY with the following schema:
                 {"action": "HOME", "target": (0.20, SAFE_HOVER_Y, 0.0), "gripper": 0.0, "desc": "Return to rest pose"}
             ]
 
+        # 3B. Deconstruct / Unstack Existing Structure
+        elif action_type == "UNSTACK_ALL":
+            # Find all elevated blocks (Y > TABLE_TOP_Y + CUBE_HALF + 0.015m)
+            elevated_blocks = []
+            for b_id, b_info in sim_blocks.items():
+                bx, by, bz = b_info["position"]
+                if by > (TABLE_TOP_Y + CUBE_HALF + 0.015):
+                    elevated_blocks.append((by, b_id, b_info))
+
+            # Sort descending by altitude (highest topmost cube first)
+            elevated_blocks.sort(key=lambda x: -x[0])
+
+            unstacked_names = []
+            for by, b_id, b_info in elevated_blocks:
+                bx, by_curr, bz = b_info["position"]
+                sx, sy, sz = self._find_free_staging_slot(
+                    sim_blocks,
+                    exclude_ids={b_id},
+                    forbidden_slots=[(bx, by_curr, bz)],
+                )
+                grounding.append({
+                    "entity": b_id,
+                    "color": b_info["color"],
+                    "source_coords": [bx, by_curr, bz],
+                    "role": "Deconstruction Unstack",
+                    "target_coords": [sx, sy, sz],
+                })
+                plan.extend(self._generate_pick_and_place(
+                    bx, bz, sx, sz, sy,
+                    f"{b_info['name']} (Unstack)",
+                    src_y=by_curr,
+                    min_transit_y=SAFE_HOVER_Y,
+                ))
+                sim_blocks[b_id]["position"] = [sx, sy, sz]
+                unstacked_names.append(b_info["name"])
+
+            plan.append({
+                "action": "HOME",
+                "target": (0.20, SAFE_HOVER_Y, 0.0),
+                "gripper": 0.0,
+                "desc": "Deconstruction complete: Arm retracting to standby pose",
+                "dwell_ticks": 10,
+            })
+
+            if unstacked_names:
+                thought = (
+                    f"Google VLA Autonomous Deconstruction: Detected {len(unstacked_names)} elevated blocks in existing structure. "
+                    f"Safely unstacked in top-down sequence: {' -> '.join(unstacked_names)} onto tabletop buffer slots. "
+                    "Kinematics maintained safe vertical extraction to eliminate collision risks."
+                )
+            else:
+                thought = (
+                    "Google VLA Autonomous Deconstruction: All blocks are already resting on the tabletop plane. "
+                    "No elevated blocks require unstacking."
+                )
+
         # 4. Multi-Tower Distinct Assembly (2 to 5 Distinct Towers with elevated clearance)
         elif action_type in ("STACK_DUAL_TOWERS", "STACK_MULTI_TOWERS", "STACK_DISTINCT_TOWERS"):
             towers_data = interpretation.get("tower_blocks_list")
@@ -786,6 +842,9 @@ Output a JSON object ONLY with the following schema:
                 conflicts_with_slots = any(math.hypot(bx - s[0], bz - s[2]) < 0.085 for s in slots)
                 if in_corridor or conflicts_with_slots:
                     staged_blocks.append(b_id)
+
+            # Sort staged blocks descending by altitude (highest topmost cube first)
+            staged_blocks.sort(key=lambda bid: -sim_blocks[bid]["position"][1])
 
             for b_id in staged_blocks:
                 b_info = sim_blocks[b_id]
@@ -1062,7 +1121,7 @@ Output a JSON object ONLY with the following schema:
             blocks_pickup = math.hypot(ox - bx, oz - bz) < 0.045 and oy > (by + 0.030)
             blocks_target = (
                 math.hypot(ox - tx, oz - tz) < clearance_radius
-                and oy <= (ty + CUBE_SIZE * 1.25)
+                and oy >= (ty - CUBE_SIZE * 0.5)
             )
             if blocks_pickup or blocks_target:
                 blockers.append((-oy, math.hypot(ox - tx, oz - tz), other_id))

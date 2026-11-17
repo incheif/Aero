@@ -338,6 +338,8 @@ class InstructionInterpreter:
         ]
         for w in destructive_words:
             if re.search(rf"\b{w}\b", cmd):
+                if w == "tear" and ("tear down" in cmd or "teardown" in cmd):
+                    continue
                 return {
                     "is_possible": False,
                     "status": "IMPOSSIBLE",
@@ -616,6 +618,34 @@ class InstructionInterpreter:
                 "status": "OK",
                 "action_type": "REST",
                 "thought": "Returning robot arm to home standby configuration.",
+            }
+
+        # -------------------------------------------------------------
+        # 8A. UNSTACK / DECONSTRUCT EXISTING STRUCTURE
+        # -------------------------------------------------------------
+        is_unstack = (
+            any(p in cmd for p in (
+                "unstack", "dismantle", "deconstruct", "disassemble",
+                "take down", "bring down", "tear down", "unpack", "un-stack",
+                "remove blocks from tower", "remove blocks from the tower",
+                "bring the blocks down", "bring blocks down", "take the blocks down",
+                "bring down blocks", "take down blocks", "take off the tower",
+                "unstack tower", "unstack the tower", "unstack pyramid", "unstack the pyramid"
+            ))
+            or bool(re.search(r"\b(?:unstack|dismantle|deconstruct|disassemble)\b", cmd))
+            or bool(re.search(r"\b(?:bring|take|move)\s+(?:the\s+)?blocks?\s+down\b", cmd))
+            or bool(re.search(r"\b(?:bring|take)\s+down\s+(?:the\s+)?(?:tower|pyramid|stack|structure|blocks?)\b", cmd))
+        )
+        if is_unstack:
+            return {
+                "is_possible": True,
+                "status": "OK",
+                "action_type": "UNSTACK_ALL",
+                "thought": (
+                    "Interpreted instruction to deconstruct and unstack existing structure. "
+                    "Extracting elevated blocks in top-down sequence (highest altitude first) "
+                    "and staging to safe tabletop perimeter buffer slots."
+                ),
             }
 
         # -------------------------------------------------------------
