@@ -606,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnClearLogs = document.getElementById('btn-clear-logs');
   const filterChips = document.querySelectorAll('.log-filter-chip');
 
-  let activeTab = 'chat';
+  let activeTab = 'telemetry';
   let autoScrollEnabled = true;
   let activeLogFilter = 'all';
   let localLogs = [];
@@ -942,33 +942,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!stream) return;
       stream.innerHTML = msgs.map(m => {
         const isUser = m.sender === 'user';
-        if (isUser) {
-          return `
-          <div class="mission-log-entry user-entry">
-            <div class="entry-meta">
-              <span>OPERATOR</span>
-              <span style="opacity:0.6;">${m.timestamp || ''}</span>
+        const avatar = isUser ? '👤' : '🤖';
+        const author = isUser ? 'You (Operator)' : 'AERO Robot Arm';
+        const bg = isUser ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.05)';
+        const border = isUser ? 'rgba(56, 189, 248, 0.25)' : 'var(--border-subtle, rgba(255,255,255,0.08))';
+        const align = isUser ? 'flex-direction: row-reverse;' : '';
+        return `
+        <div class="chat-bubble" style="display: flex; gap: 8px; align-items: flex-start; ${align}">
+          <div style="font-size: 16px; line-height: 1.2;">${avatar}</div>
+          <div style="background: ${bg}; border: 1px solid ${border}; border-radius: 10px; padding: 8px 11px; font-size: 12px; line-height: 1.45; max-width: 85%;">
+            <div style="font-size: 10.5px; font-weight: 600; color: #a1a1aa; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 8px;">
+              <span>${author}</span>
+              <span style="opacity: 0.6; font-size: 10px;">${m.timestamp || ''}</span>
             </div>
-            <div class="entry-cmd-line">
-              <span class="cmd-prompt-sym">&gt;</span>
-              <span>${escapeHtml(m.text || '')}</span>
-            </div>
-          </div>`;
-        } else {
-          const statusTag = m.status_tag || (m.text && m.text.includes('🚫') ? 'REJECTED' : 'EXECUTING');
-          const statusClass = `status-${statusTag.toLowerCase()}`;
-          return `
-          <div class="mission-log-entry robot-entry">
-            <div class="entry-meta">
-              <span>AERO SO-100</span>
-              <span class="entry-status-badge ${statusClass}">${statusTag}</span>
-              <span style="opacity:0.6;">${m.timestamp || ''}</span>
-            </div>
-            <div class="entry-body">
-              <div style="white-space: pre-wrap;">${escapeHtml(m.text || '')}</div>
-            </div>
-          </div>`;
-        }
+            <div style="white-space: pre-wrap;">${escapeHtml(m.text || '')}</div>
+          </div>
+        </div>
+      `;
       }).join('');
       stream.scrollTop = stream.scrollHeight;
     }
@@ -1047,15 +1037,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const stream = document.getElementById('chat-messages-stream');
         if (stream) {
           stream.innerHTML = `
-          <div class="mission-log-entry robot-entry">
-            <div class="entry-meta">
-              <span>AERO SO-100</span>
-              <span class="entry-status-badge status-completed">RESET</span>
-            </div>
-            <div class="entry-body">
-              <div>Mission log and conversational state reset. Standing by for instructions.</div>
-            </div>
-          </div>`;
+            <div class="chat-bubble chat-bubble-robot" style="display: flex; gap: 8px; align-items: flex-start;">
+              <span style="font-size: 14px;">🤖</span>
+              <div style="flex: 1;">
+                <div style="font-size: 11px; opacity: 0.7; margin-bottom: 2px;">AERO Assistant</div>
+                <div class="chat-text" style="font-size: 12px; line-height: 1.4;">Chat session reset. Standing by for instructions.</div>
+              </div>
+            </div>`;
         }
         const stepsCard = document.getElementById('chat-steps-card');
         if (stepsCard) stepsCard.style.display = 'none';
@@ -1182,20 +1170,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
 
       try {
-        const badge = document.getElementById('chat-state-badge');
-        const isPaused = badge && (badge.innerText.includes('PAUSE'));
-        const endpoint = isPaused ? '/api/vla/chat' : '/api/vla/command';
-        const payload = isPaused ? { message: text, session_id: sessionId } : {
-          command: text,
-          api_key: apiKey,
-          model: model,
-          session_id: sessionId,
-        };
-
-        const resp = await sessionFetch(endpoint, {
+        const resp = await sessionFetch('/api/vla/command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            command: text,
+            api_key: apiKey,
+            model: model,
+            session_id: sessionId,
+          }),
         });
         const res = await resp.json();
         console.log('[Google VLA] Command executed:', res);
