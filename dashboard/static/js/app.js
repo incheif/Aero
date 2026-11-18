@@ -612,33 +612,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let localLogs = [];
   let lastLogsSignature = '';
 
-  const tabBtnChat = document.getElementById('tab-btn-chat');
-  const chatView = document.getElementById('chat-view');
-
   function switchTab(tabName) {
     activeTab = tabName;
-      tabBtnTelemetry?.classList.toggle('active', tabName === 'telemetry');
-      tabBtnLogs?.classList.toggle('active', tabName === 'logs');
-      tabBtnChat?.classList.toggle('active', tabName === 'chat');
+    tabBtnTelemetry?.classList.toggle('active', tabName === 'telemetry');
+    tabBtnLogs?.classList.toggle('active', tabName === 'logs');
 
-      if (telemetryView) telemetryView.style.display = tabName === 'telemetry' ? 'flex' : 'none';
-      if (logsView) logsView.style.display = tabName === 'logs' ? 'flex' : 'none';
-      if (chatView) chatView.style.display = tabName === 'chat' ? 'flex' : 'none';
+    if (telemetryView) telemetryView.style.display = tabName === 'telemetry' ? 'flex' : 'none';
+    if (logsView) logsView.style.display = tabName === 'logs' ? 'flex' : 'none';
 
-      if (tabName === 'logs') {
-        renderLogs();
-        if (autoScrollEnabled && logsContainer) {
-          logsContainer.scrollTop = logsContainer.scrollHeight;
-        }
-      } else if (tabName === 'chat') {
-        const stream = document.getElementById('chat-messages-stream');
-        if (stream) stream.scrollTop = stream.scrollHeight;
+    if (tabName === 'logs') {
+      renderLogs();
+      if (autoScrollEnabled && logsContainer) {
+        logsContainer.scrollTop = logsContainer.scrollHeight;
       }
     }
+  }
 
-    tabBtnChat?.addEventListener('click', () => switchTab('chat'));
-    tabBtnTelemetry?.addEventListener('click', () => switchTab('telemetry'));
-    tabBtnLogs?.addEventListener('click', () => switchTab('logs'));
+  tabBtnTelemetry?.addEventListener('click', () => switchTab('telemetry'));
+  tabBtnLogs?.addEventListener('click', () => switchTab('logs'));
 
     btnToggleAutoScroll?.addEventListener('click', () => {
       autoScrollEnabled = !autoScrollEnabled;
@@ -1011,15 +1002,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnPauseGuide = document.getElementById('btn-pause-guide');
     btnPauseGuide?.addEventListener('click', async () => {
-      switchTab('chat');
       try {
         const res = await sessionFetch('/api/vla/pause', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: 'Operator clicked Pause & Guide' })
+          body: JSON.stringify({ reason: 'Operator clicked Pause & Guide', session_id: sessionId })
         });
         const data = await res.json();
         console.log('[Pause & Guide]:', data);
+        cmdInput?.focus();
       } catch (err) {
         console.error('[Pause & Guide Error]:', err);
       }
@@ -1170,15 +1161,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
 
       try {
-        const resp = await sessionFetch('/api/vla/command', {
+        const badge = document.getElementById('chat-state-badge');
+        const isPaused = badge && (badge.innerText.includes('PAUSE'));
+        const endpoint = isPaused ? '/api/vla/chat' : '/api/vla/command';
+        const payload = isPaused ? { message: text, session_id: sessionId } : {
+          command: text,
+          api_key: apiKey,
+          model: model,
+          session_id: sessionId,
+        };
+
+        const resp = await sessionFetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            command: text,
-            api_key: apiKey,
-            model: model,
-            session_id: sessionId,
-          }),
+          body: JSON.stringify(payload),
         });
         const res = await resp.json();
         console.log('[Google VLA] Command executed:', res);

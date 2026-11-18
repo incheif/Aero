@@ -1224,6 +1224,8 @@ Workcell Constraints:
   - Maximum 6 blocks total (towers > 6 layers, or requests for > 6 blocks, are physically IMPOSSIBLE)
   - Maximum 1 cube per color (requests for 2 red cubes, etc. are physically IMPOSSIBLE)
 - Structural primitives supported:
+  - "MULTI_LAYER_STRUCTURE": multi-tiered structures with specified blocks per layer (e.g. 2 blocks in layer 1 and 2 blocks on top -> layer_counts: [2, 2]).
+  - "UNSTACK_ALL": unstacking/dismantling an existing tower or structure down to the tabletop.
   - "BUILD_PYRAMID": 3-block stepped, 5-block square, or 6-block stepped pyramid.
   - "BLOCK_TRAIN": aligns all boxes in one line.
   - "BUILD_LETTER": creates 2D tabletop letter formation (e.g. 'D', 'L', 'T', 'H', 'C', 'U', etc.).
@@ -1237,6 +1239,8 @@ User Instruction: "{raw_cmd}"
 Determine:
 1. Is this command physically possible and safe?
    - If user asks for tower > 6 layers, duplicate colors, break/destroy blocks, throw objects, fly, or items not on table -> "is_possible": false with a clear explanation in "reason".
+   - If user asks for multi-layer structure (e.g. 2 blocks on first layer and 2 blocks on top) -> "is_possible": true, "action_type": "MULTI_LAYER_STRUCTURE", "layer_counts": [2, 2].
+   - If user asks to unstack or bring blocks down from tower -> "is_possible": true, "action_type": "UNSTACK_ALL".
    - If user asks for gestures ("wave high", "nod", "say hi", etc.) -> "is_possible": true, "action_type": "GESTURE", "gesture_name": "wave_high" (or appropriate gesture).
    - If user asks for pyramid -> "is_possible": true, "action_type": "BUILD_PYRAMID".
    - If user asks for block train or line of boxes -> "is_possible": true, "action_type": "BLOCK_TRAIN".
@@ -1250,7 +1254,8 @@ Respond with ONLY a JSON object with this format:
   "is_possible": true or false,
   "status": "OK" or "IMPOSSIBLE",
   "reason": "Clear explanation if impossible",
-  "action_type": "STACK_TOWER" or "BUILD_LETTER" or "BUILD_SHAPE" or "SPATIAL_SORT" or "OPEN_ENDED_ARRANGEMENT" or "STACK_DUAL_TOWERS" or "BUILD_PYRAMID" or "BLOCK_TRAIN" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
+  "action_type": "MULTI_LAYER_STRUCTURE" or "UNSTACK_ALL" or "STACK_TOWER" or "BUILD_LETTER" or "BUILD_SHAPE" or "SPATIAL_SORT" or "OPEN_ENDED_ARRANGEMENT" or "STACK_DUAL_TOWERS" or "BUILD_PYRAMID" or "BLOCK_TRAIN" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
+  "layer_counts": [2, 2] or null,
   "gesture_name": "wave_high" or null,
   "layer_count": 3 or null,
   "letter": "D" or null,

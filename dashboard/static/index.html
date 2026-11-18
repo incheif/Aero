@@ -228,21 +228,69 @@
       </div>
     </main>
 
-    <!-- Minimal Command Bar (Bottom) -->
-    <section id="command-bar-container">
+    <!-- Unified Conversational & Guidance Mission Dock (Bottom Only) -->
+    <section id="command-bar-container" class="unified-bottom-dock">
+      <!-- Dock Header: Agent Status, Episodic Memory Counter, Clear Chat Action -->
+      <div class="dock-header-bar">
+        <div class="dock-header-left">
+          <span class="chat-status-dot" id="chat-status-dot"></span>
+          <span class="dock-agent-title">AERO Robotic Agent</span>
+          <span class="chat-state-badge" id="chat-state-badge">IDLE</span>
+          <div class="chat-memory-indicator" id="chat-memory-indicator"
+            title="Episodic experience buffer (learning from human interventions)">
+            <span>📚 <span id="chat-memory-count">0</span> memories</span>
+          </div>
+        </div>
+        <div class="dock-header-right">
+          <button class="chat-reset-btn" id="btn-chat-reset" title="Clear chat history and reset conversational state">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Clear Chat</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Conversational Message Stream (Answers, Proposals, Guidance) -->
+      <div class="chat-messages-stream" id="chat-messages-stream">
+        <div class="chat-bubble chat-bubble-robot" style="display: flex; gap: 8px; align-items: flex-start;">
+          <div style="font-size: 15px; line-height: 1.2;">🤖</div>
+          <div
+            style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 8px; padding: 7px 11px; font-size: 12px; line-height: 1.45; max-width: 90%;">
+            <div style="font-size: 10.5px; font-weight: 600; color: #a1a1aa; margin-bottom: 2px;">AERO Assistant</div>
+            <div>Hello! I'm ready to assemble structures, towers, patterns, or unstack blocks. Type any instruction or click a challenge chip below. If I need guidance or make a mistake, click <strong>Pause &amp; Guide</strong>!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic Step Checklist Card (Shown during active multi-step plans) -->
+      <div class="chat-steps-card" id="chat-steps-card"
+        style="display: none; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px;">
+        <div
+          style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--mono-300, #a1a1aa); margin-bottom: 4px; display: flex; justify-content: space-between;">
+          <span>Active Plan Breakdown</span>
+          <span id="chat-plan-progress-badge" style="color: #10b981;">0%</span>
+        </div>
+        <div class="chat-steps-list" id="chat-steps-list"
+          style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; max-height: 90px; overflow-y: auto;">
+        </div>
+      </div>
+
+      <!-- Quick Action Guidance Chips (Active when paused or anomaly) -->
+      <div class="chat-intervention-chips" id="chat-intervention-chips"
+        style="display: none; flex-wrap: wrap; gap: 5px; padding: 4px 0 6px 0; border-top: 1px dashed var(--border-subtle, rgba(255,255,255,0.1));">
+      </div>
+
       <!-- Essential Playground Challenge Chips -->
       <div class="chips-row">
-        <button class="prompt-chip" data-prompt="Make a 3-layer tower of red, blue and yellow.">
+        <button class="prompt-chip" data-prompt="Make a structure with 2 blocks in the first layer and 2 blocks on top of it.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5" />
+            <rect x="3" y="14" width="8" height="7" rx="1" />
+            <rect x="13" y="14" width="8" height="7" rx="1" />
+            <rect x="3" y="3" width="8" height="7" rx="1" />
+            <rect x="13" y="3" width="8" height="7" rx="1" />
           </svg>
-          <span>🗼 3-Layer Tower</span>
-        </button>
-        <button class="prompt-chip" data-prompt="Make 2 distinct towers of 2 blocks each.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M6 2v20M18 2v20M2 18h8M14 18h8" />
-          </svg>
-          <span>🗼🗼 2 Distinct Towers</span>
+          <span>🧱 2x2 Structure</span>
         </button>
         <button class="prompt-chip" data-prompt="Build a 6-block pyramid tower.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -258,12 +306,18 @@
           </svg>
           <span>🪓 Unstack</span>
         </button>
+        <button class="prompt-chip" data-prompt="Make a 3-layer tower of red, blue and yellow.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5" />
+          </svg>
+          <span>🗼 3-Layer Tower</span>
+        </button>
         <button class="prompt-chip" data-prompt="Make a block train with all boxes in one line.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="7" width="20" height="10" rx="2" />
             <path d="M7 17v2M17 17v2M2 12h20" />
           </svg>
-          <span>🚂 Block Train (One Line)</span>
+          <span>🚂 Block Train</span>
         </button>
         <button class="prompt-chip" data-prompt="Wave high to greet me.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -280,40 +334,13 @@
           </svg>
           <span>🎯 Point at Blue</span>
         </button>
-        <button class="prompt-chip" data-prompt="Snap the gripper jaws.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M7 16V4m10 12V4M3 8h18M3 16h18" />
-          </svg>
-          <span>🤏 Snap Gripper</span>
-        </button>
-        <button class="prompt-chip" data-prompt="Build a 6-layer tower with all 6 blocks.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
-          <span>🤖 6-Layer Tower</span>
-        </button>
-        <button class="prompt-chip" data-prompt="Build a tower of 8 blocks.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="15" y1="9" x2="9" y2="15" />
-            <line x1="9" y1="9" x2="15" y2="15" />
-          </svg>
-          <span>🚫 Tower of 8 (Impossible)</span>
-        </button>
-        <button class="prompt-chip" data-prompt="Break the yellow block into pieces.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-          </svg>
-          <span>🚫 Break a Block (Impossible)</span>
-        </button>
       </div>
 
-      <!-- Command Input with Rest & Execute Buttons -->
+      <!-- Unified Command & Guidance Input Bar -->
       <div class="command-input-wrapper">
         <span class="cmd-icon">✦</span>
         <input type="text" id="command-input"
-          placeholder="Type instruction (e.g. 'Build a 3-layer tower', 'make a letter D')..." autocomplete="off" />
+          placeholder="Command arm or guide ('make 2x2 structure', 'use purple', 'unstack', 'lift higher')..." autocomplete="off" />
         <button class="pause-btn" id="btn-pause-guide" title="Pause arm motion and guide it"
           style="display: inline-flex; align-items: center; gap: 5px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b; padding: 7px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
           <span>⏸️ Pause &amp; Guide</span>
@@ -351,14 +378,6 @@
 
       <!-- Sidebar Tab Switcher -->
       <div class="sidebar-tab-switcher">
-        <button class="tab-btn" id="tab-btn-chat">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-          <span>Chat &amp; Guide</span>
-          <span class="tab-badge" id="chat-badge-dot"
-            style="display:none; background:#10b981; width:7px; height:7px; border-radius:50%; margin-left:3px;"></span>
-        </button>
         <button class="tab-btn active" id="tab-btn-telemetry">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -573,87 +592,6 @@
             <span class="logs-footer-text">
               <span class="logs-dot-pulse"></span> Explainable narrative audit · Human-understandable story stream
             </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- View 3: Conversational Human-in-the-Loop & Guidance Panel -->
-      <div id="chat-view" class="sidebar-view">
-        <div class="chat-container"
-          style="display: flex; flex-direction: column; height: 100%; gap: 10px; padding: 12px 14px;">
-          <!-- Chat Header -->
-          <div class="chat-header"
-            style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08));">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="chat-status-dot" id="chat-status-dot"
-                style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-              <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.2px;">AERO Assistant</span>
-              <span class="chat-state-badge" id="chat-state-badge"
-                style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); text-transform: uppercase;">IDLE</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div class="chat-memory-indicator" id="chat-memory-indicator"
-                title="Episodic experience buffer (learning from human interventions)"
-                style="font-size: 11px; opacity: 0.75;">
-                <span>📚 <span id="chat-memory-count">0</span> memories</span>
-              </div>
-              <button class="chat-reset-btn" id="btn-chat-reset" title="Reset chat and conversation history"
-                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: #94a3b8; border-radius: 4px; padding: 2px 7px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                  <path d="M21 3v5h-5" />
-                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                  <path d="M3 21v-5h5" />
-                </svg>
-                <span>Reset</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Dynamic Step Checklist Card -->
-          <div class="chat-steps-card" id="chat-steps-card"
-            style="display: none; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 8px; padding: 10px 12px;">
-            <div
-              style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mono-300, #a1a1aa); margin-bottom: 6px; display: flex; justify-content: space-between;">
-              <span>Active Plan Breakdown</span>
-              <span id="chat-plan-progress-badge" style="color: #10b981;">0%</span>
-            </div>
-            <div class="chat-steps-list" id="chat-steps-list"
-              style="display: flex; flex-direction: column; gap: 5px; font-size: 12px; max-height: 120px; overflow-y: auto;">
-            </div>
-          </div>
-
-          <!-- Message History Stream -->
-          <div class="chat-messages-stream" id="chat-messages-stream"
-            style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0;">
-            <div class="chat-bubble chat-bubble-robot" style="display: flex; gap: 8px; align-items: flex-start;">
-              <div style="font-size: 16px; line-height: 1.2;">🤖</div>
-              <div
-                style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 10px; padding: 8px 11px; font-size: 12.5px; line-height: 1.45; max-width: 90%;">
-                <div style="font-size: 11px; font-weight: 600; color: #a1a1aa; margin-bottom: 3px;">AERO Robot Arm</div>
-                <div>Hello! I'm ready to build patterns, towers, and shapes. Type any instruction or click a challenge
-                  chip. If I make a mistake or get stuck, click <strong>Pause &amp; Guide</strong> to tell me what to
-                  do!</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick Action Guidance Chips (Active when paused or anomaly) -->
-          <div class="chat-intervention-chips" id="chat-intervention-chips"
-            style="display: none; flex-wrap: wrap; gap: 6px; padding: 6px 0; border-top: 1px dashed var(--border-subtle, rgba(255,255,255,0.1));">
-          </div>
-
-          <!-- Chat Input Row -->
-          <div class="chat-input-row" style="display: flex; gap: 6px; align-items: center; margin-top: auto;">
-            <input type="text" id="chat-input" placeholder="Talk or guide arm ('use purple', 'retry', 'lift higher')..."
-              style="flex: 1; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle, rgba(255,255,255,0.15)); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: inherit; outline: none;" />
-            <button class="chat-send-btn" id="btn-chat-send"
-              style="background: #ffffff; color: #09090b; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 600;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-              </svg>
-            </button>
           </div>
         </div>
       </div>

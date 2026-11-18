@@ -1171,22 +1171,134 @@ header {
   border: 1px solid var(--border-subtle);
 }
 
-/* Command Bar (Bottom) */
+/* Unified Conversational Mission Dock (Bottom) */
 #command-bar-container {
   grid-column: 1 / 2;
   grid-row: 3 / 4;
   background: rgba(9, 9, 11, 0.95);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-glass);
-  padding: 12px 24px;
+  padding: 8px 20px 10px 20px;
   z-index: 40;
+  display: flex;
+  flex-direction: column;
+  max-height: 250px;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.dock-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dock-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--mono-300);
+}
+
+.dock-agent-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--mono-white);
+  letter-spacing: 0.02em;
+}
+
+.chat-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.chat-state-badge {
+  font-size: 0.60rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--mono-300);
+  text-transform: uppercase;
+}
+
+.chat-memory-indicator {
+  font-size: 0.68rem;
+  color: var(--mono-400);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-reset-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  color: var(--mono-300);
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.chat-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+/* Unified Chat Messages Stream in Bottom Dock */
+.chat-messages-stream {
+  max-height: 85px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 2px 0 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.chat-messages-stream::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-messages-stream::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.chat-bubble {
+  transition: all 0.2s ease;
+}
+
+.chat-bubble-robot {
+  align-self: flex-start;
+}
+
+.chat-bubble-user {
+  align-self: flex-end;
 }
 
 .chips-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-top: 2px;
+  margin-bottom: 6px;
   overflow-x: auto;
   scrollbar-width: none;
 }

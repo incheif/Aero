@@ -242,6 +242,7 @@ class UserSession:
         return (
             len(self.websockets) > 0
             or self.controller.is_active
+            or self.orchestrator.is_task_active
             or self.color_seek_active
             or self.explorer.is_exploring
         )
@@ -885,6 +886,7 @@ async def simulation_loop():
                     if (
                         not sess.is_suspended
                         and not sess.controller.is_active
+                        and not sess.orchestrator.is_task_active
                         and not sess.color_seek_active
                         and not sess.explorer.is_exploring
                         and (now - sess.last_active) >= SESSION_MAX_DURATION

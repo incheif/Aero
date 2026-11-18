@@ -382,6 +382,7 @@ class SpatialGeometryEngine:
 def parse_multi_layer_spec(instruction: str) -> Optional[List[int]]:
     """
     Parses multi-layer structure commands like:
+    - 'make a structure with 2 blocks in the first layer and 2 blocks on top of it'
     - 'make a structure using 4 blocks, 1st layer with 2 blocks and 2nd layer with 2 blocks'
     - 'build a structure with layer 1 having 2 blocks and layer 2 having 2 blocks'
     - 'first layer with 2 blocks and second layer with 2 blocks'
@@ -394,35 +395,59 @@ def parse_multi_layer_spec(instruction: str) -> Optional[List[int]]:
     if not cmd:
         return None
 
-    # Pattern 1: Explicit per-layer declarations
-    layer_pat = r'(?:(?:(\d+(?:st|nd|rd|th)?|first|second|third|fourth|bottom|top|base|ground|upper|lower)\s+layer|layer\s*(\d+|one|two|three|four))[a-z\s]*?(\d+|one|two|three|four)\s+(?:blocks?|cubes?))'
-    matches = re.findall(layer_pat, cmd)
+    num_map = {
+        '1': 1, '1st': 1, 'first': 1, 'bottom': 1, 'base': 1, 'ground': 1, 'lower': 1,
+        '2': 2, '2nd': 2, 'second': 2, 'top': 2, 'upper': 2,
+        '3': 3, '3rd': 3, 'third': 3,
+        '4': 4, '4th': 4, 'fourth': 4,
+        'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6
+    }
+
+    # Case 1: 'N blocks in/on [the] bottom/1st layer ... and M blocks on top [of it]'
+    m_top = re.search(
+        r'(\d+|one|two|three|four)\s+(?:blocks?|cubes?)\s+(?:in|on|at)\s+(?:the\s+)?'
+        r'(?:first|1st|bottom|base|ground|lower)\s*(?:layer)?.*?'
+        r'(\d+|one|two|three|four)\s+(?:blocks?|cubes?)\s+(?:on\s+top(?:\s+of\s+it)?|above(?:\s+it)?)',
+        cmd
+    )
+    if m_top:
+        c1 = int(m_top.group(1)) if m_top.group(1).isdigit() else num_map.get(m_top.group(1), 2)
+        c2 = int(m_top.group(2)) if m_top.group(2).isdigit() else num_map.get(m_top.group(2), 2)
+        return [c1, c2]
+
+    # Case 2: Flexible per-layer declarations
+    # Supports '1st layer with 2 blocks', 'layer 1 having 2 blocks', '2 blocks in layer 1'
+    pat_flexible = (
+        r'(?:'
+        r'(?:(\d+(?:st|nd|rd|th)?|first|second|third|fourth|bottom|top|base|ground|upper|lower)\s+layer|layer\s*(\d+|one|two|three|four))[a-z\s]*?(\d+|one|two|three|four)\s+(?:blocks?|cubes?)'
+        r'|'
+        r'(\d+|one|two|three|four)\s+(?:blocks?|cubes?)\s+(?:in|on|at)\s+(?:the\s+)?(\d+(?:st|nd|rd|th)?|first|second|third|fourth|bottom|top|base|ground|upper|lower)\s*(?:layer)?'
+        r')'
+    )
+    matches = re.findall(pat_flexible, cmd)
     if len(matches) >= 2:
-        num_map = {
-            '1': 1, '1st': 1, 'first': 1, 'bottom': 1, 'base': 1, 'ground': 1, 'lower': 1,
-            '2': 2, '2nd': 2, 'second': 2, 'top': 2, 'upper': 2,
-            '3': 3, '3rd': 3, 'third': 3,
-            '4': 4, '4th': 4, 'fourth': 4,
-            'one': 1, 'two': 2, 'three': 3, 'four': 4
-        }
         layers = []
-        for g1, g2, cnt_term in matches:
-            l_term = g1 or g2
-            l_num = num_map.get(l_term, len(layers) + 1)
-            cnt = int(cnt_term) if cnt_term.isdigit() else num_map.get(cnt_term, 2)
+        for g1, g2, cnt_a, cnt_b, layer_b in matches:
+            if g1 or g2:
+                l_term = g1 or g2
+                l_num = num_map.get(l_term, len(layers) + 1)
+                cnt = int(cnt_a) if cnt_a.isdigit() else num_map.get(cnt_a, 2)
+            else:
+                l_term = layer_b
+                l_num = num_map.get(l_term, len(layers) + 1)
+                cnt = int(cnt_b) if cnt_b.isdigit() else num_map.get(cnt_b, 2)
             layers.append((l_num, cnt))
         layers.sort(key=lambda x: x[0])
         return [cnt for _, cnt in layers]
 
-    # Pattern 2: '2 layers of 2 blocks' / '2 layers with 2 blocks each'
+    # Case 3: '2 layers of 2 blocks' / '2 layers with 2 blocks each'
     m2 = re.search(r'(\d+|one|two|three)\s+layers?\s+(?:of|with)\s+(\d+|one|two|three)\s+(?:blocks?|cubes?)(?:\s+each)?', cmd)
     if m2:
-        num_map = {'one': 1, 'two': 2, 'three': 3, '1': 1, '2': 2, '3': 3}
         nl = num_map.get(m2.group(1), 2)
         nc = num_map.get(m2.group(2), 2)
         return [nc] * nl
 
-    # Pattern 3: '2x2 wall' / '2 by 2 structure' / '2x2 block structure'
+    # Case 4: '2x2 wall' / '2 by 2 structure' / '2x2 block structure'
     m3 = re.search(r'(\d+)\s*(?:x|by)\s*(\d+)\s*(?:wall|structure|grid|formation|block)', cmd)
     if m3:
         w = int(m3.group(1))
