@@ -1174,7 +1174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const resp = await sessionFetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(payload)
         });
         const res = await resp.json();
         console.log('[Google VLA] Command executed:', res);

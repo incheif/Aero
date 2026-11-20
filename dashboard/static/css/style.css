@@ -1171,6 +1171,7 @@ header {
   border: 1px solid var(--border-subtle);
 }
 
+/* Command Bar (Bottom) */
 /* Unified Conversational Mission Dock (Bottom) */
 #command-bar-container {
   grid-column: 1 / 2;

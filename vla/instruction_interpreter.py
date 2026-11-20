@@ -1254,6 +1254,7 @@ Respond with ONLY a JSON object with this format:
   "is_possible": true or false,
   "status": "OK" or "IMPOSSIBLE",
   "reason": "Clear explanation if impossible",
+  "action_type": "STACK_TOWER" or "BUILD_LETTER" or "BUILD_SHAPE" or "SPATIAL_SORT" or "OPEN_ENDED_ARRANGEMENT" or "STACK_DUAL_TOWERS" or "BUILD_PYRAMID" or "BLOCK_TRAIN" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
   "action_type": "MULTI_LAYER_STRUCTURE" or "UNSTACK_ALL" or "STACK_TOWER" or "BUILD_LETTER" or "BUILD_SHAPE" or "SPATIAL_SORT" or "OPEN_ENDED_ARRANGEMENT" or "STACK_DUAL_TOWERS" or "BUILD_PYRAMID" or "BLOCK_TRAIN" or "GESTURE" or "EXPLORE" or "CLEAR" or "REST" or "REJECTED",
   "layer_counts": [2, 2] or null,
   "gesture_name": "wave_high" or null,

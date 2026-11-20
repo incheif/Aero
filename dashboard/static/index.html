@@ -228,7 +228,7 @@
       </div>
     </main>
 
-    <!-- Unified Conversational & Guidance Mission Dock (Bottom Only) -->
+    <!-- Unified Conversational Mission Dock & Command Bar (Bottom Only) -->
     <section id="command-bar-container" class="unified-bottom-dock">
       <!-- Dock Header: Agent Status, Episodic Memory Counter, Clear Chat Action -->
       <div class="dock-header-bar">
@@ -334,13 +334,19 @@
           </svg>
           <span>🎯 Point at Blue</span>
         </button>
+        <button class="prompt-chip" data-prompt="Snap the gripper jaws.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 16V4m10 12V4M3 8h18M3 16h18" />
+          </svg>
+          <span>🤏 Snap Gripper</span>
+        </button>
       </div>
 
       <!-- Unified Command & Guidance Input Bar -->
       <div class="command-input-wrapper">
         <span class="cmd-icon">✦</span>
         <input type="text" id="command-input"
-          placeholder="Command arm or guide ('make 2x2 structure', 'use purple', 'unstack', 'lift higher')..." autocomplete="off" />
+          placeholder="Command arm or guide ('make 2x2 structure', 'unstack', 'use purple', 'lift higher')..." autocomplete="off" />
         <button class="pause-btn" id="btn-pause-guide" title="Pause arm motion and guide it"
           style="display: inline-flex; align-items: center; gap: 5px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b; padding: 7px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
           <span>⏸️ Pause &amp; Guide</span>
@@ -376,7 +382,7 @@
         </div>
       </div>
 
-      <!-- Sidebar Tab Switcher -->
+      <!-- Sidebar Tab Switcher (Telemetry & Execution Story) -->
       <div class="sidebar-tab-switcher">
         <button class="tab-btn active" id="tab-btn-telemetry">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
