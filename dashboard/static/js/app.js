@@ -52,56 +52,381 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('[Telemetry] Initial REST sync fallback:', err.message);
     });
 
-  // 1B. Light / Dark Monochromatic UI Theme Manager
-  const btnToggleTheme = document.getElementById('btn-toggle-theme');
-  const btnThemeLabel = document.getElementById('btn-theme-label');
+  // 1B. Adaptive Workspace & Appearance Manager
+  class WorkspaceManager {
+    constructor(canvas) {
+      this.simCanvas = canvas;
+      this.layout = document.getElementById('app-layout');
+      this.modalBackdrop = document.getElementById('modal-workspace-backdrop');
+      this.btnSettings = document.getElementById('btn-workspace-settings');
+      this.labelSettings = document.getElementById('btn-workspace-label');
+      this.btnCloseModal = document.getElementById('btn-close-workspace-modal');
+      this.btnDoneModal = document.getElementById('btn-modal-close-done');
+      this.btnResetDefaults = document.getElementById('btn-modal-reset-defaults');
+      this.btnExitPresentation = document.getElementById('btn-exit-presentation');
+      this.presTopHud = document.getElementById('presentation-top-hud');
+      this.presBottomBar = document.getElementById('presentation-bottom-bar');
+      this.presStatusBadge = document.getElementById('pres-status-badge');
+      this.presThoughtText = document.getElementById('pres-thought-text');
+      this.btnToggleTheme = document.getElementById('btn-toggle-theme');
 
-  function applyTheme(theme, save = true) {
-    const isLight = theme === 'light';
-    const themeName = isLight ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', themeName);
-    if (btnThemeLabel) {
-      btnThemeLabel.textContent = isLight ? 'Dark' : 'Light';
+      // Defaults
+      this.mode = 'developer';
+      this.theme = 'graphite';
+      this.panels = { sidebar: true, dock: true, pip: true };
+      this.overlays = { axes: false, trails: true, frustums: false, boxes: false, grid: true };
+
+      this.init();
     }
-    if (btnToggleTheme) {
-      btnToggleTheme.setAttribute(
-        'title',
-        isLight ? 'Switch to Dark Noir Monochromatic UI (Alt+T)' : 'Switch to Light Monochromatic UI (Alt+T)'
-      );
-      btnToggleTheme.setAttribute('aria-pressed', isLight ? 'true' : 'false');
-    }
-    if (simCanvas && typeof simCanvas.setTheme === 'function') {
-      simCanvas.setTheme(themeName);
-    }
-    if (save) {
+
+    init() {
+      // 1. Restore Theme
+      let savedTheme = localStorage.getItem('AERO_THEME');
+      if (savedTheme === 'dark') savedTheme = 'graphite';
+      if (!savedTheme || !['graphite', 'midnight', 'light', 'high-contrast'].includes(savedTheme)) {
+        savedTheme = document.documentElement.getAttribute('data-theme') || 'graphite';
+      }
+      this.setTheme(savedTheme, false);
+
+      // 2. Restore Mode
+      const savedMode = localStorage.getItem('AERO_WORKSPACE_MODE');
+      if (savedMode && ['engineering', 'developer', 'minimal', 'presentation'].includes(savedMode)) {
+        this.mode = savedMode;
+      }
+      this.setMode(this.mode, false);
+
+      // 3. Restore Panel Visibility
       try {
-        localStorage.setItem('AERO_THEME', themeName);
-      } catch (e) { }
+        const savedPanels = JSON.parse(localStorage.getItem('AERO_WORKSPACE_PANELS'));
+        if (savedPanels && typeof savedPanels === 'object') {
+          this.panels = { ...this.panels, ...savedPanels };
+        }
+      } catch (e) {}
+      this.applyPanels(false);
+
+      // 4. Restore 3D Overlays
+      try {
+        const savedOverlays = JSON.parse(localStorage.getItem('AERO_WORKSPACE_OVERLAYS'));
+        if (savedOverlays && typeof savedOverlays === 'object') {
+          this.overlays = { ...this.overlays, ...savedOverlays };
+        }
+      } catch (e) {}
+      this.applyOverlays(false);
+
+      // 5. Attach Listeners
+      this.attachListeners();
+    }
+
+    setMode(mode, save = true) {
+      this.mode = mode;
+      if (this.layout) {
+        this.layout.classList.remove('mode-engineering', 'mode-developer', 'mode-minimal', 'mode-presentation');
+        this.layout.classList.add(`mode-${mode}`);
+      }
+
+      // Update button label in header
+      if (this.labelSettings) {
+        const labels = {
+          engineering: 'Engineering',
+          developer: 'Developer',
+          minimal: 'Minimal',
+          presentation: 'Presentation'
+        };
+        this.labelSettings.textContent = labels[mode] || 'Workspace';
+      }
+
+      // Update active card in modal
+      document.querySelectorAll('.ws-mode-card').forEach(card => {
+        const cardMode = card.getAttribute('data-mode');
+        const isActive = cardMode === mode;
+        card.classList.toggle('active', isActive);
+        const pill = card.querySelector('.ws-mode-pill');
+        if (pill) {
+          pill.classList.toggle('ws-pill-active', isActive);
+        }
+      });
+
+      // Special mode configurations
+      if (mode === 'presentation') {
+        if (this.presTopHud) this.presTopHud.style.display = 'flex';
+        if (this.presBottomBar) this.presBottomBar.style.display = 'flex';
+        if (this.btnExitPresentation) this.btnExitPresentation.style.display = 'inline-flex';
+      } else {
+        if (this.presTopHud) this.presTopHud.style.display = 'none';
+        if (this.presBottomBar) this.presBottomBar.style.display = 'none';
+        if (this.btnExitPresentation) this.btnExitPresentation.style.display = 'none';
+      }
+
+      // Trigger 3D canvas resize
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        if (this.simCanvas && typeof this.simCanvas.onWindowResize === 'function') {
+          this.simCanvas.onWindowResize();
+        }
+      }, 50);
+
+      if (save) {
+        try {
+          localStorage.setItem('AERO_WORKSPACE_MODE', mode);
+        } catch (e) {}
+      }
+    }
+
+    setTheme(theme, save = true) {
+      this.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+
+      // Update active theme swatch card
+      document.querySelectorAll('.ws-theme-card').forEach(card => {
+        card.classList.toggle('active', card.getAttribute('data-theme') === theme);
+      });
+
+      // Update Three.js scene lighting & background
+      if (this.simCanvas && typeof this.simCanvas.setTheme === 'function') {
+        this.simCanvas.setTheme(theme);
+      }
+
+      if (save) {
+        try {
+          localStorage.setItem('AERO_THEME', theme);
+        } catch (e) {}
+      }
+    }
+
+    applyPanels(save = true) {
+      if (this.layout) {
+        this.layout.classList.toggle('panel-sidebar-hidden', !this.panels.sidebar);
+        this.layout.classList.toggle('panel-dock-hidden', !this.panels.dock);
+        this.layout.classList.toggle('panel-pip-hidden', !this.panels.pip);
+      }
+
+      // Sync checkboxes
+      const cbSidebar = document.getElementById('toggle-panel-sidebar');
+      const cbDock = document.getElementById('toggle-panel-dock');
+      const cbPip = document.getElementById('toggle-panel-pip');
+      if (cbSidebar) cbSidebar.checked = !!this.panels.sidebar;
+      if (cbDock) cbDock.checked = !!this.panels.dock;
+      if (cbPip) cbPip.checked = !!this.panels.pip;
+
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        if (this.simCanvas && typeof this.simCanvas.onWindowResize === 'function') {
+          this.simCanvas.onWindowResize();
+        }
+      }, 50);
+
+      if (save) {
+        try {
+          localStorage.setItem('AERO_WORKSPACE_PANELS', JSON.stringify(this.panels));
+        } catch (e) {}
+      }
+    }
+
+    applyOverlays(save = true) {
+      if (!this.simCanvas) return;
+
+      if (typeof this.simCanvas.toggleAxes === 'function') {
+        this.simCanvas.toggleAxes(this.overlays.axes);
+      }
+      if (typeof this.simCanvas.toggleTrails === 'function') {
+        this.simCanvas.toggleTrails(this.overlays.trails);
+      }
+      if (typeof this.simCanvas.toggleFrustums === 'function') {
+        this.simCanvas.toggleFrustums(this.overlays.frustums);
+      }
+      if (typeof this.simCanvas.togglePerceptionBoxes === 'function') {
+        this.simCanvas.togglePerceptionBoxes(this.overlays.boxes);
+      }
+      if (typeof this.simCanvas.toggleGrid === 'function') {
+        this.simCanvas.toggleGrid(this.overlays.grid);
+      }
+
+      // Sync checkboxes
+      const cbAxes = document.getElementById('toggle-overlay-axes');
+      const cbTrails = document.getElementById('toggle-overlay-trails');
+      const cbFrustums = document.getElementById('toggle-overlay-frustums');
+      const cbBoxes = document.getElementById('toggle-overlay-boxes');
+      const cbGrid = document.getElementById('toggle-overlay-grid');
+      if (cbAxes) cbAxes.checked = !!this.overlays.axes;
+      if (cbTrails) cbTrails.checked = !!this.overlays.trails;
+      if (cbFrustums) cbFrustums.checked = !!this.overlays.frustums;
+      if (cbBoxes) cbBoxes.checked = !!this.overlays.boxes;
+      if (cbGrid) cbGrid.checked = !!this.overlays.grid;
+
+      if (save) {
+        try {
+          localStorage.setItem('AERO_WORKSPACE_OVERLAYS', JSON.stringify(this.overlays));
+        } catch (e) {}
+      }
+    }
+
+    resetDefaults() {
+      this.mode = 'developer';
+      this.theme = 'graphite';
+      this.panels = { sidebar: true, dock: true, pip: true };
+      this.overlays = { axes: false, trails: true, frustums: false, boxes: false, grid: true };
+
+      this.setMode('developer', true);
+      this.setTheme('graphite', true);
+      this.applyPanels(true);
+      this.applyOverlays(true);
+    }
+
+    openModal() {
+      if (this.modalBackdrop) {
+        this.modalBackdrop.style.display = 'flex';
+      }
+    }
+
+    closeModal() {
+      if (this.modalBackdrop) {
+        this.modalBackdrop.style.display = 'none';
+      }
+    }
+
+    attachListeners() {
+      // Open / Close modal
+      this.btnSettings?.addEventListener('click', () => this.openModal());
+      this.btnCloseModal?.addEventListener('click', () => this.closeModal());
+      this.btnDoneModal?.addEventListener('click', () => this.closeModal());
+      this.modalBackdrop?.addEventListener('click', (e) => {
+        if (e.target === this.modalBackdrop) this.closeModal();
+      });
+
+      // Mode cards
+      document.querySelectorAll('.ws-mode-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const mode = card.getAttribute('data-mode');
+          if (mode) this.setMode(mode, true);
+        });
+      });
+
+      // Theme cards
+      document.querySelectorAll('.ws-theme-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const theme = card.getAttribute('data-theme');
+          if (theme) this.setTheme(theme, true);
+        });
+      });
+
+      // Header Theme Quick-Toggle
+      this.btnToggleTheme?.addEventListener('click', () => {
+        const themeCycle = ['graphite', 'midnight', 'light', 'high-contrast'];
+        const currentIndex = themeCycle.indexOf(this.theme);
+        const nextTheme = themeCycle[(currentIndex + 1) % themeCycle.length];
+        this.setTheme(nextTheme, true);
+      });
+
+      // Panel toggles
+      document.getElementById('toggle-panel-sidebar')?.addEventListener('change', (e) => {
+        this.panels.sidebar = e.target.checked;
+        this.applyPanels(true);
+      });
+      document.getElementById('toggle-panel-dock')?.addEventListener('change', (e) => {
+        this.panels.dock = e.target.checked;
+        this.applyPanels(true);
+      });
+      document.getElementById('toggle-panel-pip')?.addEventListener('change', (e) => {
+        this.panels.pip = e.target.checked;
+        this.applyPanels(true);
+      });
+
+      // Overlay toggles
+      document.getElementById('toggle-overlay-axes')?.addEventListener('change', (e) => {
+        this.overlays.axes = e.target.checked;
+        this.applyOverlays(true);
+      });
+      document.getElementById('toggle-overlay-trails')?.addEventListener('change', (e) => {
+        this.overlays.trails = e.target.checked;
+        this.applyOverlays(true);
+      });
+      document.getElementById('toggle-overlay-frustums')?.addEventListener('change', (e) => {
+        this.overlays.frustums = e.target.checked;
+        this.applyOverlays(true);
+      });
+      document.getElementById('toggle-overlay-boxes')?.addEventListener('change', (e) => {
+        this.overlays.boxes = e.target.checked;
+        this.applyOverlays(true);
+      });
+      document.getElementById('toggle-overlay-grid')?.addEventListener('change', (e) => {
+        this.overlays.grid = e.target.checked;
+        this.applyOverlays(true);
+      });
+
+      // Reset Defaults
+      this.btnResetDefaults?.addEventListener('click', () => {
+        this.resetDefaults();
+      });
+
+      // Presentation Exit Button
+      this.btnExitPresentation?.addEventListener('click', () => {
+        this.setMode('developer', true);
+      });
+
+      // Global keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        // Alt+W: Toggle Workspace Modal
+        if (e.altKey && (e.key === 'w' || e.key === 'W')) {
+          e.preventDefault();
+          if (this.modalBackdrop?.style.display === 'flex') {
+            this.closeModal();
+          } else {
+            this.openModal();
+          }
+        }
+        // Alt+T: Cycle Themes
+        if (e.altKey && (e.key === 't' || e.key === 'T')) {
+          e.preventDefault();
+          const themeCycle = ['graphite', 'midnight', 'light', 'high-contrast'];
+          const currentIndex = themeCycle.indexOf(this.theme);
+          const nextTheme = themeCycle[(currentIndex + 1) % themeCycle.length];
+          this.setTheme(nextTheme, true);
+        }
+        // Escape: Exit presentation mode or close modal
+        if (e.key === 'Escape') {
+          if (this.modalBackdrop?.style.display === 'flex') {
+            this.closeModal();
+          } else if (this.mode === 'presentation') {
+            this.setMode('developer', true);
+          }
+        }
+      });
+    }
+
+    updateTelemetryHUD(telemetry) {
+      if (this.mode !== 'presentation') return;
+      if (!telemetry) return;
+
+      if (this.presStatusBadge) {
+        const state = telemetry.state || (telemetry.dialogue && telemetry.dialogue.state) || 'READY';
+        this.presStatusBadge.textContent = state;
+        if (state === 'EXECUTING') {
+          this.presStatusBadge.style.color = '#10b981';
+          this.presStatusBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+        } else if (state.includes('PAUSED')) {
+          this.presStatusBadge.style.color = '#f59e0b';
+          this.presStatusBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+        } else if (state === 'FAILED' || state === 'REJECTED') {
+          this.presStatusBadge.style.color = '#ef4444';
+          this.presStatusBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+        } else {
+          this.presStatusBadge.style.color = '#10b981';
+          this.presStatusBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+        }
+      }
+
+      if (this.presThoughtText) {
+        const thought = (telemetry.dialogue && telemetry.dialogue.latest_thought) ||
+                        (telemetry.dialogue && telemetry.dialogue.active_subgoal_desc) ||
+                        telemetry.thought ||
+                        'Standing by for instruction';
+        this.presThoughtText.textContent = thought;
+      }
     }
   }
 
-  // Initialize theme from HTML attribute or localStorage
-  const currentInitialTheme =
-    document.documentElement.getAttribute('data-theme') ||
-    localStorage.getItem('AERO_THEME') ||
-    'dark';
-  applyTheme(currentInitialTheme, false);
-
-  btnToggleTheme?.addEventListener('click', () => {
-    const active = document.documentElement.getAttribute('data-theme') || 'dark';
-    const next = active === 'light' ? 'dark' : 'light';
-    applyTheme(next, true);
-  });
-
-  // Global Keyboard Shortcut: Alt+T to toggle Light/Dark Monochromatic UI
-  document.addEventListener('keydown', (e) => {
-    if (e.altKey && (e.key === 't' || e.key === 'T')) {
-      e.preventDefault();
-      const active = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next = active === 'light' ? 'dark' : 'light';
-      applyTheme(next, true);
-    }
-  });
+  const workspaceMgr = new WorkspaceManager(simCanvas);
+  window.workspaceMgr = workspaceMgr;
 
   // 2. WebSocket Telemetry Client
   let ws = null;
@@ -248,6 +573,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     lastDomUpdateTime = now;
+
+    // Update Presentation HUD if active
+    if (window.workspaceMgr) {
+      window.workspaceMgr.updateTelemetryHUD(data);
+    }
 
     // 2. Update Header FPS & Ticks
     const fpsEl = document.getElementById('fps-metric');
@@ -1321,6 +1651,23 @@ document.addEventListener('DOMContentLoaded', () => {
     cmdInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') submitCommand();
     });
+
+    // Wire Presentation Mode Command Input
+    const presCmdInput = document.getElementById('pres-cmd-input');
+    const presBtnSend = document.getElementById('pres-btn-send');
+    if (presBtnSend && presCmdInput) {
+      const handlePresSend = () => {
+        const val = presCmdInput.value.trim();
+        if (val) {
+          submitCommand(val);
+          presCmdInput.value = '';
+        }
+      };
+      presBtnSend.addEventListener('click', handlePresSend);
+      presCmdInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handlePresSend();
+      });
+    }
 
     // 5. Preset Action Chips
     document.querySelectorAll('.prompt-chip').forEach((chip) => {

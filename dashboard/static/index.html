@@ -10,12 +10,9 @@
   <script>
     (function () {
       try {
-        var savedTheme = localStorage.getItem('AERO_THEME') || 'dark';
-        if (savedTheme === 'light') {
-          document.documentElement.setAttribute('data-theme', 'light');
-        } else {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
+        var savedTheme = localStorage.getItem('AERO_THEME') || 'graphite';
+        if (savedTheme === 'dark') savedTheme = 'graphite';
+        document.documentElement.setAttribute('data-theme', savedTheme);
       } catch (e) { }
     })();
   </script>
@@ -55,6 +52,19 @@
           <span class="session-dot"></span>
           <span id="header-session-id">Session</span>
         </div>
+
+        <!-- Workspace & Appearance Settings Button -->
+        <button class="btn-header" id="btn-workspace-settings" title="Workspace Layout &amp; Appearance (Alt+W)"
+          aria-label="Workspace &amp; Appearance Settings">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span class="btn-workspace-label" id="btn-workspace-label">Developer</span>
+        </button>
 
         <!-- Light / Dark Monochromatic Theme Toggle Button -->
         <button class="btn-header" id="btn-toggle-theme" title="Toggle Light / Dark Monochromatic UI (Alt+T)"
@@ -226,6 +236,31 @@
           <span class="dock-val" id="dock-fps-val">60.0 FPS</span>
         </div>
       </div>
+
+      <!-- Mode D: Presentation Floating Minimal HUD & Interactive Command Bar -->
+      <div class="presentation-top-hud" id="presentation-top-hud" style="display: none;">
+        <span class="pres-dot"></span>
+        <span class="pres-title">AERO STUDIO</span>
+        <span class="pres-sep">/</span>
+        <span class="pres-badge" id="pres-status-badge">READY</span>
+        <span class="pres-sep">/</span>
+        <span class="pres-thought" id="pres-thought-text">Standing by for instruction</span>
+      </div>
+
+      <div class="presentation-bottom-bar" id="presentation-bottom-bar" style="display: none;">
+        <input type="text" class="pres-input" id="pres-cmd-input" placeholder="Demonstration instruction ('Make 2x2 structure', 'Build pyramid')..." autocomplete="off" />
+        <button class="pres-btn-send" id="pres-btn-send">Execute</button>
+      </div>
+
+      <button class="btn-exit-presentation" id="btn-exit-presentation" style="display: none;" title="Exit Presentation Mode (Esc)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 14 10 14 10 20"></polyline>
+          <polyline points="20 10 14 10 14 4"></polyline>
+          <line x1="14" y1="10" x2="21" y2="3"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+        <span>Exit (Esc)</span>
+      </button>
     </main>
 
     <!-- Unified Conversational Mission Dock & Command Bar (Bottom Only) -->
@@ -626,6 +661,227 @@
     </aside>
     <!-- Drawer Backdrop (Visible on mobile when drawer is open) -->
     <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+  </div>
+
+  <!-- Workspace & Appearance Settings Modal -->
+  <div id="modal-workspace-backdrop" class="modal-workspace-backdrop" style="display: none;">
+    <div class="workspace-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="ws-modal-title">
+      <div class="ws-modal-header">
+        <div class="ws-modal-header-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <h3 id="ws-modal-title">Studio Workspace &amp; Appearance</h3>
+        </div>
+        <button class="btn-icon-close" id="btn-close-workspace-modal" title="Close Settings (Esc)" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="ws-modal-body">
+        <!-- Section 1: Studio Appearance Modes -->
+        <div class="ws-section">
+          <div class="ws-section-header">
+            <span class="ws-section-title">WORKSPACE MODE</span>
+            <span class="ws-section-desc">Adaptive layout configuration for tasks</span>
+          </div>
+          <div class="ws-mode-grid">
+            <!-- Mode A: Full Engineering -->
+            <div class="ws-mode-card" data-mode="engineering" id="mode-card-engineering">
+              <div class="ws-mode-card-header">
+                <span class="ws-mode-title">Full Engineering</span>
+                <span class="ws-mode-pill">Dense</span>
+              </div>
+              <p class="ws-mode-desc">Complete technical layout with joint angles, FK/IK kinematics, actuator power, collision contacts, and 3D diagnostics.</p>
+              <div class="ws-mode-tags">
+                <span>FK/IK</span>
+                <span>Actuators</span>
+                <span>Contacts</span>
+                <span>3D Axes</span>
+              </div>
+            </div>
+
+            <!-- Mode B: Developer (Default) -->
+            <div class="ws-mode-card active" data-mode="developer" id="mode-card-developer">
+              <div class="ws-mode-card-header">
+                <span class="ws-mode-title">Developer</span>
+                <span class="ws-mode-pill ws-pill-active">Default</span>
+              </div>
+              <p class="ws-mode-desc">Balanced technical layout with 3D simulation, essential telemetry, command dock, and thought stream.</p>
+              <div class="ws-mode-tags">
+                <span>Standard</span>
+                <span>Balanced</span>
+                <span>Mission Dock</span>
+              </div>
+            </div>
+
+            <!-- Mode C: Minimal Studio -->
+            <div class="ws-mode-card" data-mode="minimal" id="mode-card-minimal">
+              <div class="ws-mode-card-header">
+                <span class="ws-mode-title">Minimal Studio</span>
+                <span class="ws-mode-pill">Clean</span>
+              </div>
+              <p class="ws-mode-desc">Expansive 3D viewport with concealed sidebars and compact dock for distraction-free simulation.</p>
+              <div class="ws-mode-tags">
+                <span>Focus</span>
+                <span>Max Stage</span>
+                <span>Quiet</span>
+              </div>
+            </div>
+
+            <!-- Mode D: Presentation Mode -->
+            <div class="ws-mode-card" data-mode="presentation" id="mode-card-presentation">
+              <div class="ws-mode-card-header">
+                <span class="ws-mode-title">Presentation</span>
+                <span class="ws-mode-pill">Fullscreen</span>
+              </div>
+              <p class="ws-mode-desc">100% maximized simulation canvas with floating minimal HUD and sleek command bar for live demos and recordings.</p>
+              <div class="ws-mode-tags">
+                <span>100% Viewport</span>
+                <span>Floating HUD</span>
+                <span>Demo Ready</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Colour Themes (Strictly Independent from Modes) -->
+        <div class="ws-section">
+          <div class="ws-section-header">
+            <span class="ws-section-title">COLOUR THEME</span>
+            <span class="ws-section-desc">Engineering surface grading and palette</span>
+          </div>
+          <div class="ws-theme-grid">
+            <!-- 1. Graphite (Default) -->
+            <button class="ws-theme-card active" data-theme="graphite" id="theme-btn-graphite">
+              <div class="ws-theme-preview theme-preview-graphite">
+                <div class="preview-bar"></div>
+                <div class="preview-accent"></div>
+              </div>
+              <div class="ws-theme-info">
+                <span class="ws-theme-name">Graphite</span>
+                <span class="ws-theme-desc">Charcoal &amp; slate, cyan accent</span>
+              </div>
+            </button>
+
+            <!-- 2. Midnight -->
+            <button class="ws-theme-card" data-theme="midnight" id="theme-btn-midnight">
+              <div class="ws-theme-preview theme-preview-midnight">
+                <div class="preview-bar"></div>
+                <div class="preview-accent"></div>
+              </div>
+              <div class="ws-theme-info">
+                <span class="ws-theme-name">Midnight</span>
+                <span class="ws-theme-desc">Deep navy, cool blue accent</span>
+              </div>
+            </button>
+
+            <!-- 3. Light Engineering -->
+            <button class="ws-theme-card" data-theme="light" id="theme-btn-light">
+              <div class="ws-theme-preview theme-preview-light">
+                <div class="preview-bar"></div>
+                <div class="preview-accent"></div>
+              </div>
+              <div class="ws-theme-info">
+                <span class="ws-theme-name">Light Engineering</span>
+                <span class="ws-theme-desc">Precision light grey, steel blue</span>
+              </div>
+            </button>
+
+            <!-- 4. High Contrast -->
+            <button class="ws-theme-card" data-theme="high-contrast" id="theme-btn-high-contrast">
+              <div class="ws-theme-preview theme-preview-high-contrast">
+                <div class="preview-bar"></div>
+                <div class="preview-accent"></div>
+              </div>
+              <div class="ws-theme-info">
+                <span class="ws-theme-name">High Contrast</span>
+                <span class="ws-theme-desc">Sharpened contrast &amp; borders</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 3: Panel Visibility & 3D Overlays Customization -->
+        <div class="ws-section ws-grid-2col">
+          <!-- Sub-col A: Panel Visibility -->
+          <div class="ws-subcol">
+            <div class="ws-section-header">
+              <span class="ws-section-title">PANEL VISIBILITY</span>
+            </div>
+            <div class="ws-toggle-list">
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Telemetry &amp; Audit Sidebar</span>
+                <input type="checkbox" id="toggle-panel-sidebar" checked>
+                <span class="toggle-slider"></span>
+              </label>
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Mission Command Dock</span>
+                <input type="checkbox" id="toggle-panel-dock" checked>
+                <span class="toggle-slider"></span>
+              </label>
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Camera PiP Stream</span>
+                <input type="checkbox" id="toggle-panel-pip" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Sub-col B: 3D Simulation Overlays -->
+          <div class="ws-subcol">
+            <div class="ws-section-header">
+              <span class="ws-section-title">3D VIEWPORT OVERLAYS</span>
+            </div>
+            <div class="ws-toggle-list">
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Coordinate Axes (Frames)</span>
+                <input type="checkbox" id="toggle-overlay-axes">
+                <span class="toggle-slider"></span>
+              </label>
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Motion Trajectory Trails</span>
+                <input type="checkbox" id="toggle-overlay-trails" checked>
+                <span class="toggle-slider"></span>
+              </label>
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Sensor Frustum Pyramids</span>
+                <input type="checkbox" id="toggle-overlay-frustums">
+                <span class="toggle-slider"></span>
+              </label>
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Perception Bounding Boxes</span>
+                <input type="checkbox" id="toggle-overlay-boxes">
+                <span class="toggle-slider"></span>
+              </label>
+              <label class="ws-toggle-item">
+                <span class="ws-toggle-label">Workspace Grid Floor</span>
+                <input type="checkbox" id="toggle-overlay-grid" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="ws-modal-footer">
+        <button class="btn-modal-reset" id="btn-modal-reset-defaults">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+          Reset to Defaults
+        </button>
+        <button class="btn-modal-done" id="btn-modal-close-done">Done</button>
+      </div>
+    </div>
   </div>
 
   <!-- Three.js and Vendor Scripts -->

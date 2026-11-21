@@ -46,6 +46,10 @@ class SimCanvas3D {
     this.showColliders = false;
     this.showPerceptionBoxes = true;
     this.showFrustums = true;
+    this.showAxes = false;
+    this.showGrid = true;
+    this.axesHelper = null;
+    this.tableAxesHelper = null;
     this.perceptionMeshes = {};
     this.sensorFrustumGroup = null;
     this.wristSensorBeam = null;
@@ -139,6 +143,7 @@ class SimCanvas3D {
 
     // 5. Studio Environment: Floor, Table, Target Zone
     this.setupEnvironment();
+    this.setupAxesHelper();
 
     // 6. Articulated Panda Robot Arm (RobotArm.tsx from new_project_1)
     this.buildRobotArm();
@@ -166,11 +171,9 @@ class SimCanvas3D {
     // Trigger initial adjustment once DOM is fully rendered
     setTimeout(() => this.onWindowResize(), 60);
 
-    // Initialize Theme (Monochromatic Noir or Monochromatic Blanc)
-    const activeTheme = (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme')) || 'dark';
-    if (activeTheme === 'light') {
-      this.setTheme('light');
-    }
+    // Initialize Theme (Graphite, Midnight, Light Engineering, or High Contrast)
+    const activeTheme = (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme')) || 'graphite';
+    this.setTheme(activeTheme);
 
     // Animation Loop
     this.animate();
@@ -241,59 +244,132 @@ class SimCanvas3D {
     this.updateBlocks(DEFAULT_BLOCKS);
   }
 
+  setupAxesHelper() {
+    // 1. Arm Base Mount Coordinate Axes (RGB = XYZ: Red=X, Green=Y, Blue=Z)
+    this.axesHelper = new THREE.AxesHelper(0.22);
+    this.axesHelper.position.set(-0.28, 0.725, 0.0);
+    this.axesHelper.visible = !!this.showAxes;
+    this.scene.add(this.axesHelper);
+
+    // 2. Table Center Origin Coordinate Axes
+    this.tableAxesHelper = new THREE.AxesHelper(0.14);
+    this.tableAxesHelper.position.set(0.0, 0.721, 0.0);
+    this.tableAxesHelper.visible = !!this.showAxes;
+    this.scene.add(this.tableAxesHelper);
+  }
+
+  toggleAxes(show) {
+    this.showAxes = (show !== undefined ? !!show : !this.showAxes);
+    if (this.axesHelper) this.axesHelper.visible = this.showAxes;
+    if (this.tableAxesHelper) this.tableAxesHelper.visible = this.showAxes;
+    return this.showAxes;
+  }
+
+  toggleTrails(show) {
+    this.showTrails = (show !== undefined ? !!show : !this.showTrails);
+    if (this.tcpTrailLine) this.tcpTrailLine.visible = this.showTrails;
+    return this.showTrails;
+  }
+
+  toggleFrustums(show) {
+    this.showFrustums = (show !== undefined ? !!show : !this.showFrustums);
+    if (this.sensorFrustumGroup) this.sensorFrustumGroup.visible = this.showFrustums;
+    if (this.wristSensorBeam) this.wristSensorBeam.visible = this.showFrustums;
+    return this.showFrustums;
+  }
+
+  togglePerceptionBoxes(show) {
+    this.showPerceptionBoxes = (show !== undefined ? !!show : !this.showPerceptionBoxes);
+    Object.values(this.perceptionMeshes).forEach((m) => {
+      m.visible = this.showPerceptionBoxes;
+    });
+    return this.showPerceptionBoxes;
+  }
+
+  toggleGrid(show) {
+    this.showGrid = (show !== undefined ? !!show : !this.showGrid);
+    if (this.gridHelper) this.gridHelper.visible = this.showGrid;
+    return this.showGrid;
+  }
+
   setTheme(themeName) {
-    const isLight = themeName === 'light';
-    this.currentTheme = isLight ? 'light' : 'dark';
-    const bgColor = isLight ? 0xf4f4f6 : 0x09090b;
+    this.currentTheme = themeName || 'graphite';
+    let bgColor = 0x0e1117;
+    let floorColor = 0x090c12;
+    let tableColor = 0x161b24;
+    let trimColor = 0x222b38;
+    let grid1 = 0x384454;
+    let grid2 = 0x161b22;
+    let ambIntensity = 0.45;
+    let hemiSky = 0xcfd8dc;
+    let hemiGround = 0x161b22;
+    let hemiIntensity = 0.75;
+
+    if (themeName === 'midnight') {
+      bgColor = 0x080c14;
+      floorColor = 0x05080e;
+      tableColor = 0x0f172a;
+      trimColor = 0x1e293b;
+      grid1 = 0x1e3a5f;
+      grid2 = 0x0f172a;
+      ambIntensity = 0.45;
+      hemiSky = 0x93c5fd;
+      hemiGround = 0x0f172a;
+      hemiIntensity = 0.75;
+    } else if (themeName === 'light') {
+      bgColor = 0xf1f5f9;
+      floorColor = 0xe2e8f0;
+      tableColor = 0xffffff;
+      trimColor = 0xcbd5e1;
+      grid1 = 0x94a3b8;
+      grid2 = 0xe2e8f0;
+      ambIntensity = 0.65;
+      hemiSky = 0xffffff;
+      hemiGround = 0xcbd5e1;
+      hemiIntensity = 0.85;
+    } else if (themeName === 'high-contrast') {
+      bgColor = 0x000000;
+      floorColor = 0x050507;
+      tableColor = 0x121216;
+      trimColor = 0x282832;
+      grid1 = 0x555566;
+      grid2 = 0x181820;
+      ambIntensity = 0.50;
+      hemiSky = 0xffffff;
+      hemiGround = 0x181820;
+      hemiIntensity = 0.80;
+    }
 
     if (this.scene) {
-      if (this.scene.background) {
-        this.scene.background.setHex(bgColor);
-      }
+      if (this.scene.background) this.scene.background.setHex(bgColor);
       if (this.scene.fog) {
         this.scene.fog.color.setHex(bgColor);
+        this.scene.fog.near = 7;
+        this.scene.fog.far = 24;
       }
     }
 
-    if (this.floorMat) {
-      this.floorMat.color.setHex(isLight ? 0xeeeeef : 0x09090b);
-    }
-
-    if (this.tableMat) {
-      this.tableMat.color.setHex(isLight ? 0xe4e4e7 : 0x18181b);
-    }
-
-    if (this.trimMat) {
-      this.trimMat.color.setHex(isLight ? 0xd4d4d8 : 0x27272a);
-    }
+    if (this.floorMat) this.floorMat.color.setHex(floorColor);
+    if (this.tableMat) this.tableMat.color.setHex(tableColor);
+    if (this.trimMat) this.trimMat.color.setHex(trimColor);
 
     if (this.gridHelper && this.scene) {
       this.scene.remove(this.gridHelper);
       if (this.gridHelper.geometry) this.gridHelper.geometry.dispose();
       if (this.gridHelper.material) this.gridHelper.material.dispose();
-      const primaryColor = isLight ? 0xa1a1aa : 0x3f3f46;
-      const secondaryColor = isLight ? 0xd4d4d8 : 0x18181b;
-      this.gridHelper = new THREE.GridHelper(16, 32, primaryColor, secondaryColor);
+      this.gridHelper = new THREE.GridHelper(16, 32, grid1, grid2);
       this.gridHelper.position.y = 0.001;
       this.gridHelper.matrixAutoUpdate = false;
       this.gridHelper.updateMatrix();
+      this.gridHelper.visible = (this.showGrid !== false);
       this.scene.add(this.gridHelper);
     }
 
-    if (this.ambLight) {
-      this.ambLight.intensity = isLight ? 0.65 : 0.4;
-    }
-
+    if (this.ambLight) this.ambLight.intensity = ambIntensity;
     if (this.hemiLight) {
-      if (isLight) {
-        this.hemiLight.color.setHex(0xffffff);
-        this.hemiLight.groundColor.setHex(0xd4d4d8);
-        this.hemiLight.intensity = 0.85;
-      } else {
-        this.hemiLight.color.setHex(0xd4d4d8);
-        this.hemiLight.groundColor.setHex(0x18181b);
-        this.hemiLight.intensity = 0.7;
-      }
+      this.hemiLight.color.setHex(hemiSky);
+      this.hemiLight.groundColor.setHex(hemiGround);
+      this.hemiLight.intensity = hemiIntensity;
     }
   }
 
@@ -1161,12 +1237,6 @@ class SimCanvas3D {
       this.onWindowResize();
     }
     return this.perfMode;
-  }
-
-  toggleTrails() {
-    this.showTrails = !this.showTrails;
-    if (this.tcpTrailLine) this.tcpTrailLine.visible = this.showTrails;
-    return this.showTrails;
   }
 
   onWindowResize() {
