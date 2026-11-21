@@ -290,10 +290,13 @@ class UserSession:
 
         self.log_event(
             "vla",
-            "INSTRUCTION",
-            f"VLA instruction received: \"{cmd}\"",
-            f"Dispatched to Google VLA reasoning pipeline (Model: {self.vla_agent.model_name}). Synthesizing spatial chain-of-thought."
+            "EXECUTION STARTED",
+            f"Execution started for instruction: \"{cmd}\"",
+            f"Dispatched to Google VLA reasoning pipeline (Model: {self.vla_agent.model_name}). Synthesizing spatial plan and solving 5-DOF IK waypoints."
         )
+        self.supervisor.state = "PLANNING"
+        self.supervisor.post_user_message(cmd)
+        self.supervisor.post_robot_message(f"Execution started for: \"{cmd}\". Synthesizing spatial plan...", status_tag="PLANNING")
 
         # Halt prior trajectory and refresh perception without resetting block positions
         self.handle_reset(reset_blocks=False)

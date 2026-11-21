@@ -1226,14 +1226,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const badge = log.badge || 'INFO';
       let badgeClass = 'badge-system';
       if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
+      else if (badge === 'EXECUTION STARTED' || badge === 'STARTED') badgeClass = 'badge-started';
       else if (cat === 'perception') badgeClass = 'badge-perception';
       else if (cat === 'vla') badgeClass = 'badge-vla';
       else if (cat === 'motion') badgeClass = 'badge-motion';
       else if (cat === 'contact') badgeClass = 'badge-contact';
       else if (cat === 'stability') badgeClass = 'badge-stability';
 
+      const catClass = (badge === 'EXECUTION STARTED' || badge === 'STARTED') ? 'cat-started' : `cat-${cat}`;
+
       return `
-        <div class="log-entry cat-${cat}" data-id="${log.id}">
+        <div class="log-entry ${catClass}" data-id="${log.id}">
           <div class="log-entry-header">
             <span class="log-time">${log.timestamp || ''}</span>
             <span class="log-badge ${badgeClass}">${badge}</span>
@@ -1571,7 +1574,43 @@ document.addEventListener('DOMContentLoaded', () => {
     cmdInput.value = text;
 
     sendBtn.disabled = true;
-    sendBtn.innerText = 'Reasoning...';
+    sendBtn.innerHTML = '<span class="logs-dot-pulse"></span> Reasoning...';
+
+    // Immediate UI feedback so user immediately knows execution has started
+    const dockFb = document.getElementById('dock-feedback-text');
+    const dockContainer = document.getElementById('dock-agent-feedback');
+    const stateBadge = document.getElementById('chat-state-badge');
+    const chatDot = document.getElementById('chat-status-dot');
+
+    if (dockFb) {
+      dockFb.innerText = `Execution started: Synthesizing spatial trajectory for "${text}"...`;
+    }
+    if (dockContainer) {
+      dockContainer.classList.add('feedback-planning');
+    }
+    if (stateBadge) {
+      stateBadge.innerText = 'PLANNING';
+      stateBadge.style.color = '#38bdf8';
+      stateBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+      stateBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+    }
+    if (chatDot) {
+      chatDot.style.background = '#38bdf8';
+    }
+
+    // Insert immediate "EXECUTION STARTED" log in Execution Story tab
+    const startLog = {
+      id: 'local_start_' + Date.now(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      category: 'vla',
+      badge: 'STARTED',
+      what: `Execution started: "${text}"`,
+      how: 'Reasoning pipeline engaged · Capturing overhead RGB perception & solving 5-DOF IK waypoints. Motion initiating shortly.',
+    };
+    localLogs.push(startLog);
+    if (activeTab === 'logs') {
+      renderLogs();
+    }
 
     const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
     const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
