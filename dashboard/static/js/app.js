@@ -1225,7 +1225,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const cat = (log.category || 'system').toLowerCase();
       const badge = log.badge || 'INFO';
       let badgeClass = 'badge-system';
-      if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
+      if (badge === 'FAILURE' || badge === 'FAILED') badgeClass = 'badge-failure';
+      else if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
       else if (badge === 'EXECUTION STARTED' || badge === 'STARTED') badgeClass = 'badge-started';
       else if (cat === 'perception') badgeClass = 'badge-perception';
       else if (cat === 'vla') badgeClass = 'badge-vla';
@@ -1233,7 +1234,9 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (cat === 'contact') badgeClass = 'badge-contact';
       else if (cat === 'stability') badgeClass = 'badge-stability';
 
-      const catClass = (badge === 'EXECUTION STARTED' || badge === 'STARTED') ? 'cat-started' : `cat-${cat}`;
+      let catClass = `cat-${cat}`;
+      if (badge === 'FAILURE' || badge === 'FAILED') catClass = 'cat-failure';
+      else if (badge === 'EXECUTION STARTED' || badge === 'STARTED') catClass = 'cat-started';
 
       return `
         <div class="log-entry ${catClass}" data-id="${log.id}">
@@ -1324,12 +1327,21 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
         if (dot) dot.style.background = '#ef4444';
         if (badgeDot) badgeDot.style.display = 'none';
+        const dockCard = document.getElementById('dock-agent-feedback');
+        if (dockCard) {
+          dockCard.classList.remove('feedback-planning');
+          dockCard.classList.add('feedback-failed');
+        }
       } else {
         badge.style.color = '';
         badge.style.background = '';
         badge.style.borderColor = '';
         if (dot) dot.style.background = '#a1a1aa';
         if (badgeDot) badgeDot.style.display = 'none';
+        const dockCard = document.getElementById('dock-agent-feedback');
+        if (dockCard) {
+          dockCard.classList.remove('feedback-failed');
+        }
       }
     }
 

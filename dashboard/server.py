@@ -69,6 +69,7 @@ from vla.agents import (
     NarrativeLoggerAgent,
     InstructionDecomposerAgent,
     HumanDialogueSupervisorAgent,
+    FailureDetectorAgent,
 )
 
 VLA_STRIDE = 12  # 5 Hz policy updates over 60 Hz physics (vsarena standard)
@@ -128,6 +129,7 @@ class UserSession:
         self.memory_agent = EpisodicMemoryAgent()
         self.narrator_agent = NarrativeLoggerAgent()
         self.decomposer_agent = InstructionDecomposerAgent()
+        self.failure_detector = FailureDetectorAgent()
         self.supervisor = HumanDialogueSupervisorAgent(
             memory_agent=self.memory_agent,
             narrator_agent=self.narrator_agent,
@@ -273,6 +275,7 @@ class UserSession:
         self.vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
         self.supervisor.reset()
         self.narrator_agent.flush_pending()
+        self.failure_detector.reset()
         if reset_blocks:
             self.log_event(
                 "system",
@@ -280,6 +283,48 @@ class UserSession:
                 "Workspace and arm reset." if not randomize else "Workspace randomized with collision-free spawns.",
                 "Blocks spawned at baseline coordinates. Trajectory queue stopped." if not randomize else "Blocks randomized within 5-DOF reach envelope. Camera perception initialized."
             )
+
+    def handle_failure_detected(self, failure: Dict[str, Any]):
+        """
+        Failure Detector Agent Action:
+        Immediately stops execution, records diagnostics in logs,
+        and posts an explainable failure alert to the bottom conversational chat window.
+        """
+        # 1. Immediately halt all active controllers and policies
+        self.controller.stop()
+        self.orchestrator.stop_task()
+        self.color_seek_active = False
+        self.active_target_block_id = None
+        self.failure_detector.stop_monitoring()
+
+        f_type = failure.get("type", "TASK_FAILURE")
+        f_reason = failure.get("reason", "Robot failed to execute task")
+        f_expl = failure.get("explanation", "Failure detected. Execution halted.")
+
+        # 2. Update states
+        self.vla_agent.execution_status = "FAILED"
+        self.vla_agent.latest_thought = f"Failure Detector: {f_reason}"
+        self.supervisor.state = "FAILED"
+
+        # 3. Log event into Execution Story with high-visibility FAILURE badge
+        self.log_event(
+            "vla",
+            "FAILURE",
+            f"Execution Halted: {f_type} - {f_reason}",
+            f"{f_expl} Autonomous safety stop triggered to protect robot hardware and workcell."
+        )
+        self.narrator_agent.log(
+            category="anomaly",
+            title=f"Failure: {f_type}",
+            explanation=f_expl,
+            severity="error",
+        )
+
+        # 4. Post prominently into bottom chat window
+        self.supervisor.post_robot_message(
+            f"Execution stopped due to failure: {f_reason}\n\nDiagnostics: {f_expl}\n\nPlease click Reset Arm or provide a corrective instruction.",
+            status_tag="FAILED"
+        )
 
     async def handle_vla_command(self, cmd: str) -> Dict[str, Any]:
         if self.is_suspended:
@@ -544,11 +589,33 @@ class UserSession:
                 f"Calculated 5-DOF IK trajectory with {len(plan)} waypoints.",
                 f"Action: {result.get('action_type', 'TASK')} · CoT reasoning: {result.get('reasoning', result.get('thought', 'Metric waypoint sequence dispatched.'))}"
             )
+            return result
+
+        # Initial Task Failure Detection: check if initial step could not be formed
+        subgoals_list = list(self.orchestrator.planner.subgoals.values()) if hasattr(self.orchestrator, "planner") else []
+        init_fail = self.failure_detector.evaluate_initial_feasibility(cmd, subgoals_list, self.sim)
+        if init_fail:
+            self.handle_failure_detected(init_fail)
+            return {"status": "FAILED", "reason": init_fail["reason"], "is_possible": False}
+
         return result
 
     def step(self) -> Optional[Dict[str, Any]]:
         if self.is_paused:
             return None
+
+        # Failure Detector Agent: Continuous 60 Hz execution health & stall monitor
+        if not self.manual_mode:
+            fail_check = self.failure_detector.evaluate(
+                sim=self.sim,
+                controller=self.controller,
+                orchestrator=self.orchestrator,
+                is_color_seek=self.color_seek_active,
+                current_instruction=self.supervisor.current_instruction
+            )
+            if fail_check and fail_check.get("failed"):
+                self.handle_failure_detected(fail_check)
+                return None
 
         fk_data = self.sim.get_snapshot()["tcp"]["position"]
         tcp_pos = (fk_data[0], fk_data[1], fk_data[2])

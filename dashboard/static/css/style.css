@@ -1414,6 +1414,18 @@
       background: rgba(56, 189, 248, 0.08);
     }
 
+    .dock-agent-feedback.feedback-failed {
+      border-color: rgba(239, 68, 68, 0.65);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fca5a5;
+    }
+
+    .dock-agent-feedback.feedback-failed .feedback-indicator {
+      background: #ef4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+      animation: none;
+    }
+
     .feedback-indicator {
       width: 8px;
       height: 8px;
@@ -2080,6 +2092,14 @@
       background: rgba(248, 113, 113, 0.18);
       border-color: rgba(248, 113, 113, 0.45);
       color: #fca5a5;
+    }
+
+    .badge-failure {
+      background: rgba(239, 68, 68, 0.24);
+      border-color: rgba(239, 68, 68, 0.60);
+      color: #fca5a5;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+      font-weight: 800;
     }
 
     /* WHAT Section (Primary Event Headline) */
