@@ -271,6 +271,14 @@ document.addEventListener('DOMContentLoaded', () => {
           thoughtBox.classList.remove('rejected', 'gesture');
         }
       }
+      const dockFb = document.getElementById('dock-feedback-text');
+      if (dockFb && data.vla.thought) {
+        dockFb.innerText = data.vla.thought;
+      }
+      const dockState = document.getElementById('chat-state-badge');
+      if (dockState && data.vla.status) {
+        dockState.innerText = data.vla.status;
+      }
       if (vlaBadge) {
         vlaBadge.innerText = data.vla.status || 'IDLE';
         if (data.vla.status === 'REJECTED') {
@@ -735,36 +743,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedDockSize = localStorage.getItem('AERO_DOCK_SIZE') || 'normal';
     setDockSize(savedDockSize);
 
-    // Draggable Dock Resizer
+    // Improved Smooth Draggable Dock Resizer (RAF-debounced, clean bounds)
     if (dockResizer && dockEl) {
       let isDraggingDock = false;
       let startY = 0;
       let startHeight = 0;
+      let animFrameId = null;
 
       dockResizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
         isDraggingDock = true;
         startY = e.clientY;
         startHeight = dockEl.getBoundingClientRect().height;
         dockResizer.classList.add('active');
+        document.body.classList.add('resizing-active');
         document.body.style.cursor = 'ns-resize';
-        document.body.style.userSelect = 'none';
       });
 
       window.addEventListener('mousemove', (e) => {
         if (!isDraggingDock) return;
         const delta = startY - e.clientY;
-        const newHeight = Math.max(68, Math.min(startHeight + delta, 520));
-        dockEl.classList.remove('size-compact', 'size-normal', 'size-expanded');
-        dockEl.style.maxHeight = `${newHeight}px`;
-        dockEl.style.height = `${newHeight}px`;
+        const newHeight = Math.max(68, Math.min(startHeight + delta, 440));
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        animFrameId = requestAnimationFrame(() => {
+          dockEl.classList.remove('size-compact', 'size-normal', 'size-expanded');
+          dockEl.style.maxHeight = `${newHeight}px`;
+          dockEl.style.height = `${newHeight}px`;
+        });
       });
 
       window.addEventListener('mouseup', () => {
         if (isDraggingDock) {
           isDraggingDock = false;
           dockResizer.classList.remove('active');
+          document.body.classList.remove('resizing-active');
           document.body.style.cursor = '';
-          document.body.style.userSelect = '';
+          const finalHeight = dockEl.getBoundingClientRect().height;
+          localStorage.setItem('AERO_DOCK_HEIGHT', finalHeight);
+          window.dispatchEvent(new Event('resize'));
         }
       });
     }
@@ -784,6 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnSidebarWide?.classList.toggle('active', mode === 'wide');
       localStorage.setItem('AERO_SIDEBAR_WIDTH', widthPx);
       localStorage.setItem('AERO_SIDEBAR_MODE', mode);
+      window.dispatchEvent(new Event('resize'));
     }
 
     btnSidebarNarrow?.addEventListener('click', () => setSidebarWidth(360, 'narrow'));
@@ -796,55 +813,51 @@ document.addEventListener('DOMContentLoaded', () => {
       setSidebarWidth(parseInt(savedSidebarWidth, 10), savedSidebarMode);
     }
 
-    // Draggable Sidebar Resizer
+    // Improved Smooth Draggable Sidebar Resizer (RAF-debounced, clean bounds)
     if (sidebarResizer && layoutContainer) {
       let isDraggingSidebar = false;
       let startX = 0;
       let startWidth = 0;
+      let animFrameId = null;
 
       sidebarResizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
         isDraggingSidebar = true;
         startX = e.clientX;
         const sidebar = document.getElementById('telemetry-panel');
         startWidth = sidebar ? sidebar.getBoundingClientRect().width : 440;
         sidebarResizer.classList.add('active');
+        document.body.classList.add('resizing-active');
         document.body.style.cursor = 'ew-resize';
-        document.body.style.userSelect = 'none';
       });
 
       window.addEventListener('mousemove', (e) => {
         if (!isDraggingSidebar) return;
         const delta = startX - e.clientX;
-        const newWidth = Math.max(300, Math.min(startWidth + delta, 680));
-        layoutContainer.style.setProperty('--sidebar-width', `${newWidth}px`);
-        btnSidebarNarrow?.classList.remove('active');
-        btnSidebarNormal?.classList.remove('active');
-        btnSidebarWide?.classList.remove('active');
+        const newWidth = Math.max(300, Math.min(startWidth + delta, 640));
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        animFrameId = requestAnimationFrame(() => {
+          layoutContainer.style.setProperty('--sidebar-width', `${newWidth}px`);
+          btnSidebarNarrow?.classList.remove('active');
+          btnSidebarNormal?.classList.remove('active');
+          btnSidebarWide?.classList.remove('active');
+        });
       });
 
       window.addEventListener('mouseup', () => {
         if (isDraggingSidebar) {
           isDraggingSidebar = false;
           sidebarResizer.classList.remove('active');
+          document.body.classList.remove('resizing-active');
           document.body.style.cursor = '';
-          document.body.style.userSelect = '';
+          const sidebar = document.getElementById('telemetry-panel');
+          if (sidebar) {
+            localStorage.setItem('AERO_SIDEBAR_WIDTH', sidebar.getBoundingClientRect().width);
+          }
+          window.dispatchEvent(new Event('resize'));
         }
       });
     }
-
-    // Card Collapsible Section Toggles
-    document.querySelectorAll('.btn-card-collapse').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const cardId = btn.getAttribute('data-card');
-        const cardEl = document.getElementById(cardId);
-        if (cardEl) {
-          cardEl.classList.toggle('collapsed');
-          const isCollapsed = cardEl.classList.contains('collapsed');
-          btn.setAttribute('title', isCollapsed ? 'Expand section' : 'Collapse section');
-        }
-      });
-    });
 
     filterChips.forEach((chip) => {
       chip.addEventListener('click', () => {
@@ -1015,74 +1028,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // 2. Memory Summary Count
-      const memEl = document.getElementById('chat-memory-count');
-      if (memEl && d.memory_summary) {
-        memEl.innerText = d.memory_summary.total_episodes || 0;
-      }
-
-      // 3. Step Checklist Card
-      const stepsCard = document.getElementById('chat-steps-card');
-      const stepsList = document.getElementById('chat-steps-list');
-      const progBadge = document.getElementById('chat-plan-progress-badge');
-
-      if (d.active_steps && d.active_steps.length > 0) {
-        if (stepsCard) stepsCard.style.display = 'block';
-        const curIdx = d.current_step_idx || 0;
-        const total = d.total_steps || d.active_steps.length;
-        const pct = Math.min(100, Math.round((curIdx / total) * 100));
-        if (progBadge) progBadge.innerText = `${pct}%`;
-
-        const sig = `${curIdx}_${total}_${d.active_steps.length}`;
-        if (sig !== lastStepsSignature && stepsList) {
-          lastStepsSignature = sig;
-          stepsList.innerHTML = d.active_steps.map((st, i) => {
-            const isDone = i < curIdx;
-            const isCurrent = i === curIdx;
-            const statusIcon = isDone 
-              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#10b981;color:#09090b;font-size:9px;font-weight:700;">✓</span>`
-              : (isCurrent 
-                ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#38bdf8;color:#09090b;font-size:9px;font-weight:700;">▸</span>`
-                : `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.1);color:#a1a1aa;font-size:8px;">•</span>`);
-            const style = isDone ? 'opacity: 0.55; text-decoration: line-through;' : (isCurrent ? 'font-weight: 700; color: #38bdf8;' : 'opacity: 0.85;');
-            return `<div style="${style} display: flex; align-items: center; gap: 6px;">
-            <span>${statusIcon}</span>
-            <span><strong>Step ${st.step_number || (i + 1)}:</strong> ${escapeHtml(st.title || st.description || '')}</span>
-          </div>`;
-          }).join('');
-        }
-      } else {
-        if (stepsCard) stepsCard.style.display = 'none';
-      }
-
-      // 4. Quick Action Guidance Chips
-      const chipsContainer = document.getElementById('chat-intervention-chips');
-      if (chipsContainer) {
-        if (d.suggested_actions && d.suggested_actions.length > 0) {
-          chipsContainer.style.display = 'flex';
-          chipsContainer.innerHTML = d.suggested_actions.map(act => `
-          <button class="chip-guidance-btn" data-guidance="${escapeHtml(act.label || act.id)}" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s;">
-            ${escapeHtml(act.label)}
-          </button>
-        `).join('');
-
-          chipsContainer.querySelectorAll('.chip-guidance-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              const guidanceText = btn.getAttribute('data-guidance');
-              sendGuidanceMessage(guidanceText);
-            });
-          });
-        } else {
-          chipsContainer.style.display = 'none';
-        }
-      }
-
-      // 5. Message Stream
-      if (d.chat_history && d.chat_history.length > 0) {
-        const lastMsg = d.chat_history[d.chat_history.length - 1];
-        if (lastMsg && lastMsg.id !== lastRenderedChatMsgId) {
-          lastRenderedChatMsgId = lastMsg.id;
-          renderChatHistory(d.chat_history);
+      // 2. Update Single-Line Dock Agent Feedback
+      const feedbackText = document.getElementById('dock-feedback-text');
+      if (feedbackText && d) {
+        if (d.active_subgoal_desc && d.active_subgoal_desc !== 'Idle') {
+          feedbackText.innerText = d.active_subgoal_desc;
+        } else if (d.latest_thought) {
+          feedbackText.innerText = d.latest_thought;
+        } else if (d.chat_history && d.chat_history.length > 0) {
+          const lastMsg = d.chat_history[d.chat_history.length - 1];
+          if (lastMsg && lastMsg.text) {
+            feedbackText.innerText = lastMsg.text;
+          }
         }
       }
     }
@@ -1183,38 +1140,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnChatReset = document.getElementById('btn-chat-reset');
     btnChatReset?.addEventListener('click', async () => {
+      if (cmdInput) {
+        cmdInput.value = '';
+        cmdInput.focus();
+      }
+      const fb = document.getElementById('dock-feedback-text');
+      if (fb) {
+        fb.innerText = 'Awaiting instruction... Enter a natural language command below or select a challenge chip.';
+      }
+      const badge = document.getElementById('chat-state-badge');
+      if (badge) {
+        badge.innerText = 'IDLE';
+        badge.style.color = '';
+        badge.style.background = '';
+        badge.style.borderColor = '';
+      }
       try {
-        const res = await sessionFetch('/api/vla/chat/reset', {
+        await sessionFetch('/api/vla/chat/reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
-        const data = await res.json();
-        console.log('[Chat Reset]:', data);
-        const stream = document.getElementById('chat-messages-stream');
-        if (stream) {
-          stream.innerHTML = `
-            <div class="chat-bubble chat-bubble-robot" style="display: flex; gap: 8px; align-items: flex-start;">
-              <div class="chat-avatar-icon robot-avatar-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #38bdf8; flex-shrink: 0;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
-              </div>
-              <div style="flex: 1;">
-                <div style="font-size: 11px; opacity: 0.7; margin-bottom: 2px;">AERO Assistant</div>
-                <div class="chat-text" style="font-size: 12px; line-height: 1.4;">Chat session reset. Standing by for instructions.</div>
-              </div>
-            </div>`;
-        }
-        const stepsCard = document.getElementById('chat-steps-card');
-        if (stepsCard) stepsCard.style.display = 'none';
-        const chips = document.getElementById('chat-intervention-chips');
-        if (chips) chips.innerHTML = '';
-        const badge = document.getElementById('chat-state-badge');
-        if (badge) {
-          badge.innerText = 'IDLE';
-          badge.style.background = 'rgba(255,255,255,0.08)';
-          badge.style.borderColor = 'rgba(255,255,255,0.15)';
-        }
       } catch (err) {
-        console.error('[Chat Reset Error]:', err);
+        console.error('[Command Reset Error]:', err);
       }
     });
 

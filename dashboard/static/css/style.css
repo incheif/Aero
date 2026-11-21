@@ -1189,61 +1189,77 @@ header {
   transition: max-height 0.25s ease;
 }
 
-/* Interactive Resizer Handles */
+/* Interactive Resizer Handles (Smooth & Tactile) */
+body.resizing-active {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.resizing-active #canvas-3d,
+body.resizing-active iframe {
+  pointer-events: none !important;
+}
+
 .dock-resizer {
   position: absolute;
-  top: 0;
+  top: -4px;
   left: 0;
   right: 0;
-  height: 8px;
+  height: 10px;
   cursor: ns-resize;
   z-index: 60;
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
+  background: transparent;
 }
 
 .dock-resizer-line {
-  width: 48px;
+  width: 44px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.14);
-  transition: background 0.15s ease, height 0.15s ease;
+  background: rgba(255, 255, 255, 0.18);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dock-resizer:hover .dock-resizer-line,
 .dock-resizer.active .dock-resizer-line {
   background: #38bdf8;
+  width: 60px;
   height: 4px;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
 }
 
 .sidebar-resizer {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -4px;
-  width: 8px;
+  left: -5px;
+  width: 10px;
   cursor: ew-resize;
   z-index: 60;
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
+  background: transparent;
 }
 
 .sidebar-resizer-line {
   width: 3px;
-  height: 48px;
+  height: 44px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.14);
-  transition: background 0.15s ease, width 0.15s ease;
+  background: rgba(255, 255, 255, 0.18);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-resizer:hover .sidebar-resizer-line,
 .sidebar-resizer.active .sidebar-resizer-line {
   background: #38bdf8;
+  height: 60px;
   width: 4px;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
 }
 
 /* Section Size Controls */
@@ -1292,73 +1308,52 @@ header {
   background: rgba(255, 255, 255, 0.16);
 }
 
-/* Collapsible Cards */
-.btn-card-collapse {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--mono-400);
-  border-radius: 4px;
-  padding: 2px 4px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.btn-card-collapse:hover {
-  color: var(--mono-white);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-subtle);
-}
-
-.btn-card-collapse svg {
-  transition: transform 0.2s ease;
-}
-
-.card.collapsed .btn-card-collapse svg {
-  transform: rotate(-90deg);
-}
-
-.card.collapsed .thought-box,
-.card.collapsed .plan-progress-container,
-.card.collapsed .token-metrics-grid,
-.card.collapsed .card-body-collapsible {
-  display: none !important;
-}
-
-.card.collapsed {
-  padding-bottom: 8px;
-  margin-bottom: 2px;
-}
-
-/* Dock Presets */
+/* Dock Height Presets */
 #command-bar-container.size-compact {
   max-height: 68px !important;
   height: 68px !important;
 }
 
-#command-bar-container.size-compact .chat-messages-stream,
-#command-bar-container.size-compact .chat-steps-card,
-#command-bar-container.size-compact .chat-intervention-chips {
+#command-bar-container.size-compact .dock-agent-feedback,
+#command-bar-container.size-compact .chips-row {
   display: none !important;
 }
 
 #command-bar-container.size-normal {
-  max-height: 220px !important;
-}
-
-#command-bar-container.size-normal .chat-messages-stream {
-  max-height: 85px !important;
+  max-height: 155px !important;
+  height: auto;
 }
 
 #command-bar-container.size-expanded {
-  max-height: 380px !important;
-  height: 380px !important;
+  max-height: 240px !important;
+  height: 240px !important;
 }
 
-#command-bar-container.size-expanded .chat-messages-stream {
-  max-height: 240px !important;
+/* Single-Line Industrial Agent Feedback Readout */
+.dock-agent-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  color: var(--mono-200);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 5px;
+}
+
+.feedback-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+  flex-shrink: 0;
 }
 
 .dock-header-bar {
