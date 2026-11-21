@@ -898,6 +898,13 @@ async def simulation_loop():
                     if sess.is_suspended:
                         continue
 
+                    # 2b. If paused, skip physics integration but broadcast static telemetry at 6 Hz
+                    if sess.is_paused:
+                        if sess.sim.tick % 10 == 0 and sess.websockets:
+                            payload = sess.get_telemetry_payload(sess.sim.get_snapshot())
+                            await sess.broadcast_telemetry(payload)
+                        continue
+
                     # 3. For sessions with no connections and no active task, skip
                     if sid != "default" and not sess.is_active():
                         continue
@@ -950,15 +957,24 @@ async def websocket_endpoint(websocket: WebSocket):
             })
         except Exception:
             pass
-    elif sess.recent_logs:
-        # Sync initial logs once on connect
+    else:
+        # Immediately push initial world telemetry frame so 3D blocks & joints mount synchronously in frame 0
         try:
-            await websocket.send_json({
-                "type": "logs_sync",
-                "logs": sess.recent_logs[-40:],
-            })
+            init_snapshot = sess.sim.get_snapshot()
+            init_payload = sess.get_telemetry_payload(init_snapshot)
+            await websocket.send_json(init_payload)
         except Exception:
             pass
+
+        if sess.recent_logs:
+            # Sync initial logs once on connect
+            try:
+                await websocket.send_json({
+                    "type": "logs_sync",
+                    "logs": sess.recent_logs[-40:],
+                })
+            except Exception:
+                pass
 
     try:
         while True:
@@ -1269,6 +1285,14 @@ async def api_reset_cost(request: Request):
     sess = session_manager.get_or_create(sid)
     sess.vla_agent.reset_cost()
     return {"status": "ok", "cost": sess.vla_agent.get_cost_summary()}
+
+
+@app.get("/api/telemetry")
+async def api_telemetry(request: Request, session_id: Optional[str] = None):
+    sid = extract_session_id(request, session_id)
+    sess = session_manager.get_or_create(sid)
+    snapshot = sess.sim.get_snapshot()
+    return sess.get_telemetry_payload(snapshot)
 
 
 @app.get("/api/session/info")

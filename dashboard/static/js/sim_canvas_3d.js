@@ -151,6 +151,9 @@ class SimCanvas3D {
     this.setupSensorVisualizations();
     this.setupSensorCameras();
 
+    // 9. Initial Default Blocks (Guarantees blocks render instantly on scene load without network wait)
+    this.initDefaultBlocks();
+
     // Dynamic Viewport Resize Observer for seamless full-space filling
     if (window.ResizeObserver && this.canvas.parentElement) {
       this.resizeObserver = new ResizeObserver(() => {
@@ -171,6 +174,71 @@ class SimCanvas3D {
 
     // Animation Loop
     this.animate();
+  }
+
+  // Dynamic Block Management
+  updateBlocks(blocks) {
+    if (!blocks || !Array.isArray(blocks)) return;
+    blocks.forEach((b) => {
+      let mesh = this.cubes[b.id];
+      const hex = parseInt(b.color.replace('#', '0x'), 16);
+      const colorObj = new THREE.Color(hex);
+
+      if (!mesh) {
+        // Create Cube with high-saturation material and sharp edge highlights
+        const geo = new THREE.BoxGeometry(0.055, 0.055, 0.055);
+        const mat = new THREE.MeshStandardMaterial({
+          color: colorObj,
+          roughness: 0.22,
+          metalness: 0.0,
+          emissive: colorObj,
+          emissiveIntensity: 0.38, // ensures rich vivid saturation and zero washed out bleach
+        });
+        mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.position.set(b.position[0], b.position[1], b.position[2]);
+
+        // Clean white outline edge lines for sharp physical clarity & distinct visibility
+        const edges = new THREE.EdgesGeometry(geo);
+        const edgeLine = new THREE.LineSegments(
+          edges,
+          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, linewidth: 1.5 })
+        );
+        mesh.add(edgeLine);
+
+        this.scene.add(mesh);
+        this.cubes[b.id] = mesh;
+      } else {
+        // Dynamically update material color if changed or re-spawned
+        if (mesh.material && mesh.material.color && mesh.material.color.getHex() !== hex) {
+          mesh.material.color.setHex(hex);
+          if (mesh.material.emissive) {
+            mesh.material.emissive.setHex(hex);
+            mesh.material.emissiveIntensity = 0.38;
+          }
+        }
+      }
+
+      if (!this.cubeTargets) this.cubeTargets = {};
+      this.cubeTargets[b.id] = {
+        pos: b.position,
+        rot: b.rotation || [0, 0, 0, 1],
+      };
+    });
+  }
+
+  // Pre-instantiate canonical blocks so tabletop is populated the moment DOM mounts
+  initDefaultBlocks() {
+    const DEFAULT_BLOCKS = [
+      { id: 'block_magenta', name: 'Red Cube', color: '#FF1E27', position: [0.26, 0.7535, 0.12], rotation: [0, 0, 0, 1] },
+      { id: 'block_cyan', name: 'Blue Cube', color: '#1E60FF', position: [0.24, 0.7535, -0.18], rotation: [0, 0, 0, 1] },
+      { id: 'block_yellow', name: 'Yellow Cube', color: '#FFC300', position: [0.21, 0.7535, -0.05], rotation: [0, 0, 0, 1] },
+      { id: 'block_emerald', name: 'Green Cube', color: '#00B341', position: [0.22, 0.7535, 0.24], rotation: [0, 0, 0, 1] },
+      { id: 'block_orange', name: 'Orange Cube', color: '#FF5500', position: [0.34, 0.7535, -0.06], rotation: [0, 0, 0, 1] },
+      { id: 'block_purple', name: 'Purple Cube', color: '#9333EA', position: [0.20, 0.7535, -0.27], rotation: [0, 0, 0, 1] },
+    ];
+    this.updateBlocks(DEFAULT_BLOCKS);
   }
 
   setTheme(themeName) {
@@ -938,54 +1006,7 @@ class SimCanvas3D {
     }
 
     // 2. Update Dynamic Cubes with vivid, high-contrast recognizable colors
-    const blocks = data.blocks || [];
-    blocks.forEach((b) => {
-      let mesh = this.cubes[b.id];
-      const hex = parseInt(b.color.replace('#', '0x'), 16);
-      const colorObj = new THREE.Color(hex);
-
-      if (!mesh) {
-        // Create Cube with high-saturation material and sharp edge highlights
-        const geo = new THREE.BoxGeometry(0.055, 0.055, 0.055);
-        const mat = new THREE.MeshStandardMaterial({
-          color: colorObj,
-          roughness: 0.22,
-          metalness: 0.0,
-          emissive: colorObj,
-          emissiveIntensity: 0.38, // ensures rich vivid saturation and zero washed out bleach
-        });
-        mesh = new THREE.Mesh(geo, mat);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.position.set(b.position[0], b.position[1], b.position[2]);
-
-        // Clean white outline edge lines for sharp physical clarity & distinct visibility
-        const edges = new THREE.EdgesGeometry(geo);
-        const edgeLine = new THREE.LineSegments(
-          edges,
-          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, linewidth: 1.5 })
-        );
-        mesh.add(edgeLine);
-
-        this.scene.add(mesh);
-        this.cubes[b.id] = mesh;
-      } else {
-        // Dynamically update material color if changed or re-spawned
-        if (mesh.material && mesh.material.color && mesh.material.color.getHex() !== hex) {
-          mesh.material.color.setHex(hex);
-          if (mesh.material.emissive) {
-            mesh.material.emissive.setHex(hex);
-            mesh.material.emissiveIntensity = 0.38;
-          }
-        }
-      }
-
-      if (!this.cubeTargets) this.cubeTargets = {};
-      this.cubeTargets[b.id] = {
-        pos: b.position,
-        rot: b.rotation,
-      };
-    });
+    this.updateBlocks(data.blocks);
 
     // 3. Update 3D Perception Bounding Volumes (Estimated Track Positions)
     if (this.showPerceptionBoxes && data.perception && data.perception.tracks) {

@@ -35,6 +35,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize 3D Viewport
   const canvasEl = document.getElementById('canvas-3d');
   const simCanvas = new window.SimCanvas3D(canvasEl);
+  window.simCanvas = simCanvas;
+
+  // Immediate initial telemetry sync to ensure blocks & robot state mount instantly before WebSocket
+  sessionFetch('/api/telemetry')
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      if (data && data.type === 'telemetry') {
+        handleTelemetry(data);
+      }
+    })
+    .catch((err) => {
+      console.log('[Telemetry] Initial REST sync fallback:', err.message);
+    });
 
   // 1B. Light / Dark Monochromatic UI Theme Manager
   const btnToggleTheme = document.getElementById('btn-toggle-theme');
