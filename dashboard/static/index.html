@@ -230,7 +230,12 @@
 
     <!-- Unified Conversational Mission Dock & Command Bar (Bottom Only) -->
     <section id="command-bar-container" class="unified-bottom-dock">
-      <!-- Dock Header: Agent Status, Episodic Memory Counter, Clear Chat Action -->
+      <!-- Interactive Dock Height Resizer Handle -->
+      <div class="dock-resizer" id="dock-resizer" title="Drag to adjust dock height">
+        <div class="dock-resizer-line"></div>
+      </div>
+
+      <!-- Dock Header: Agent Status, Episodic Memory Counter, Size Controls, Clear Chat Action -->
       <div class="dock-header-bar">
         <div class="dock-header-left">
           <span class="chat-status-dot" id="chat-status-dot"></span>
@@ -238,10 +243,31 @@
           <span class="chat-state-badge" id="chat-state-badge">IDLE</span>
           <div class="chat-memory-indicator" id="chat-memory-indicator"
             title="Episodic experience buffer (learning from human interventions)">
-            <span>📚 <span id="chat-memory-count">0</span> memories</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.85;">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span><span id="chat-memory-count">0</span> memories</span>
           </div>
         </div>
         <div class="dock-header-right">
+          <!-- Dock Height Size Controls: Compact (S), Normal (M), Expanded (L) -->
+          <div class="section-size-controls" title="Adjust bottom dock height">
+            <button type="button" class="btn-size-toggle" id="btn-dock-compact" title="Compact size (minimize messages)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <button type="button" class="btn-size-toggle active" id="btn-dock-normal" title="Default size (standard stream)">
+              <span>M</span>
+            </button>
+            <button type="button" class="btn-size-toggle" id="btn-dock-expanded" title="Expanded size (large history view)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
           <button class="chat-reset-btn" id="btn-chat-reset" title="Clear chat history and reset conversational state">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -254,7 +280,9 @@
       <!-- Scrollable Conversational Message Stream (Answers, Proposals, Guidance) -->
       <div class="chat-messages-stream" id="chat-messages-stream">
         <div class="chat-bubble chat-bubble-robot" style="display: flex; gap: 8px; align-items: flex-start;">
-          <div style="font-size: 15px; line-height: 1.2;">🤖</div>
+          <div class="chat-avatar-icon robot-avatar-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #38bdf8; flex-shrink: 0;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+          </div>
           <div
             style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 8px; padding: 7px 11px; font-size: 12px; line-height: 1.45; max-width: 90%;">
             <div style="font-size: 10.5px; font-weight: 600; color: #a1a1aa; margin-bottom: 2px;">AERO Assistant</div>
@@ -281,7 +309,7 @@
         style="display: none; flex-wrap: wrap; gap: 5px; padding: 4px 0 6px 0; border-top: 1px dashed var(--border-subtle, rgba(255,255,255,0.1));">
       </div>
 
-      <!-- Essential Playground Challenge Chips -->
+      <!-- Essential Playground Challenge Chips (Clean icons, no emojis) -->
       <div class="chips-row">
         <button class="prompt-chip" data-prompt="Make a structure with 2 blocks in the first layer and 2 blocks on top of it.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -290,13 +318,13 @@
             <rect x="3" y="3" width="8" height="7" rx="1" />
             <rect x="13" y="3" width="8" height="7" rx="1" />
           </svg>
-          <span>🧱 2x2 Structure</span>
+          <span>2x2 Structure</span>
         </button>
         <button class="prompt-chip" data-prompt="Build a 6-block pyramid tower.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2L2 22h20L12 2z" />
           </svg>
-          <span>🔺 6-Block Pyramid</span>
+          <span>6-Block Pyramid</span>
         </button>
         <button class="prompt-chip" data-prompt="Unstack the tower.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -304,27 +332,27 @@
             <path d="M7 16l5-5 5 5"></path>
             <path d="M12 11V3"></path>
           </svg>
-          <span>🪓 Unstack</span>
+          <span>Unstack</span>
         </button>
         <button class="prompt-chip" data-prompt="Make a 3-layer tower of red, blue and yellow.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5" />
           </svg>
-          <span>🗼 3-Layer Tower</span>
+          <span>3-Layer Tower</span>
         </button>
         <button class="prompt-chip" data-prompt="Make a block train with all boxes in one line.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="7" width="20" height="10" rx="2" />
             <path d="M7 17v2M17 17v2M2 12h20" />
           </svg>
-          <span>🚂 Block Train</span>
+          <span>Block Train</span>
         </button>
         <button class="prompt-chip" data-prompt="Wave high to greet me.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path
               d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
           </svg>
-          <span>👋 Wave High</span>
+          <span>Wave High</span>
         </button>
         <button class="prompt-chip" data-prompt="Point at the blue cube.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -332,24 +360,30 @@
             <polyline points="12 8 8 12 12 16"></polyline>
             <line x1="16" y1="12" x2="8" y2="12"></line>
           </svg>
-          <span>🎯 Point at Blue</span>
+          <span>Point at Blue</span>
         </button>
         <button class="prompt-chip" data-prompt="Snap the gripper jaws.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M7 16V4m10 12V4M3 8h18M3 16h18" />
           </svg>
-          <span>🤏 Snap Gripper</span>
+          <span>Snap Gripper</span>
         </button>
       </div>
 
       <!-- Unified Command & Guidance Input Bar -->
       <div class="command-input-wrapper">
-        <span class="cmd-icon">✦</span>
+        <svg class="cmd-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
         <input type="text" id="command-input"
           placeholder="Command arm or guide ('make 2x2 structure', 'unstack', 'use purple', 'lift higher')..." autocomplete="off" />
         <button class="pause-btn" id="btn-pause-guide" title="Pause arm motion and guide it"
           style="display: inline-flex; align-items: center; gap: 5px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b; padding: 7px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-          <span>⏸️ Pause &amp; Guide</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+          <span>Pause &amp; Guide</span>
         </button>
         <button class="send-btn" id="send-command-btn">
           <span>Execute</span>
@@ -364,6 +398,11 @@
 
     <!-- Minimal Telemetry & Cost Panel (Right Side / Mobile Drawer) -->
     <aside id="telemetry-panel">
+      <!-- Interactive Sidebar Width Resizer Handle -->
+      <div class="sidebar-resizer" id="sidebar-resizer" title="Drag to adjust sidebar width">
+        <div class="sidebar-resizer-line"></div>
+      </div>
+
       <!-- Mobile Drawer Pull Handle & Header (Visible only on mobile/tablet) -->
       <div class="mobile-drawer-header">
         <div class="mobile-drawer-handle"></div>
@@ -382,7 +421,7 @@
         </div>
       </div>
 
-      <!-- Sidebar Tab Switcher (Telemetry & Execution Story) -->
+      <!-- Sidebar Tab Switcher (Telemetry & Execution Story + Width Controls) -->
       <div class="sidebar-tab-switcher">
         <button class="tab-btn active" id="tab-btn-telemetry">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -398,6 +437,18 @@
           <span>Execution Story</span>
           <span class="tab-badge" id="logs-badge-count">0</span>
         </button>
+        <!-- Sidebar Width Controls: S (360px), M (440px), L (560px) -->
+        <div class="sidebar-size-controls" title="Adjust sidebar width">
+          <button type="button" class="btn-sidebar-size" id="btn-sidebar-narrow" title="Narrow width (360px)">
+            <span>S</span>
+          </button>
+          <button type="button" class="btn-sidebar-size active" id="btn-sidebar-normal" title="Normal width (440px)">
+            <span>M</span>
+          </button>
+          <button type="button" class="btn-sidebar-size" id="btn-sidebar-wide" title="Wide width (560px)">
+            <span>L</span>
+          </button>
+        </div>
       </div>
 
       <!-- View 1: Telemetry & Evaluation Cards (Clean Essential View) -->
@@ -426,6 +477,9 @@
                 </button>
               </div>
               <span class="thought-status-badge" id="vla-status-badge">READY</span>
+              <button type="button" class="btn-card-collapse" data-card="agent-execution-card" title="Toggle section size">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
             </div>
           </div>
           <div class="thought-box" id="vla-thought-box" style="resize: vertical;">
@@ -446,7 +500,12 @@
         <div class="card" id="evaluation-card">
           <div class="card-title">
             <span>Evaluation</span>
-            <span class="thought-status-badge" id="telemetry-stability-badge">STABILITY: IDLE</span>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span class="thought-status-badge" id="telemetry-stability-badge">STABILITY: IDLE</span>
+              <button type="button" class="btn-card-collapse" data-card="evaluation-card" title="Toggle section size">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+            </div>
           </div>
           <div class="token-metrics-grid">
             <div class="token-metric-item">
@@ -476,9 +535,14 @@
                 style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8;"></span>
               <span>Feetech STS3215 Actuators</span>
             </div>
-            <span class="thought-status-badge" id="actuator-bus-badge"
-              style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08);">7.4V
-              BUS</span>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span class="thought-status-badge" id="actuator-bus-badge"
+                style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08);">7.4V
+                BUS</span>
+              <button type="button" class="btn-card-collapse" data-card="actuators-card" title="Toggle section size">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+            </div>
           </div>
           <div class="token-metrics-grid">
             <div class="token-metric-item">
@@ -501,7 +565,14 @@
         </div>
 
         <!-- 3. Dedicated Rest Arm & Randomize Spawns Card -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="card" id="action-controls-card">
+          <div class="card-title">
+            <span>Controls &amp; Disturbance</span>
+            <button type="button" class="btn-card-collapse" data-card="action-controls-card" title="Toggle section size">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          </div>
+          <div class="card-body-collapsible" style="display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-rest-hero" id="btn-rest-main">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -535,6 +606,7 @@
           <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
             Scatters blocks to random tabletop positions within 5-DOF reach envelope
           </span>
+          </div>
         </div>
       </div>
 

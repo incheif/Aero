@@ -333,7 +333,7 @@ class UserSession:
                 f"Reason: {rej_reason}"
             )
             self.supervisor.post_user_message(cmd)
-            self.supervisor.post_robot_message(f"🚫 I cannot do this: {rej_reason}", status_tag="REJECTED")
+            self.supervisor.post_robot_message(f"I cannot do this: {rej_reason}", status_tag="REJECTED")
             self.narrator_agent.log(
                 category="anomaly",
                 title="Command Infeasible",
@@ -598,7 +598,7 @@ class UserSession:
                     self.vla_agent.execution_status = "COMPLETED"
                     self.vla_agent.latest_thought = "H-JEPA: Task successfully completed and physically verified!"
                     self.supervisor.state = "COMPLETED"
-                    self.supervisor.post_robot_message("🎉 All steps successfully executed and physically verified!", status_tag="COMPLETED")
+                    self.supervisor.post_robot_message("All steps successfully executed and physically verified!", status_tag="COMPLETED")
                     self.narrator_agent.log(
                         category="success",
                         title="Task Completed",

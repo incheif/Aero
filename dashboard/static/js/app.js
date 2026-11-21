@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <strong>Session Suspended (25-Min Cap)</strong>
             <span>${escapeHtml(reason || 'Session paused to conserve cloud resources & prevent bandwidth overuse.')}</span>
           </div>
-          <button id="btn-resume-session" class="btn-resume-session">▶ Resume Session</button>
+          <button id="btn-resume-session" class="btn-resume-session">Resume Session</button>
         </div>
       `;
       document.body.appendChild(banner);
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modeBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
         modeBadge.title = 'Running Embedded Autonomous VLA Engine';
         if (modeTagStatus) {
-          modeTagStatus.innerText = '✦ ZERO-DEPENDENCY RUNTIME';
+          modeTagStatus.innerText = 'ZERO-DEPENDENCY RUNTIME';
           modeTagStatus.className = 'mode-tag-pill';
         }
         if (modeInfoText) {
@@ -518,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 8. Update Pause Button Icon
     const pauseBtn = document.getElementById('btn-pause');
     if (pauseBtn) {
-      pauseBtn.innerText = data.is_paused ? '▶ Resume' : '⏸ Pause';
+      pauseBtn.innerText = data.is_paused ? 'Resume' : 'Pause';
     }
 
     // 9. Update Execution Logs
@@ -691,6 +691,145 @@ document.addEventListener('DOMContentLoaded', () => {
 
     applyThoughtSize(currentThoughtSize);
 
+    // --------------------------------------------------------------------------
+    // Dynamic Section Sizing Controls (Dock, Sidebar, & Card Collapse)
+    // --------------------------------------------------------------------------
+    const dockEl = document.getElementById('command-bar-container');
+    const btnDockCompact = document.getElementById('btn-dock-compact');
+    const btnDockNormal = document.getElementById('btn-dock-normal');
+    const btnDockExpanded = document.getElementById('btn-dock-expanded');
+    const dockResizer = document.getElementById('dock-resizer');
+
+    function setDockSize(mode) {
+      if (!dockEl) return;
+      dockEl.classList.remove('size-compact', 'size-normal', 'size-expanded');
+      dockEl.style.maxHeight = '';
+      dockEl.style.height = '';
+      dockEl.classList.add(`size-${mode}`);
+      btnDockCompact?.classList.toggle('active', mode === 'compact');
+      btnDockNormal?.classList.toggle('active', mode === 'normal');
+      btnDockExpanded?.classList.toggle('active', mode === 'expanded');
+      localStorage.setItem('AERO_DOCK_SIZE', mode);
+    }
+
+    btnDockCompact?.addEventListener('click', () => setDockSize('compact'));
+    btnDockNormal?.addEventListener('click', () => setDockSize('normal'));
+    btnDockExpanded?.addEventListener('click', () => setDockSize('expanded'));
+
+    const savedDockSize = localStorage.getItem('AERO_DOCK_SIZE') || 'normal';
+    setDockSize(savedDockSize);
+
+    // Draggable Dock Resizer
+    if (dockResizer && dockEl) {
+      let isDraggingDock = false;
+      let startY = 0;
+      let startHeight = 0;
+
+      dockResizer.addEventListener('mousedown', (e) => {
+        isDraggingDock = true;
+        startY = e.clientY;
+        startHeight = dockEl.getBoundingClientRect().height;
+        dockResizer.classList.add('active');
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingDock) return;
+        const delta = startY - e.clientY;
+        const newHeight = Math.max(68, Math.min(startHeight + delta, 520));
+        dockEl.classList.remove('size-compact', 'size-normal', 'size-expanded');
+        dockEl.style.maxHeight = `${newHeight}px`;
+        dockEl.style.height = `${newHeight}px`;
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDraggingDock) {
+          isDraggingDock = false;
+          dockResizer.classList.remove('active');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      });
+    }
+
+    // Sidebar Width Controls
+    const layoutContainer = document.getElementById('app-layout');
+    const btnSidebarNarrow = document.getElementById('btn-sidebar-narrow');
+    const btnSidebarNormal = document.getElementById('btn-sidebar-normal');
+    const btnSidebarWide = document.getElementById('btn-sidebar-wide');
+    const sidebarResizer = document.getElementById('sidebar-resizer');
+
+    function setSidebarWidth(widthPx, mode) {
+      if (!layoutContainer) return;
+      layoutContainer.style.setProperty('--sidebar-width', `${widthPx}px`);
+      btnSidebarNarrow?.classList.toggle('active', mode === 'narrow');
+      btnSidebarNormal?.classList.toggle('active', mode === 'normal');
+      btnSidebarWide?.classList.toggle('active', mode === 'wide');
+      localStorage.setItem('AERO_SIDEBAR_WIDTH', widthPx);
+      localStorage.setItem('AERO_SIDEBAR_MODE', mode);
+    }
+
+    btnSidebarNarrow?.addEventListener('click', () => setSidebarWidth(360, 'narrow'));
+    btnSidebarNormal?.addEventListener('click', () => setSidebarWidth(440, 'normal'));
+    btnSidebarWide?.addEventListener('click', () => setSidebarWidth(560, 'wide'));
+
+    const savedSidebarWidth = localStorage.getItem('AERO_SIDEBAR_WIDTH');
+    const savedSidebarMode = localStorage.getItem('AERO_SIDEBAR_MODE') || 'normal';
+    if (savedSidebarWidth) {
+      setSidebarWidth(parseInt(savedSidebarWidth, 10), savedSidebarMode);
+    }
+
+    // Draggable Sidebar Resizer
+    if (sidebarResizer && layoutContainer) {
+      let isDraggingSidebar = false;
+      let startX = 0;
+      let startWidth = 0;
+
+      sidebarResizer.addEventListener('mousedown', (e) => {
+        isDraggingSidebar = true;
+        startX = e.clientX;
+        const sidebar = document.getElementById('telemetry-panel');
+        startWidth = sidebar ? sidebar.getBoundingClientRect().width : 440;
+        sidebarResizer.classList.add('active');
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingSidebar) return;
+        const delta = startX - e.clientX;
+        const newWidth = Math.max(300, Math.min(startWidth + delta, 680));
+        layoutContainer.style.setProperty('--sidebar-width', `${newWidth}px`);
+        btnSidebarNarrow?.classList.remove('active');
+        btnSidebarNormal?.classList.remove('active');
+        btnSidebarWide?.classList.remove('active');
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDraggingSidebar) {
+          isDraggingSidebar = false;
+          sidebarResizer.classList.remove('active');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      });
+    }
+
+    // Card Collapsible Section Toggles
+    document.querySelectorAll('.btn-card-collapse').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const cardId = btn.getAttribute('data-card');
+        const cardEl = document.getElementById(cardId);
+        if (cardEl) {
+          cardEl.classList.toggle('collapsed');
+          const isCollapsed = cardEl.classList.contains('collapsed');
+          btn.setAttribute('title', isCollapsed ? 'Expand section' : 'Collapse section');
+        }
+      });
+    });
+
     filterChips.forEach((chip) => {
       chip.addEventListener('click', () => {
         filterChips.forEach((c) => c.classList.remove('active'));
@@ -810,7 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: n.id,
             timestamp: n.timestamp,
             category: n.category,
-            badge: `${n.icon || '📖'} ${n.category.toUpperCase()}`,
+            badge: (n.category || 'event').toUpperCase(),
             what: n.title,
             how: n.explanation,
           });
@@ -884,7 +1023,11 @@ document.addEventListener('DOMContentLoaded', () => {
           stepsList.innerHTML = d.active_steps.map((st, i) => {
             const isDone = i < curIdx;
             const isCurrent = i === curIdx;
-            const statusIcon = isDone ? '✅' : (isCurrent ? '▶️' : '⚪');
+            const statusIcon = isDone 
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#10b981;color:#09090b;font-size:9px;font-weight:700;">✓</span>`
+              : (isCurrent 
+                ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#38bdf8;color:#09090b;font-size:9px;font-weight:700;">▸</span>`
+                : `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.1);color:#a1a1aa;font-size:8px;">•</span>`);
             const style = isDone ? 'opacity: 0.55; text-decoration: line-through;' : (isCurrent ? 'font-weight: 700; color: #38bdf8;' : 'opacity: 0.85;');
             return `<div style="${style} display: flex; align-items: center; gap: 6px;">
             <span>${statusIcon}</span>
@@ -933,14 +1076,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!stream) return;
       stream.innerHTML = msgs.map(m => {
         const isUser = m.sender === 'user';
-        const avatar = isUser ? '👤' : '🤖';
+        const avatar = isUser ? `
+          <div class="chat-avatar-icon user-avatar-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; flex-shrink: 0;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>` : `
+          <div class="chat-avatar-icon robot-avatar-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #38bdf8; flex-shrink: 0;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+          </div>`;
         const author = isUser ? 'You (Operator)' : 'AERO Robot Arm';
         const bg = isUser ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.05)';
         const border = isUser ? 'rgba(56, 189, 248, 0.25)' : 'var(--border-subtle, rgba(255,255,255,0.08))';
         const align = isUser ? 'flex-direction: row-reverse;' : '';
         return `
         <div class="chat-bubble" style="display: flex; gap: 8px; align-items: flex-start; ${align}">
-          <div style="font-size: 16px; line-height: 1.2;">${avatar}</div>
+          ${avatar}
           <div style="background: ${bg}; border: 1px solid ${border}; border-radius: 10px; padding: 8px 11px; font-size: 12px; line-height: 1.45; max-width: 85%;">
             <div style="font-size: 10.5px; font-weight: 600; color: #a1a1aa; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 8px;">
               <span>${author}</span>
@@ -1029,7 +1178,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (stream) {
           stream.innerHTML = `
             <div class="chat-bubble chat-bubble-robot" style="display: flex; gap: 8px; align-items: flex-start;">
-              <span style="font-size: 14px;">🤖</span>
+              <div class="chat-avatar-icon robot-avatar-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #38bdf8; flex-shrink: 0;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+              </div>
               <div style="flex: 1;">
                 <div style="font-size: 11px; opacity: 0.7; margin-bottom: 2px;">AERO Assistant</div>
                 <div class="chat-text" style="font-size: 12px; line-height: 1.4;">Chat session reset. Standing by for instructions.</div>

@@ -485,7 +485,7 @@ body {
 #app-layout {
   display: grid;
   grid-template-rows: 56px 1fr auto;
-  grid-template-columns: 1fr 440px;
+  grid-template-columns: 1fr var(--sidebar-width, 440px);
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -1176,6 +1176,7 @@ header {
 #command-bar-container {
   grid-column: 1 / 2;
   grid-row: 3 / 4;
+  position: relative;
   background: rgba(9, 9, 11, 0.95);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-glass);
@@ -1185,7 +1186,179 @@ header {
   flex-direction: column;
   max-height: 250px;
   overflow: hidden;
-  transition: all 0.25s ease;
+  transition: max-height 0.25s ease;
+}
+
+/* Interactive Resizer Handles */
+.dock-resizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.dock-resizer-line {
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: background 0.15s ease, height 0.15s ease;
+}
+
+.dock-resizer:hover .dock-resizer-line,
+.dock-resizer.active .dock-resizer-line {
+  background: #38bdf8;
+  height: 4px;
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.sidebar-resizer-line {
+  width: 3px;
+  height: 48px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: background 0.15s ease, width 0.15s ease;
+}
+
+.sidebar-resizer:hover .sidebar-resizer-line,
+.sidebar-resizer.active .sidebar-resizer-line {
+  background: #38bdf8;
+  width: 4px;
+}
+
+/* Section Size Controls */
+.section-size-controls,
+.sidebar-size-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+
+.btn-size-toggle,
+.btn-dock-size,
+.btn-sidebar-size {
+  background: transparent;
+  border: none;
+  color: var(--mono-400);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  line-height: 1;
+  min-width: 18px;
+  height: 18px;
+}
+
+.btn-size-toggle:hover,
+.btn-dock-size:hover,
+.btn-sidebar-size:hover {
+  color: var(--mono-white);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-size-toggle.active,
+.btn-dock-size.active,
+.btn-sidebar-size.active {
+  color: var(--mono-white);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Collapsible Cards */
+.btn-card-collapse {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--mono-400);
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-card-collapse:hover {
+  color: var(--mono-white);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-subtle);
+}
+
+.btn-card-collapse svg {
+  transition: transform 0.2s ease;
+}
+
+.card.collapsed .btn-card-collapse svg {
+  transform: rotate(-90deg);
+}
+
+.card.collapsed .thought-box,
+.card.collapsed .plan-progress-container,
+.card.collapsed .token-metrics-grid,
+.card.collapsed .card-body-collapsible {
+  display: none !important;
+}
+
+.card.collapsed {
+  padding-bottom: 8px;
+  margin-bottom: 2px;
+}
+
+/* Dock Presets */
+#command-bar-container.size-compact {
+  max-height: 68px !important;
+  height: 68px !important;
+}
+
+#command-bar-container.size-compact .chat-messages-stream,
+#command-bar-container.size-compact .chat-steps-card,
+#command-bar-container.size-compact .chat-intervention-chips {
+  display: none !important;
+}
+
+#command-bar-container.size-normal {
+  max-height: 220px !important;
+}
+
+#command-bar-container.size-normal .chat-messages-stream {
+  max-height: 85px !important;
+}
+
+#command-bar-container.size-expanded {
+  max-height: 380px !important;
+  height: 380px !important;
+}
+
+#command-bar-container.size-expanded .chat-messages-stream {
+  max-height: 240px !important;
 }
 
 .dock-header-bar {
@@ -1420,6 +1593,7 @@ header {
 #telemetry-panel {
   grid-column: 2 / 3;
   grid-row: 2 / 4;
+  position: relative;
   background: rgba(14, 14, 18, 0.95);
   backdrop-filter: blur(20px);
   border-left: 1px solid var(--border-glass);

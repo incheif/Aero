@@ -437,10 +437,6 @@ def parse_multi_layer_spec(instruction: str) -> Optional[List[int]]:
             'one': 1, 'two': 2, 'three': 3, 'four': 4
         }
         layers = []
-        for g1, g2, cnt_term in matches:
-            l_term = g1 or g2
-            l_num = num_map.get(l_term, len(layers) + 1)
-            cnt = int(cnt_term) if cnt_term.isdigit() else num_map.get(cnt_term, 2)
         for g1, g2, cnt_a, cnt_b, layer_b in matches:
             if g1 or g2:
                 l_term = g1 or g2
