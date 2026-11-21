@@ -248,12 +248,15 @@
       </div>
 
       <div class="presentation-bottom-bar" id="presentation-bottom-bar" style="display: none;">
-        <input type="text" class="pres-input" id="pres-cmd-input" placeholder="Demonstration instruction ('Make 2x2 structure', 'Build pyramid')..." autocomplete="off" />
+        <input type="text" class="pres-input" id="pres-cmd-input"
+          placeholder="Demonstration instruction ('Make 2x2 structure', 'Build pyramid')..." autocomplete="off" />
         <button class="pres-btn-send" id="pres-btn-send">Execute</button>
       </div>
 
-      <button class="btn-exit-presentation" id="btn-exit-presentation" style="display: none;" title="Exit Presentation Mode (Esc)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="btn-exit-presentation" id="btn-exit-presentation" style="display: none;"
+        title="Exit Presentation Mode (Esc)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
           <polyline points="4 14 10 14 10 20"></polyline>
           <polyline points="20 10 14 10 14 4"></polyline>
           <line x1="14" y1="10" x2="21" y2="3"></line>
@@ -278,18 +281,6 @@
           <span class="chat-state-badge" id="chat-state-badge">IDLE</span>
         </div>
         <div class="dock-header-right">
-          <!-- Dock Height Size Controls: Compact (S), Normal (M), Expanded (L) -->
-          <div class="section-size-controls" title="Adjust bottom dock height">
-            <button type="button" class="btn-size-toggle" id="btn-dock-compact" title="Compact size (S)">
-              <span>S</span>
-            </button>
-            <button type="button" class="btn-size-toggle active" id="btn-dock-normal" title="Default size (M)">
-              <span>M</span>
-            </button>
-            <button type="button" class="btn-size-toggle" id="btn-dock-expanded" title="Expanded size (L)">
-              <span>L</span>
-            </button>
-          </div>
           <button class="chat-reset-btn" id="btn-chat-reset" title="Clear input command and reset state">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"></polyline>
@@ -303,12 +294,14 @@
       <!-- Single-line Industrial Feedback Readout -->
       <div class="dock-agent-feedback" id="dock-agent-feedback">
         <span class="feedback-indicator"></span>
-        <span id="dock-feedback-text">Awaiting instruction... Enter a natural language command below or select a challenge chip.</span>
+        <span id="dock-feedback-text">Awaiting instruction... Enter a natural language command below or select a
+          challenge chip.</span>
       </div>
 
       <!-- Essential Playground Challenge Chips (Clean icons, no emojis) -->
       <div class="chips-row">
-        <button class="prompt-chip" data-prompt="Make a structure with 2 blocks in the first layer and 2 blocks on top of it.">
+        <button class="prompt-chip"
+          data-prompt="Make a structure with 2 blocks in the first layer and 2 blocks on top of it.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="14" width="8" height="7" rx="1" />
             <rect x="13" y="14" width="8" height="7" rx="1" />
@@ -369,11 +362,13 @@
 
       <!-- Unified Command & Guidance Input Bar -->
       <div class="command-input-wrapper">
-        <svg class="cmd-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <svg class="cmd-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.5">
           <polyline points="9 18 15 12 9 6"></polyline>
         </svg>
         <input type="text" id="command-input"
-          placeholder="Command arm or guide ('make 2x2 structure', 'unstack', 'use purple', 'lift higher')..." autocomplete="off" />
+          placeholder="Command arm or guide ('make 2x2 structure', 'unstack', 'use purple', 'lift higher')..."
+          autocomplete="off" />
         <button class="pause-btn" id="btn-pause-guide" title="Pause arm motion and guide it"
           style="display: inline-flex; align-items: center; gap: 5px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b; padding: 7px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -434,18 +429,6 @@
           <span>Execution Story</span>
           <span class="tab-badge" id="logs-badge-count">0</span>
         </button>
-        <!-- Sidebar Width Controls: S (360px), M (440px), L (560px) -->
-        <div class="sidebar-size-controls" title="Adjust sidebar width">
-          <button type="button" class="btn-sidebar-size" id="btn-sidebar-narrow" title="Narrow width (360px)">
-            <span>S</span>
-          </button>
-          <button type="button" class="btn-sidebar-size active" id="btn-sidebar-normal" title="Normal width (440px)">
-            <span>M</span>
-          </button>
-          <button type="button" class="btn-sidebar-size" id="btn-sidebar-wide" title="Wide width (560px)">
-            <span>L</span>
-          </button>
-        </div>
       </div>
 
       <!-- View 1: Telemetry & Evaluation Cards (Clean Essential View) -->
@@ -558,39 +541,40 @@
             <span>Controls &amp; Disturbance</span>
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
-          <button class="btn-rest-hero" id="btn-rest-main">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-            Rest Arm / Reset Baseline
-          </button>
-          <button class="btn-rest-hero" id="btn-randomize-main"
-            style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-              <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
-            </svg>
-            Randomize Layout (Test Perception)
-          </button>
-          <button class="btn-rest-hero" id="btn-nudge-block"
-            style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 9 2 12 5 15"></polyline>
-              <polyline points="9 5 12 2 15 5"></polyline>
-              <polyline points="15 19 12 22 9 19"></polyline>
-              <polyline points="19 9 22 12 19 15"></polyline>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <line x1="12" y1="2" x2="12" y2="22"></line>
-            </svg>
-            Nudge Block (Disturbance Test)
-          </button>
-          <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
-            Scatters blocks to random tabletop positions within 5-DOF reach envelope
-          </span>
+            <button class="btn-rest-hero" id="btn-rest-main">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Rest Arm / Reset Baseline
+            </button>
+            <button class="btn-rest-hero" id="btn-randomize-main"
+              style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
+              </svg>
+              Randomize Layout (Test Perception)
+            </button>
+            <button class="btn-rest-hero" id="btn-nudge-block"
+              style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="5 9 2 12 5 15"></polyline>
+                <polyline points="9 5 12 2 15 5"></polyline>
+                <polyline points="15 19 12 22 9 19"></polyline>
+                <polyline points="19 9 22 12 19 15"></polyline>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="12" y1="2" x2="12" y2="22"></line>
+              </svg>
+              Nudge Block (Disturbance Test)
+            </button>
+            <span
+              style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
+              Scatters blocks to random tabletop positions within 5-DOF reach envelope
+            </span>
           </div>
         </div>
       </div>
@@ -668,7 +652,8 @@
     <div class="workspace-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="ws-modal-title">
       <div class="ws-modal-header">
         <div class="ws-modal-header-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
             <rect x="14" y="14" width="7" height="7"></rect>
@@ -698,7 +683,8 @@
                 <span class="ws-mode-title">Full Engineering</span>
                 <span class="ws-mode-pill">Dense</span>
               </div>
-              <p class="ws-mode-desc">Complete technical layout with joint angles, FK/IK kinematics, actuator power, collision contacts, and 3D diagnostics.</p>
+              <p class="ws-mode-desc">Complete technical layout with joint angles, FK/IK kinematics, actuator power,
+                collision contacts, and 3D diagnostics.</p>
               <div class="ws-mode-tags">
                 <span>FK/IK</span>
                 <span>Actuators</span>
@@ -713,7 +699,8 @@
                 <span class="ws-mode-title">Developer</span>
                 <span class="ws-mode-pill ws-pill-active">Default</span>
               </div>
-              <p class="ws-mode-desc">Balanced technical layout with 3D simulation, essential telemetry, command dock, and thought stream.</p>
+              <p class="ws-mode-desc">Balanced technical layout with 3D simulation, essential telemetry, command dock,
+                and thought stream.</p>
               <div class="ws-mode-tags">
                 <span>Standard</span>
                 <span>Balanced</span>
@@ -727,7 +714,8 @@
                 <span class="ws-mode-title">Minimal Studio</span>
                 <span class="ws-mode-pill">Clean</span>
               </div>
-              <p class="ws-mode-desc">Expansive 3D viewport with concealed sidebars and compact dock for distraction-free simulation.</p>
+              <p class="ws-mode-desc">Expansive 3D viewport with concealed sidebars and compact dock for
+                distraction-free simulation.</p>
               <div class="ws-mode-tags">
                 <span>Focus</span>
                 <span>Max Stage</span>
@@ -741,7 +729,8 @@
                 <span class="ws-mode-title">Presentation</span>
                 <span class="ws-mode-pill">Fullscreen</span>
               </div>
-              <p class="ws-mode-desc">100% maximized simulation canvas with floating minimal HUD and sleek command bar for live demos and recordings.</p>
+              <p class="ws-mode-desc">100% maximized simulation canvas with floating minimal HUD and sleek command bar
+                for live demos and recordings.</p>
               <div class="ws-mode-tags">
                 <span>100% Viewport</span>
                 <span>Floating HUD</span>

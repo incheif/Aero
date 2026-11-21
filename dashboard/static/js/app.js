@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedPanels && typeof savedPanels === 'object') {
           this.panels = { ...this.panels, ...savedPanels };
         }
-      } catch (e) {}
+      } catch (e) { }
       this.applyPanels(false);
 
       // 4. Restore 3D Overlays
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedOverlays && typeof savedOverlays === 'object') {
           this.overlays = { ...this.overlays, ...savedOverlays };
         }
-      } catch (e) {}
+      } catch (e) { }
       this.applyOverlays(false);
 
       // 5. Attach Listeners
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (save) {
         try {
           localStorage.setItem('AERO_WORKSPACE_MODE', mode);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (save) {
         try {
           localStorage.setItem('AERO_THEME', theme);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (save) {
         try {
           localStorage.setItem('AERO_WORKSPACE_PANELS', JSON.stringify(this.panels));
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (save) {
         try {
           localStorage.setItem('AERO_WORKSPACE_OVERLAYS', JSON.stringify(this.overlays));
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -417,9 +417,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (this.presThoughtText) {
         const thought = (telemetry.dialogue && telemetry.dialogue.latest_thought) ||
-                        (telemetry.dialogue && telemetry.dialogue.active_subgoal_desc) ||
-                        telemetry.thought ||
-                        'Standing by for instruction';
+          (telemetry.dialogue && telemetry.dialogue.active_subgoal_desc) ||
+          telemetry.thought ||
+          'Standing by for instruction';
         this.presThoughtText.textContent = thought;
       }
     }
@@ -985,282 +985,254 @@ document.addEventListener('DOMContentLoaded', () => {
   tabBtnTelemetry?.addEventListener('click', () => switchTab('telemetry'));
   tabBtnLogs?.addEventListener('click', () => switchTab('logs'));
 
-    btnToggleAutoScroll?.addEventListener('click', () => {
-      autoScrollEnabled = !autoScrollEnabled;
-      btnToggleAutoScroll?.classList.toggle('active', autoScrollEnabled);
-      if (autoscrollLabel) {
-        autoscrollLabel.innerText = autoScrollEnabled ? 'Scroll: ON' : 'Scroll: OFF';
-      }
-      if (autoScrollEnabled && logsContainer) {
-        logsContainer.scrollTop = logsContainer.scrollHeight;
-      }
-    });
-
-    btnClearLogs?.addEventListener('click', async () => {
-      try {
-        await sessionFetch('/api/logs/clear', { method: 'POST' });
-        localLogs = [];
-        lastLogsSignature = '';
-        renderLogs();
-      } catch (err) {
-        console.error('Error clearing logs:', err);
-      }
-    });
-
-    document.getElementById('btn-open-logs-tab')?.addEventListener('click', () => {
-      window.open(`/logs?session_id=${encodeURIComponent(sessionId)}`, '_blank');
-    });
-
-    // 4b. Agent Execution Thought Stream Size Controls (S / M / L / XL)
-    const THOUGHT_SIZES = ['sm', 'md', 'lg', 'xl'];
-    const THOUGHT_SIZE_LABELS = { sm: 'S', md: 'M', lg: 'L', xl: 'XL' };
-    let currentThoughtSize = localStorage.getItem('AERO_THOUGHT_SIZE') || 'md';
-    const thoughtBoxEl = document.getElementById('vla-thought-box');
-    const thoughtSizeLabelEl = document.getElementById('thought-size-label');
-    const btnThoughtSmaller = document.getElementById('btn-thought-smaller');
-    const btnThoughtLarger = document.getElementById('btn-thought-larger');
-
-    function applyThoughtSize(size) {
-      if (!thoughtBoxEl) return;
-      THOUGHT_SIZES.forEach(s => thoughtBoxEl.classList.remove(`size-${s}`));
-      thoughtBoxEl.classList.add(`size-${size}`);
-      currentThoughtSize = size;
-      localStorage.setItem('AERO_THOUGHT_SIZE', size);
-      if (thoughtSizeLabelEl) {
-        thoughtSizeLabelEl.innerText = THOUGHT_SIZE_LABELS[size] || 'M';
-      }
+  btnToggleAutoScroll?.addEventListener('click', () => {
+    autoScrollEnabled = !autoScrollEnabled;
+    btnToggleAutoScroll?.classList.toggle('active', autoScrollEnabled);
+    if (autoscrollLabel) {
+      autoscrollLabel.innerText = autoScrollEnabled ? 'Scroll: ON' : 'Scroll: OFF';
     }
-
-    btnThoughtSmaller?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const idx = THOUGHT_SIZES.indexOf(currentThoughtSize);
-      if (idx > 0) applyThoughtSize(THOUGHT_SIZES[idx - 1]);
-    });
-
-    btnThoughtLarger?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const idx = THOUGHT_SIZES.indexOf(currentThoughtSize);
-      if (idx < THOUGHT_SIZES.length - 1) applyThoughtSize(THOUGHT_SIZES[idx + 1]);
-    });
-
-    applyThoughtSize(currentThoughtSize);
-
-    // --------------------------------------------------------------------------
-    // Dynamic Section Sizing Controls (Dock, Sidebar, & Card Collapse)
-    // --------------------------------------------------------------------------
-    const dockEl = document.getElementById('command-bar-container');
-    const btnDockCompact = document.getElementById('btn-dock-compact');
-    const btnDockNormal = document.getElementById('btn-dock-normal');
-    const btnDockExpanded = document.getElementById('btn-dock-expanded');
-    const dockResizer = document.getElementById('dock-resizer');
-
-    function setDockSize(mode) {
-      if (!dockEl) return;
-      dockEl.classList.remove('size-compact', 'size-normal', 'size-expanded');
-      dockEl.style.maxHeight = '';
-      dockEl.style.height = '';
-      dockEl.classList.add(`size-${mode}`);
-      btnDockCompact?.classList.toggle('active', mode === 'compact');
-      btnDockNormal?.classList.toggle('active', mode === 'normal');
-      btnDockExpanded?.classList.toggle('active', mode === 'expanded');
-      localStorage.setItem('AERO_DOCK_SIZE', mode);
+    if (autoScrollEnabled && logsContainer) {
+      logsContainer.scrollTop = logsContainer.scrollHeight;
     }
+  });
 
-    btnDockCompact?.addEventListener('click', () => setDockSize('compact'));
-    btnDockNormal?.addEventListener('click', () => setDockSize('normal'));
-    btnDockExpanded?.addEventListener('click', () => setDockSize('expanded'));
+  btnClearLogs?.addEventListener('click', async () => {
+    try {
+      await sessionFetch('/api/logs/clear', { method: 'POST' });
+      localLogs = [];
+      lastLogsSignature = '';
+      renderLogs();
+    } catch (err) {
+      console.error('Error clearing logs:', err);
+    }
+  });
 
-    const savedDockSize = localStorage.getItem('AERO_DOCK_SIZE') || 'normal';
-    setDockSize(savedDockSize);
+  document.getElementById('btn-open-logs-tab')?.addEventListener('click', () => {
+    window.open(`/logs?session_id=${encodeURIComponent(sessionId)}`, '_blank');
+  });
 
-    // Improved Smooth Draggable Dock Resizer (RAF-debounced, clean bounds)
-    if (dockResizer && dockEl) {
-      let isDraggingDock = false;
-      let startY = 0;
-      let startHeight = 0;
-      let animFrameId = null;
+  // 4b. Agent Execution Thought Stream Size Controls (S / M / L / XL)
+  const THOUGHT_SIZES = ['sm', 'md', 'lg', 'xl'];
+  const THOUGHT_SIZE_LABELS = { sm: 'S', md: 'M', lg: 'L', xl: 'XL' };
+  let currentThoughtSize = localStorage.getItem('AERO_THOUGHT_SIZE') || 'md';
+  const thoughtBoxEl = document.getElementById('vla-thought-box');
+  const thoughtSizeLabelEl = document.getElementById('thought-size-label');
+  const btnThoughtSmaller = document.getElementById('btn-thought-smaller');
+  const btnThoughtLarger = document.getElementById('btn-thought-larger');
 
-      dockResizer.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        isDraggingDock = true;
-        startY = e.clientY;
-        startHeight = dockEl.getBoundingClientRect().height;
-        dockResizer.classList.add('active');
-        document.body.classList.add('resizing-active');
-        document.body.style.cursor = 'ns-resize';
+  function applyThoughtSize(size) {
+    if (!thoughtBoxEl) return;
+    THOUGHT_SIZES.forEach(s => thoughtBoxEl.classList.remove(`size-${s}`));
+    thoughtBoxEl.classList.add(`size-${size}`);
+    currentThoughtSize = size;
+    localStorage.setItem('AERO_THOUGHT_SIZE', size);
+    if (thoughtSizeLabelEl) {
+      thoughtSizeLabelEl.innerText = THOUGHT_SIZE_LABELS[size] || 'M';
+    }
+  }
+
+  btnThoughtSmaller?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const idx = THOUGHT_SIZES.indexOf(currentThoughtSize);
+    if (idx > 0) applyThoughtSize(THOUGHT_SIZES[idx - 1]);
+  });
+
+  btnThoughtLarger?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const idx = THOUGHT_SIZES.indexOf(currentThoughtSize);
+    if (idx < THOUGHT_SIZES.length - 1) applyThoughtSize(THOUGHT_SIZES[idx + 1]);
+  });
+
+  applyThoughtSize(currentThoughtSize);
+
+  // --------------------------------------------------------------------------
+  // Dynamic Section Sizing Controls (Dock, Sidebar, & Card Collapse)
+  // --------------------------------------------------------------------------
+  const dockEl = document.getElementById('command-bar-container');
+  const dockResizer = document.getElementById('dock-resizer');
+
+  // Restore saved dock height if previously dragged
+  const savedDockHeight = localStorage.getItem('AERO_DOCK_HEIGHT');
+  if (savedDockHeight && dockEl) {
+    const h = parseInt(savedDockHeight, 10);
+    if (!isNaN(h) && h >= 68 && h <= 500) {
+      dockEl.style.height = `${h}px`;
+      dockEl.style.maxHeight = `${h}px`;
+    }
+  }
+
+  // Improved Smooth Draggable Dock Resizer (RAF-debounced, clean bounds)
+  if (dockResizer && dockEl) {
+    let isDraggingDock = false;
+    let startY = 0;
+    let startHeight = 0;
+    let animFrameId = null;
+
+    dockResizer.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      isDraggingDock = true;
+      startY = e.clientY;
+      startHeight = dockEl.getBoundingClientRect().height;
+      dockResizer.classList.add('active');
+      document.body.classList.add('resizing-active');
+      document.body.style.cursor = 'ns-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingDock) return;
+      const delta = startY - e.clientY;
+      const newHeight = Math.max(68, Math.min(startHeight + delta, 440));
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      animFrameId = requestAnimationFrame(() => {
+        dockEl.classList.remove('size-compact', 'size-normal', 'size-expanded');
+        dockEl.style.maxHeight = `${newHeight}px`;
+        dockEl.style.height = `${newHeight}px`;
       });
+    });
 
-      window.addEventListener('mousemove', (e) => {
-        if (!isDraggingDock) return;
-        const delta = startY - e.clientY;
-        const newHeight = Math.max(68, Math.min(startHeight + delta, 440));
-        if (animFrameId) cancelAnimationFrame(animFrameId);
-        animFrameId = requestAnimationFrame(() => {
-          dockEl.classList.remove('size-compact', 'size-normal', 'size-expanded');
-          dockEl.style.maxHeight = `${newHeight}px`;
-          dockEl.style.height = `${newHeight}px`;
-        });
+    window.addEventListener('mouseup', () => {
+      if (isDraggingDock) {
+        isDraggingDock = false;
+        dockResizer.classList.remove('active');
+        document.body.classList.remove('resizing-active');
+        document.body.style.cursor = '';
+        const finalHeight = dockEl.getBoundingClientRect().height;
+        localStorage.setItem('AERO_DOCK_HEIGHT', finalHeight);
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
+  }
+
+  // Sidebar Width Controls
+  const layoutContainer = document.getElementById('app-layout');
+  const sidebarResizer = document.getElementById('sidebar-resizer');
+
+  const savedSidebarWidth = localStorage.getItem('AERO_SIDEBAR_WIDTH');
+  if (savedSidebarWidth && layoutContainer) {
+    const w = parseInt(savedSidebarWidth, 10);
+    if (!isNaN(w) && w >= 300 && w <= 700) {
+      layoutContainer.style.setProperty('--sidebar-width', `${w}px`);
+    }
+  }
+
+  // Improved Smooth Draggable Sidebar Resizer (RAF-debounced, clean bounds)
+  if (sidebarResizer && layoutContainer) {
+    let isDraggingSidebar = false;
+    let startX = 0;
+    let startWidth = 0;
+    let animFrameId = null;
+
+    sidebarResizer.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      isDraggingSidebar = true;
+      startX = e.clientX;
+      const sidebar = document.getElementById('telemetry-panel');
+      startWidth = sidebar ? sidebar.getBoundingClientRect().width : 440;
+      sidebarResizer.classList.add('active');
+      document.body.classList.add('resizing-active');
+      document.body.style.cursor = 'ew-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingSidebar) return;
+      const delta = startX - e.clientX;
+      const newWidth = Math.max(300, Math.min(startWidth + delta, 640));
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      animFrameId = requestAnimationFrame(() => {
+        layoutContainer.style.setProperty('--sidebar-width', `${newWidth}px`);
+        btnSidebarNarrow?.classList.remove('active');
+        btnSidebarNormal?.classList.remove('active');
+        btnSidebarWide?.classList.remove('active');
       });
+    });
 
-      window.addEventListener('mouseup', () => {
-        if (isDraggingDock) {
-          isDraggingDock = false;
-          dockResizer.classList.remove('active');
-          document.body.classList.remove('resizing-active');
-          document.body.style.cursor = '';
-          const finalHeight = dockEl.getBoundingClientRect().height;
-          localStorage.setItem('AERO_DOCK_HEIGHT', finalHeight);
-          window.dispatchEvent(new Event('resize'));
-        }
-      });
-    }
-
-    // Sidebar Width Controls
-    const layoutContainer = document.getElementById('app-layout');
-    const btnSidebarNarrow = document.getElementById('btn-sidebar-narrow');
-    const btnSidebarNormal = document.getElementById('btn-sidebar-normal');
-    const btnSidebarWide = document.getElementById('btn-sidebar-wide');
-    const sidebarResizer = document.getElementById('sidebar-resizer');
-
-    function setSidebarWidth(widthPx, mode) {
-      if (!layoutContainer) return;
-      layoutContainer.style.setProperty('--sidebar-width', `${widthPx}px`);
-      btnSidebarNarrow?.classList.toggle('active', mode === 'narrow');
-      btnSidebarNormal?.classList.toggle('active', mode === 'normal');
-      btnSidebarWide?.classList.toggle('active', mode === 'wide');
-      localStorage.setItem('AERO_SIDEBAR_WIDTH', widthPx);
-      localStorage.setItem('AERO_SIDEBAR_MODE', mode);
-      window.dispatchEvent(new Event('resize'));
-    }
-
-    btnSidebarNarrow?.addEventListener('click', () => setSidebarWidth(360, 'narrow'));
-    btnSidebarNormal?.addEventListener('click', () => setSidebarWidth(440, 'normal'));
-    btnSidebarWide?.addEventListener('click', () => setSidebarWidth(560, 'wide'));
-
-    const savedSidebarWidth = localStorage.getItem('AERO_SIDEBAR_WIDTH');
-    const savedSidebarMode = localStorage.getItem('AERO_SIDEBAR_MODE') || 'normal';
-    if (savedSidebarWidth) {
-      setSidebarWidth(parseInt(savedSidebarWidth, 10), savedSidebarMode);
-    }
-
-    // Improved Smooth Draggable Sidebar Resizer (RAF-debounced, clean bounds)
-    if (sidebarResizer && layoutContainer) {
-      let isDraggingSidebar = false;
-      let startX = 0;
-      let startWidth = 0;
-      let animFrameId = null;
-
-      sidebarResizer.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        isDraggingSidebar = true;
-        startX = e.clientX;
+    window.addEventListener('mouseup', () => {
+      if (isDraggingSidebar) {
+        isDraggingSidebar = false;
+        sidebarResizer.classList.remove('active');
+        document.body.classList.remove('resizing-active');
+        document.body.style.cursor = '';
         const sidebar = document.getElementById('telemetry-panel');
-        startWidth = sidebar ? sidebar.getBoundingClientRect().width : 440;
-        sidebarResizer.classList.add('active');
-        document.body.classList.add('resizing-active');
-        document.body.style.cursor = 'ew-resize';
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!isDraggingSidebar) return;
-        const delta = startX - e.clientX;
-        const newWidth = Math.max(300, Math.min(startWidth + delta, 640));
-        if (animFrameId) cancelAnimationFrame(animFrameId);
-        animFrameId = requestAnimationFrame(() => {
-          layoutContainer.style.setProperty('--sidebar-width', `${newWidth}px`);
-          btnSidebarNarrow?.classList.remove('active');
-          btnSidebarNormal?.classList.remove('active');
-          btnSidebarWide?.classList.remove('active');
-        });
-      });
-
-      window.addEventListener('mouseup', () => {
-        if (isDraggingSidebar) {
-          isDraggingSidebar = false;
-          sidebarResizer.classList.remove('active');
-          document.body.classList.remove('resizing-active');
-          document.body.style.cursor = '';
-          const sidebar = document.getElementById('telemetry-panel');
-          if (sidebar) {
-            localStorage.setItem('AERO_SIDEBAR_WIDTH', sidebar.getBoundingClientRect().width);
-          }
-          window.dispatchEvent(new Event('resize'));
+        if (sidebar) {
+          localStorage.setItem('AERO_SIDEBAR_WIDTH', sidebar.getBoundingClientRect().width);
         }
-      });
-    }
-
-    filterChips.forEach((chip) => {
-      chip.addEventListener('click', () => {
-        filterChips.forEach((c) => c.classList.remove('active'));
-        chip.classList.add('active');
-        activeLogFilter = chip.getAttribute('data-filter') || 'all';
-        renderLogs();
-      });
+        window.dispatchEvent(new Event('resize'));
+      }
     });
+  }
 
-    function updateLogsFromTelemetry(incomingLogs) {
-      if (!incomingLogs || incomingLogs.length === 0) return;
+  filterChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      filterChips.forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeLogFilter = chip.getAttribute('data-filter') || 'all';
+      renderLogs();
+    });
+  });
 
-      // Fast signature check to avoid DOM thrashing when logs haven't changed
-      const sig = incomingLogs.map(l => l.id).join(',');
-      if (sig === lastLogsSignature) return;
-      lastLogsSignature = sig;
+  function updateLogsFromTelemetry(incomingLogs) {
+    if (!incomingLogs || incomingLogs.length === 0) return;
 
-      // Merge incoming logs into localLogs without duplicates
-      const existingIds = new Set(localLogs.map(l => l.id));
-      let hasNew = false;
-      for (const log of incomingLogs) {
-        if (!existingIds.has(log.id)) {
-          localLogs.push(log);
-          existingIds.add(log.id);
-          hasNew = true;
-        }
-      }
+    // Fast signature check to avoid DOM thrashing when logs haven't changed
+    const sig = incomingLogs.map(l => l.id).join(',');
+    if (sig === lastLogsSignature) return;
+    lastLogsSignature = sig;
 
-      if (localLogs.length > 250) {
-        localLogs = localLogs.slice(localLogs.length - 250);
-      }
-
-      if (logsBadgeCount) logsBadgeCount.innerText = localLogs.length;
-      if (logsTotalCount) logsTotalCount.innerText = `${localLogs.length} events`;
-
-      if (activeTab === 'logs' && hasNew) {
-        renderLogs();
+    // Merge incoming logs into localLogs without duplicates
+    const existingIds = new Set(localLogs.map(l => l.id));
+    let hasNew = false;
+    for (const log of incomingLogs) {
+      if (!existingIds.has(log.id)) {
+        localLogs.push(log);
+        existingIds.add(log.id);
+        hasNew = true;
       }
     }
 
-    function renderLogs() {
-      if (!logsList) return;
+    if (localLogs.length > 250) {
+      localLogs = localLogs.slice(localLogs.length - 250);
+    }
 
-      const filtered = activeLogFilter === 'all'
-        ? localLogs
-        : localLogs.filter(l => (l.category || '').toLowerCase() === activeLogFilter.toLowerCase());
+    if (logsBadgeCount) logsBadgeCount.innerText = localLogs.length;
+    if (logsTotalCount) logsTotalCount.innerText = `${localLogs.length} events`;
 
-      if (logsBadgeCount) logsBadgeCount.innerText = localLogs.length;
-      if (logsTotalCount) logsTotalCount.innerText = `${localLogs.length} events`;
+    if (activeTab === 'logs' && hasNew) {
+      renderLogs();
+    }
+  }
 
-      if (filtered.length === 0) {
-        logsList.innerHTML = `
+  function renderLogs() {
+    if (!logsList) return;
+
+    const filtered = activeLogFilter === 'all'
+      ? localLogs
+      : localLogs.filter(l => (l.category || '').toLowerCase() === activeLogFilter.toLowerCase());
+
+    if (logsBadgeCount) logsBadgeCount.innerText = localLogs.length;
+    if (logsTotalCount) logsTotalCount.innerText = `${localLogs.length} events`;
+
+    if (filtered.length === 0) {
+      logsList.innerHTML = `
         <div class="logs-empty-state">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--mono-500);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <span>No logs recorded for category: <strong>${activeLogFilter.toUpperCase()}</strong></span>
         </div>
       `;
-        return;
-      }
+      return;
+    }
 
-      const html = filtered.map(log => {
-        const cat = (log.category || 'system').toLowerCase();
-        const badge = log.badge || 'INFO';
-        let badgeClass = 'badge-system';
-        if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
-        else if (cat === 'perception') badgeClass = 'badge-perception';
-        else if (cat === 'vla') badgeClass = 'badge-vla';
-        else if (cat === 'motion') badgeClass = 'badge-motion';
-        else if (cat === 'contact') badgeClass = 'badge-contact';
-        else if (cat === 'stability') badgeClass = 'badge-stability';
+    const html = filtered.map(log => {
+      const cat = (log.category || 'system').toLowerCase();
+      const badge = log.badge || 'INFO';
+      let badgeClass = 'badge-system';
+      if (badge === 'REJECT' || badge === 'IMPOSSIBLE') badgeClass = 'badge-reject';
+      else if (cat === 'perception') badgeClass = 'badge-perception';
+      else if (cat === 'vla') badgeClass = 'badge-vla';
+      else if (cat === 'motion') badgeClass = 'badge-motion';
+      else if (cat === 'contact') badgeClass = 'badge-contact';
+      else if (cat === 'stability') badgeClass = 'badge-stability';
 
-        return `
+      return `
         <div class="log-entry cat-${cat}" data-id="${log.id}">
           <div class="log-entry-header">
             <span class="log-time">${log.timestamp || ''}</span>
@@ -1274,123 +1246,123 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       `;
-      }).join('');
+    }).join('');
 
-      logsList.innerHTML = html;
+    logsList.innerHTML = html;
 
-      if (autoScrollEnabled && logsContainer) {
-        logsContainer.scrollTop = logsContainer.scrollHeight;
+    if (autoScrollEnabled && logsContainer) {
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // --------------------------------------------------------------------------
+  // Conversational Human-in-the-Loop & Dialogue Supervisor
+  // --------------------------------------------------------------------------
+  let lastRenderedChatMsgId = '';
+  let lastStepsSignature = '';
+
+  function appendNarrativeLogs(narratives) {
+    if (!narratives || narratives.length === 0) return;
+    const existingIds = new Set(localLogs.map(l => l.id));
+    let hasNew = false;
+    for (const n of narratives) {
+      if (!existingIds.has(n.id)) {
+        localLogs.push({
+          id: n.id,
+          timestamp: n.timestamp,
+          category: n.category,
+          badge: (n.category || 'event').toUpperCase(),
+          what: n.title,
+          how: n.explanation,
+        });
+        existingIds.add(n.id);
+        hasNew = true;
+      }
+    }
+    if (hasNew && activeTab === 'logs') {
+      renderLogs();
+    }
+  }
+
+  function updateDialogueUI(d) {
+    if (!d) return;
+
+    // 1. State badge & Dot
+    const badge = document.getElementById('chat-state-badge');
+    const dot = document.getElementById('chat-status-dot');
+    const badgeDot = document.getElementById('chat-badge-dot');
+
+    if (badge) {
+      badge.innerText = d.state || 'IDLE';
+      if (d.state === 'PAUSED_BY_USER' || d.state === 'PAUSED_BY_ANOMALY') {
+        badge.style.color = '#f59e0b';
+        badge.style.background = 'rgba(245, 158, 11, 0.15)';
+        badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        if (dot) dot.style.background = '#f59e0b';
+        if (badgeDot) badgeDot.style.display = 'inline-block';
+      } else if (d.state === 'EXECUTING') {
+        badge.style.color = '#10b981';
+        badge.style.background = 'rgba(16, 185, 129, 0.15)';
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        if (dot) dot.style.background = '#10b981';
+        if (badgeDot) badgeDot.style.display = 'none';
+      } else if (d.state === 'FAILED' || d.state === 'REJECTED') {
+        badge.style.color = '#ef4444';
+        badge.style.background = 'rgba(239, 68, 68, 0.15)';
+        badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        if (dot) dot.style.background = '#ef4444';
+        if (badgeDot) badgeDot.style.display = 'none';
+      } else {
+        badge.style.color = '';
+        badge.style.background = '';
+        badge.style.borderColor = '';
+        if (dot) dot.style.background = '#a1a1aa';
+        if (badgeDot) badgeDot.style.display = 'none';
       }
     }
 
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    // --------------------------------------------------------------------------
-    // Conversational Human-in-the-Loop & Dialogue Supervisor
-    // --------------------------------------------------------------------------
-    let lastRenderedChatMsgId = '';
-    let lastStepsSignature = '';
-
-    function appendNarrativeLogs(narratives) {
-      if (!narratives || narratives.length === 0) return;
-      const existingIds = new Set(localLogs.map(l => l.id));
-      let hasNew = false;
-      for (const n of narratives) {
-        if (!existingIds.has(n.id)) {
-          localLogs.push({
-            id: n.id,
-            timestamp: n.timestamp,
-            category: n.category,
-            badge: (n.category || 'event').toUpperCase(),
-            what: n.title,
-            how: n.explanation,
-          });
-          existingIds.add(n.id);
-          hasNew = true;
+    // 2. Update Single-Line Dock Agent Feedback
+    const feedbackText = document.getElementById('dock-feedback-text');
+    if (feedbackText && d) {
+      if (d.active_subgoal_desc && d.active_subgoal_desc !== 'Idle') {
+        feedbackText.innerText = d.active_subgoal_desc;
+      } else if (d.latest_thought) {
+        feedbackText.innerText = d.latest_thought;
+      } else if (d.chat_history && d.chat_history.length > 0) {
+        const lastMsg = d.chat_history[d.chat_history.length - 1];
+        if (lastMsg && lastMsg.text) {
+          feedbackText.innerText = lastMsg.text;
         }
       }
-      if (hasNew && activeTab === 'logs') {
-        renderLogs();
-      }
     }
+  }
 
-    function updateDialogueUI(d) {
-      if (!d) return;
-
-      // 1. State badge & Dot
-      const badge = document.getElementById('chat-state-badge');
-      const dot = document.getElementById('chat-status-dot');
-      const badgeDot = document.getElementById('chat-badge-dot');
-
-      if (badge) {
-        badge.innerText = d.state || 'IDLE';
-        if (d.state === 'PAUSED_BY_USER' || d.state === 'PAUSED_BY_ANOMALY') {
-          badge.style.color = '#f59e0b';
-          badge.style.background = 'rgba(245, 158, 11, 0.15)';
-          badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-          if (dot) dot.style.background = '#f59e0b';
-          if (badgeDot) badgeDot.style.display = 'inline-block';
-        } else if (d.state === 'EXECUTING') {
-          badge.style.color = '#10b981';
-          badge.style.background = 'rgba(16, 185, 129, 0.15)';
-          badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          if (dot) dot.style.background = '#10b981';
-          if (badgeDot) badgeDot.style.display = 'none';
-        } else if (d.state === 'FAILED' || d.state === 'REJECTED') {
-          badge.style.color = '#ef4444';
-          badge.style.background = 'rgba(239, 68, 68, 0.15)';
-          badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-          if (dot) dot.style.background = '#ef4444';
-          if (badgeDot) badgeDot.style.display = 'none';
-        } else {
-          badge.style.color = '';
-          badge.style.background = '';
-          badge.style.borderColor = '';
-          if (dot) dot.style.background = '#a1a1aa';
-          if (badgeDot) badgeDot.style.display = 'none';
-        }
-      }
-
-      // 2. Update Single-Line Dock Agent Feedback
-      const feedbackText = document.getElementById('dock-feedback-text');
-      if (feedbackText && d) {
-        if (d.active_subgoal_desc && d.active_subgoal_desc !== 'Idle') {
-          feedbackText.innerText = d.active_subgoal_desc;
-        } else if (d.latest_thought) {
-          feedbackText.innerText = d.latest_thought;
-        } else if (d.chat_history && d.chat_history.length > 0) {
-          const lastMsg = d.chat_history[d.chat_history.length - 1];
-          if (lastMsg && lastMsg.text) {
-            feedbackText.innerText = lastMsg.text;
-          }
-        }
-      }
-    }
-
-    function renderChatHistory(msgs) {
-      const stream = document.getElementById('chat-messages-stream');
-      if (!stream) return;
-      stream.innerHTML = msgs.map(m => {
-        const isUser = m.sender === 'user';
-        const avatar = isUser ? `
+  function renderChatHistory(msgs) {
+    const stream = document.getElementById('chat-messages-stream');
+    if (!stream) return;
+    stream.innerHTML = msgs.map(m => {
+      const isUser = m.sender === 'user';
+      const avatar = isUser ? `
           <div class="chat-avatar-icon user-avatar-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; flex-shrink: 0;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           </div>` : `
           <div class="chat-avatar-icon robot-avatar-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #38bdf8; flex-shrink: 0;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
           </div>`;
-        const author = isUser ? 'You (Operator)' : 'AERO Robot Arm';
-        const bg = isUser ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.05)';
-        const border = isUser ? 'rgba(56, 189, 248, 0.25)' : 'var(--border-subtle, rgba(255,255,255,0.08))';
-        const align = isUser ? 'flex-direction: row-reverse;' : '';
-        return `
+      const author = isUser ? 'You (Operator)' : 'AERO Robot Arm';
+      const bg = isUser ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255, 255, 255, 0.05)';
+      const border = isUser ? 'rgba(56, 189, 248, 0.25)' : 'var(--border-subtle, rgba(255,255,255,0.08))';
+      const align = isUser ? 'flex-direction: row-reverse;' : '';
+      return `
         <div class="chat-bubble" style="display: flex; gap: 8px; align-items: flex-start; ${align}">
           ${avatar}
           <div style="background: ${bg}; border: 1px solid ${border}; border-radius: 10px; padding: 8px 11px; font-size: 12px; line-height: 1.45; max-width: 85%;">
@@ -1402,123 +1374,123 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       `;
-      }).join('');
-      stream.scrollTop = stream.scrollHeight;
+    }).join('');
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  async function sendGuidanceMessage(text) {
+    if (!text) return;
+    try {
+      const res = await sessionFetch('/api/vla/guidance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guidance: text })
+      });
+      const data = await res.json();
+      console.log('[Guidance Sent]:', data);
+    } catch (err) {
+      console.error('[Guidance Error]:', err);
     }
+  }
 
-    async function sendGuidanceMessage(text) {
-      if (!text) return;
-      try {
-        const res = await sessionFetch('/api/vla/guidance', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ guidance: text })
-        });
-        const data = await res.json();
-        console.log('[Guidance Sent]:', data);
-      } catch (err) {
-        console.error('[Guidance Error]:', err);
-      }
+  async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+
+    try {
+      const res = await sessionFetch('/api/vla/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+      console.log('[Chat Sent]:', data);
+    } catch (err) {
+      console.error('[Chat Error]:', err);
     }
+  }
 
-    async function sendChatMessage() {
-      const input = document.getElementById('chat-input');
-      if (!input) return;
-      const msg = input.value.trim();
-      if (!msg) return;
-      input.value = '';
-
-      try {
-        const res = await sessionFetch('/api/vla/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg })
-        });
-        const data = await res.json();
-        console.log('[Chat Sent]:', data);
-      } catch (err) {
-        console.error('[Chat Error]:', err);
-      }
+  // Wire Chat and Pause & Guide Listeners
+  const btnChatSend = document.getElementById('btn-chat-send');
+  const chatInput = document.getElementById('chat-input');
+  btnChatSend?.addEventListener('click', sendChatMessage);
+  chatInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendChatMessage();
     }
+  });
 
-    // Wire Chat and Pause & Guide Listeners
-    const btnChatSend = document.getElementById('btn-chat-send');
-    const chatInput = document.getElementById('chat-input');
-    btnChatSend?.addEventListener('click', sendChatMessage);
-    chatInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        sendChatMessage();
-      }
-    });
-
-    const btnPauseGuide = document.getElementById('btn-pause-guide');
-    btnPauseGuide?.addEventListener('click', async () => {
-      try {
-        const res = await sessionFetch('/api/vla/pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: 'Operator clicked Pause & Guide', session_id: sessionId })
-        });
-        const data = await res.json();
-        console.log('[Pause & Guide]:', data);
-        cmdInput?.focus();
-      } catch (err) {
-        console.error('[Pause & Guide Error]:', err);
-      }
-    });
-
-    const btnChatReset = document.getElementById('btn-chat-reset');
-    btnChatReset?.addEventListener('click', async () => {
-      if (cmdInput) {
-        cmdInput.value = '';
-        cmdInput.focus();
-      }
-      const fb = document.getElementById('dock-feedback-text');
-      if (fb) {
-        fb.innerText = 'Awaiting instruction... Enter a natural language command below or select a challenge chip.';
-      }
-      const badge = document.getElementById('chat-state-badge');
-      if (badge) {
-        badge.innerText = 'IDLE';
-        badge.style.color = '';
-        badge.style.background = '';
-        badge.style.borderColor = '';
-      }
-      try {
-        await sessionFetch('/api/vla/chat/reset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-      } catch (err) {
-        console.error('[Command Reset Error]:', err);
-      }
-    });
-
-    // Initial fetch of logs from REST endpoint on load
-    function fetchSessionLogs() {
-      sessionFetch('/api/logs')
-        .then(r => r.json())
-        .then(data => {
-          if (data && data.logs && Array.isArray(data.logs)) {
-            updateLogsFromTelemetry(data.logs);
-          }
-        })
-        .catch(() => { });
+  const btnPauseGuide = document.getElementById('btn-pause-guide');
+  btnPauseGuide?.addEventListener('click', async () => {
+    try {
+      const res = await sessionFetch('/api/vla/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Operator clicked Pause & Guide', session_id: sessionId })
+      });
+      const data = await res.json();
+      console.log('[Pause & Guide]:', data);
+      cmdInput?.focus();
+    } catch (err) {
+      console.error('[Pause & Guide Error]:', err);
     }
-    fetchSessionLogs();
-    setInterval(fetchSessionLogs, 2500);
+  });
 
-    let lastSemanticHtml = '';
-    function updateSemanticTable(entities) {
-      const tbody = document.getElementById('semantic-table-body');
-      if (!tbody) return;
+  const btnChatReset = document.getElementById('btn-chat-reset');
+  btnChatReset?.addEventListener('click', async () => {
+    if (cmdInput) {
+      cmdInput.value = '';
+      cmdInput.focus();
+    }
+    const fb = document.getElementById('dock-feedback-text');
+    if (fb) {
+      fb.innerText = 'Awaiting instruction... Enter a natural language command below or select a challenge chip.';
+    }
+    const badge = document.getElementById('chat-state-badge');
+    if (badge) {
+      badge.innerText = 'IDLE';
+      badge.style.color = '';
+      badge.style.background = '';
+      badge.style.borderColor = '';
+    }
+    try {
+      await sessionFetch('/api/vla/chat/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (err) {
+      console.error('[Command Reset Error]:', err);
+    }
+  });
 
-      let html = '';
-      Object.values(entities).forEach((ent) => {
-        if (ent.category === 'tcp') return; // Skip TCP in list for brevity
-        const pos = ent.position;
-        html += `
+  // Initial fetch of logs from REST endpoint on load
+  function fetchSessionLogs() {
+    sessionFetch('/api/logs')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.logs && Array.isArray(data.logs)) {
+          updateLogsFromTelemetry(data.logs);
+        }
+      })
+      .catch(() => { });
+  }
+  fetchSessionLogs();
+  setInterval(fetchSessionLogs, 2500);
+
+  let lastSemanticHtml = '';
+  function updateSemanticTable(entities) {
+    const tbody = document.getElementById('semantic-table-body');
+    if (!tbody) return;
+
+    let html = '';
+    Object.values(entities).forEach((ent) => {
+      if (ent.category === 'tcp') return; // Skip TCP in list for brevity
+      const pos = ent.position;
+      html += `
         <tr>
           <td><span class="color-dot" style="background-color: ${ent.color};"></span>${ent.name}</td>
           <td>${ent.semantic_state}</td>
@@ -1526,47 +1498,47 @@ document.addEventListener('DOMContentLoaded', () => {
           <td><span style="color: ${ent.grasp_affordance > 0.5 ? '#ffffff' : '#71717a'}">${ent.grasp_affordance}</span></td>
         </tr>
       `;
-      });
-      if (html !== lastSemanticHtml) {
-        lastSemanticHtml = html;
-        tbody.innerHTML = html;
-      }
+    });
+    if (html !== lastSemanticHtml) {
+      lastSemanticHtml = html;
+      tbody.innerHTML = html;
+    }
+  }
+
+  let lastTracksHtml = '';
+  function updatePerceptionTracks(tracks) {
+    const summaryEl = document.getElementById('perception-tracks-summary');
+    const tbody = document.getElementById('perception-tracks-body');
+    if (!summaryEl && !tbody) return;
+
+    if (!tracks || tracks.length === 0) {
+      if (summaryEl) summaryEl.innerHTML = '<span class="rel-chip">No objects detected</span>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 8px;">No active tracks</td></tr>';
+      return;
     }
 
-    let lastTracksHtml = '';
-    function updatePerceptionTracks(tracks) {
-      const summaryEl = document.getElementById('perception-tracks-summary');
-      const tbody = document.getElementById('perception-tracks-body');
-      if (!summaryEl && !tbody) return;
-
-      if (!tracks || tracks.length === 0) {
-        if (summaryEl) summaryEl.innerHTML = '<span class="rel-chip">No objects detected</span>';
-        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 8px;">No active tracks</td></tr>';
-        return;
-      }
-
-      if (summaryEl) {
-        const summaryHtml = tracks.map((t) => {
-          const cName = t.color_name ? (t.color_name.charAt(0).toUpperCase() + t.color_name.slice(1)) : (t.class_name || 'Block');
-          const cDot = t.color_rgb ? `rgb(${t.color_rgb[0]}, ${t.color_rgb[1]}, ${t.color_rgb[2]})` : '#38bdf8';
-          return `<span class="scene-object-chip"><span class="color-dot" style="background-color: ${cDot};"></span>${cName}</span>`;
-        }).join('');
-        if (summaryHtml !== lastTracksHtml) {
-          lastTracksHtml = summaryHtml;
-          summaryEl.innerHTML = summaryHtml;
-        }
-        return;
-      }
-
-      let html = '';
-      tracks.forEach((t) => {
-        const pos = t.position || [0, 0, 0];
-        const cName = t.color_name ? (t.color_name.charAt(0).toUpperCase() + t.color_name.slice(1) + ' Cube') : (t.class_name || 'Block');
+    if (summaryEl) {
+      const summaryHtml = tracks.map((t) => {
+        const cName = t.color_name ? (t.color_name.charAt(0).toUpperCase() + t.color_name.slice(1)) : (t.class_name || 'Block');
         const cDot = t.color_rgb ? `rgb(${t.color_rgb[0]}, ${t.color_rgb[1]}, ${t.color_rgb[2]})` : '#38bdf8';
-        const conf = Math.round((t.confidence || 0.95) * 100);
-        const isAct = t.state === 'ACTIVE';
+        return `<span class="scene-object-chip"><span class="color-dot" style="background-color: ${cDot};"></span>${cName}</span>`;
+      }).join('');
+      if (summaryHtml !== lastTracksHtml) {
+        lastTracksHtml = summaryHtml;
+        summaryEl.innerHTML = summaryHtml;
+      }
+      return;
+    }
 
-        html += `
+    let html = '';
+    tracks.forEach((t) => {
+      const pos = t.position || [0, 0, 0];
+      const cName = t.color_name ? (t.color_name.charAt(0).toUpperCase() + t.color_name.slice(1) + ' Cube') : (t.class_name || 'Block');
+      const cDot = t.color_rgb ? `rgb(${t.color_rgb[0]}, ${t.color_rgb[1]}, ${t.color_rgb[2]})` : '#38bdf8';
+      const conf = Math.round((t.confidence || 0.95) * 100);
+      const isAct = t.state === 'ACTIVE';
+
+      html += `
         <tr>
           <td><span class="track-id-badge">${t.track_id}</span></td>
           <td><span class="color-dot" style="background-color: ${cDot};"></span>${cName}</td>
@@ -1575,542 +1547,542 @@ document.addEventListener('DOMContentLoaded', () => {
           <td><span style="color: ${isAct ? '#10b981' : '#f59e0b'}; font-weight: 600; font-size: 0.60rem;">${t.state || 'ACTIVE'}</span></td>
         </tr>
       `;
-      });
-
-      if (html !== lastTracksHtml) {
-        lastTracksHtml = html;
-        tbody.innerHTML = html;
-      }
-    }
-
-    // 4. Command Input Handling
-    const cmdInput = document.getElementById('command-input');
-    const sendBtn = document.getElementById('send-command-btn');
-
-    async function submitCommand(commandText) {
-      const text = (commandText || cmdInput.value || '').trim();
-      if (!text) return;
-
-      if (isSuspended) {
-        resumeSession();
-      }
-
-      // Retain and display command in text box so user can reference what was queried
-      cmdInput.value = text;
-
-      sendBtn.disabled = true;
-      sendBtn.innerText = 'Reasoning...';
-
-      const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
-      const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
-
-      try {
-        const badge = document.getElementById('chat-state-badge');
-        const isPaused = badge && (badge.innerText.includes('PAUSE'));
-        const endpoint = isPaused ? '/api/vla/chat' : '/api/vla/command';
-        const payload = isPaused ? { message: text, session_id: sessionId } : {
-          command: text,
-          api_key: apiKey,
-          model: model,
-          session_id: sessionId,
-        };
-
-        const resp = await sessionFetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const res = await resp.json();
-        console.log('[Google VLA] Command executed:', res);
-        if (res.is_possible === false || res.status === 'IMPOSSIBLE') {
-          const tBox = document.getElementById('vla-thought-box');
-          const vBadge = document.getElementById('vla-status-badge');
-          if (tBox) {
-            tBox.innerText = res.reason || res.thought || 'Instruction cannot be physically executed.';
-            tBox.classList.add('rejected');
-            tBox.classList.remove('gesture');
-          }
-          if (vBadge) {
-            vBadge.innerText = 'REJECTED';
-            vBadge.className = 'thought-status-badge badge-rejected';
-          }
-        }
-        if (res.api_warning) {
-          console.warn('[Google VLA Warning]', res.api_warning);
-        }
-        // Do not remove command from text box - keep it visible for user reference
-      } catch (err) {
-        console.error('Command submission error:', err);
-      } finally {
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<span>Execute</span>';
-      }
-    }
-
-    sendBtn.addEventListener('click', () => submitCommand());
-    cmdInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submitCommand();
     });
 
-    // Wire Presentation Mode Command Input
-    const presCmdInput = document.getElementById('pres-cmd-input');
-    const presBtnSend = document.getElementById('pres-btn-send');
-    if (presBtnSend && presCmdInput) {
-      const handlePresSend = () => {
-        const val = presCmdInput.value.trim();
-        if (val) {
-          submitCommand(val);
-          presCmdInput.value = '';
-        }
+    if (html !== lastTracksHtml) {
+      lastTracksHtml = html;
+      tbody.innerHTML = html;
+    }
+  }
+
+  // 4. Command Input Handling
+  const cmdInput = document.getElementById('command-input');
+  const sendBtn = document.getElementById('send-command-btn');
+
+  async function submitCommand(commandText) {
+    const text = (commandText || cmdInput.value || '').trim();
+    if (!text) return;
+
+    if (isSuspended) {
+      resumeSession();
+    }
+
+    // Retain and display command in text box so user can reference what was queried
+    cmdInput.value = text;
+
+    sendBtn.disabled = true;
+    sendBtn.innerText = 'Reasoning...';
+
+    const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
+    const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
+
+    try {
+      const badge = document.getElementById('chat-state-badge');
+      const isPaused = badge && (badge.innerText.includes('PAUSE'));
+      const endpoint = isPaused ? '/api/vla/chat' : '/api/vla/command';
+      const payload = isPaused ? { message: text, session_id: sessionId } : {
+        command: text,
+        api_key: apiKey,
+        model: model,
+        session_id: sessionId,
       };
-      presBtnSend.addEventListener('click', handlePresSend);
-      presCmdInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handlePresSend();
-      });
-    }
 
-    // 5. Preset Action Chips
-    document.querySelectorAll('.prompt-chip').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.prompt-chip').forEach((c) => c.classList.remove('active'));
-        chip.classList.add('active');
-        const prompt = chip.getAttribute('data-prompt');
-        if (prompt) {
-          cmdInput.value = prompt;
-          cmdInput.focus();
-          submitCommand(prompt);
+      const resp = await sessionFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const res = await resp.json();
+      console.log('[Google VLA] Command executed:', res);
+      if (res.is_possible === false || res.status === 'IMPOSSIBLE') {
+        const tBox = document.getElementById('vla-thought-box');
+        const vBadge = document.getElementById('vla-status-badge');
+        if (tBox) {
+          tBox.innerText = res.reason || res.thought || 'Instruction cannot be physically executed.';
+          tBox.classList.add('rejected');
+          tBox.classList.remove('gesture');
         }
-      });
-    });
+        if (vBadge) {
+          vBadge.innerText = 'REJECTED';
+          vBadge.className = 'thought-status-badge badge-rejected';
+        }
+      }
+      if (res.api_warning) {
+        console.warn('[Google VLA Warning]', res.api_warning);
+      }
+      // Do not remove command from text box - keep it visible for user reference
+    } catch (err) {
+      console.error('Command submission error:', err);
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<span>Execute</span>';
+    }
+  }
 
-    // Remove chip highlight when user manually types or edits query in text box
-    cmdInput.addEventListener('input', () => {
+  sendBtn.addEventListener('click', () => submitCommand());
+  cmdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitCommand();
+  });
+
+  // Wire Presentation Mode Command Input
+  const presCmdInput = document.getElementById('pres-cmd-input');
+  const presBtnSend = document.getElementById('pres-btn-send');
+  if (presBtnSend && presCmdInput) {
+    const handlePresSend = () => {
+      const val = presCmdInput.value.trim();
+      if (val) {
+        submitCommand(val);
+        presCmdInput.value = '';
+      }
+    };
+    presBtnSend.addEventListener('click', handlePresSend);
+    presCmdInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handlePresSend();
+    });
+  }
+
+  // 5. Preset Action Chips
+  document.querySelectorAll('.prompt-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
       document.querySelectorAll('.prompt-chip').forEach((c) => c.classList.remove('active'));
-    });
-
-    // 6. Camera Switching Toolbar & Zoom Controls
-    document.querySelectorAll('.cam-btn[data-view]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.cam-btn[data-view]').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        const view = btn.getAttribute('data-view');
-        simCanvas.setCameraView(view);
-      });
-    });
-
-    const btnToggleFrustum = document.getElementById('btn-toggle-frustum');
-    if (btnToggleFrustum) {
-      btnToggleFrustum.addEventListener('click', () => {
-        simCanvas.showFrustums = !simCanvas.showFrustums;
-        btnToggleFrustum.classList.toggle('active', simCanvas.showFrustums);
-      });
-    }
-
-    const btnToggleP3D = document.getElementById('btn-toggle-perception-3d');
-    if (btnToggleP3D) {
-      btnToggleP3D.addEventListener('click', () => {
-        simCanvas.showPerceptionBoxes = !simCanvas.showPerceptionBoxes;
-        btnToggleP3D.classList.toggle('active', simCanvas.showPerceptionBoxes);
-      });
-    }
-
-    // Interactive Zoom & Reset Buttons
-    document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
-      simCanvas.zoomIn();
-    });
-
-    document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
-      simCanvas.zoomOut();
-    });
-
-    document.getElementById('btn-cam-reset')?.addEventListener('click', () => {
-      simCanvas.resetCamera();
-    });
-
-    // 7. Toggle Chips
-    const trailChip = document.getElementById('toggle-trails');
-    if (trailChip) {
-      trailChip.addEventListener('click', () => {
-        const state = simCanvas.toggleTrails();
-        trailChip.classList.toggle('active', state);
-      });
-    }
-
-    // 8. Rest & Simulation Controls
-    async function triggerRestArm() {
-      try {
-        await sessionFetch('/api/sim/reset', { method: 'POST' });
-        console.log('[System] Arm returned to rest pose and workspace reset.');
-      } catch (err) {
-        console.error('Error resting arm:', err);
+      chip.classList.add('active');
+      const prompt = chip.getAttribute('data-prompt');
+      if (prompt) {
+        cmdInput.value = prompt;
+        cmdInput.focus();
+        submitCommand(prompt);
       }
-    }
+    });
+  });
 
-    async function triggerRandomizeLayout() {
-      try {
-        await sessionFetch('/api/sim/randomize', { method: 'POST' });
-        console.log('[System] Blocks randomized across tabletop.');
-      } catch (err) {
-        console.error('Error randomizing blocks:', err);
+  // Remove chip highlight when user manually types or edits query in text box
+  cmdInput.addEventListener('input', () => {
+    document.querySelectorAll('.prompt-chip').forEach((c) => c.classList.remove('active'));
+  });
+
+  // 6. Camera Switching Toolbar & Zoom Controls
+  document.querySelectorAll('.cam-btn[data-view]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cam-btn[data-view]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      const view = btn.getAttribute('data-view');
+      simCanvas.setCameraView(view);
+    });
+  });
+
+  const btnToggleFrustum = document.getElementById('btn-toggle-frustum');
+  if (btnToggleFrustum) {
+    btnToggleFrustum.addEventListener('click', () => {
+      simCanvas.showFrustums = !simCanvas.showFrustums;
+      btnToggleFrustum.classList.toggle('active', simCanvas.showFrustums);
+    });
+  }
+
+  const btnToggleP3D = document.getElementById('btn-toggle-perception-3d');
+  if (btnToggleP3D) {
+    btnToggleP3D.addEventListener('click', () => {
+      simCanvas.showPerceptionBoxes = !simCanvas.showPerceptionBoxes;
+      btnToggleP3D.classList.toggle('active', simCanvas.showPerceptionBoxes);
+    });
+  }
+
+  // Interactive Zoom & Reset Buttons
+  document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
+    simCanvas.zoomIn();
+  });
+
+  document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
+    simCanvas.zoomOut();
+  });
+
+  document.getElementById('btn-cam-reset')?.addEventListener('click', () => {
+    simCanvas.resetCamera();
+  });
+
+  // 7. Toggle Chips
+  const trailChip = document.getElementById('toggle-trails');
+  if (trailChip) {
+    trailChip.addEventListener('click', () => {
+      const state = simCanvas.toggleTrails();
+      trailChip.classList.toggle('active', state);
+    });
+  }
+
+  // 8. Rest & Simulation Controls
+  async function triggerRestArm() {
+    try {
+      await sessionFetch('/api/sim/reset', { method: 'POST' });
+      console.log('[System] Arm returned to rest pose and workspace reset.');
+    } catch (err) {
+      console.error('Error resting arm:', err);
+    }
+  }
+
+  async function triggerRandomizeLayout() {
+    try {
+      await sessionFetch('/api/sim/randomize', { method: 'POST' });
+      console.log('[System] Blocks randomized across tabletop.');
+    } catch (err) {
+      console.error('Error randomizing blocks:', err);
+    }
+  }
+
+  async function triggerNudgeBlock() {
+    const btn = document.getElementById('btn-nudge-block');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await sessionFetch('/api/sim/nudge', { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        console.log(`[Disturbance] Nudged ${data.name} to`, data.new_position);
       }
+    } catch (err) {
+      console.error('Error nudging block:', err);
+    } finally {
+      if (btn) btn.disabled = false;
     }
+  }
 
-    async function triggerNudgeBlock() {
-      const btn = document.getElementById('btn-nudge-block');
-      if (btn) btn.disabled = true;
-      try {
-        const res = await sessionFetch('/api/sim/nudge', { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'ok') {
-          console.log(`[Disturbance] Nudged ${data.name} to`, data.new_position);
-        }
-      } catch (err) {
-        console.error('Error nudging block:', err);
-      } finally {
-        if (btn) btn.disabled = false;
-      }
-    }
+  document.getElementById('btn-rest-header')?.addEventListener('click', triggerRestArm);
+  document.getElementById('btn-rest-inline')?.addEventListener('click', triggerRestArm);
+  document.getElementById('btn-rest-main')?.addEventListener('click', triggerRestArm);
+  document.getElementById('btn-randomize-main')?.addEventListener('click', triggerRandomizeLayout);
+  document.getElementById('btn-nudge-block')?.addEventListener('click', triggerNudgeBlock);
+  document.getElementById('btn-reset')?.addEventListener('click', triggerRestArm);
 
-    document.getElementById('btn-rest-header')?.addEventListener('click', triggerRestArm);
-    document.getElementById('btn-rest-inline')?.addEventListener('click', triggerRestArm);
-    document.getElementById('btn-rest-main')?.addEventListener('click', triggerRestArm);
-    document.getElementById('btn-randomize-main')?.addEventListener('click', triggerRandomizeLayout);
-    document.getElementById('btn-nudge-block')?.addEventListener('click', triggerNudgeBlock);
-    document.getElementById('btn-reset')?.addEventListener('click', triggerRestArm);
+  document.getElementById('btn-reset-cost')?.addEventListener('click', async () => {
+    await sessionFetch('/api/vla/cost/reset', { method: 'POST' });
+  });
 
-    document.getElementById('btn-reset-cost')?.addEventListener('click', async () => {
-      await sessionFetch('/api/vla/cost/reset', { method: 'POST' });
+  // 9. Speech Recognition (Web Speech API)
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRec();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    micBtn.addEventListener('click', () => {
+      micBtn.style.color = '#ffffff';
+      recognition.start();
     });
 
-    // 9. Speech Recognition (Web Speech API)
-    const micBtn = document.getElementById('mic-btn');
-    if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRec();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      cmdInput.value = transcript;
+      micBtn.style.color = '';
+      submitCommand(transcript);
+    };
 
-      micBtn.addEventListener('click', () => {
-        micBtn.style.color = '#ffffff';
-        recognition.start();
-      });
+    recognition.onerror = () => {
+      micBtn.style.color = '';
+    };
 
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        cmdInput.value = transcript;
-        micBtn.style.color = '';
-        submitCommand(transcript);
-      };
+    recognition.onend = () => {
+      micBtn.style.color = '';
+    };
+  }
 
-      recognition.onerror = () => {
-        micBtn.style.color = '';
-      };
+  // 10. Settings Modal Handlers (Preserved for future extensions)
+  const settingsModal = document.getElementById('settings-modal');
+  const openSettingsBtn = document.getElementById('open-settings-btn');
+  const saveSettingsBtn = document.getElementById('save-settings-btn');
+  const closeSettingsBtn = document.getElementById('close-settings-btn');
+  const apiKeyInput = document.getElementById('api-key-input');
+  const modelSelect = document.getElementById('model-select');
 
-      recognition.onend = () => {
-        micBtn.style.color = '';
-      };
-    }
+  // Load saved settings if inputs exist
+  if (apiKeyInput) apiKeyInput.value = localStorage.getItem('GEMINI_API_KEY') || '';
+  if (modelSelect) modelSelect.value = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
 
-    // 10. Settings Modal Handlers (Preserved for future extensions)
-    const settingsModal = document.getElementById('settings-modal');
-    const openSettingsBtn = document.getElementById('open-settings-btn');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
-    const closeSettingsBtn = document.getElementById('close-settings-btn');
-    const apiKeyInput = document.getElementById('api-key-input');
-    const modelSelect = document.getElementById('model-select');
+  openSettingsBtn?.addEventListener('click', () => settingsModal?.classList.add('active'));
+  closeSettingsBtn?.addEventListener('click', () => settingsModal?.classList.remove('active'));
 
-    // Load saved settings if inputs exist
-    if (apiKeyInput) apiKeyInput.value = localStorage.getItem('GEMINI_API_KEY') || '';
-    if (modelSelect) modelSelect.value = localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash';
+  saveSettingsBtn?.addEventListener('click', () => {
+    if (apiKeyInput) localStorage.setItem('GEMINI_API_KEY', apiKeyInput.value.trim());
+    if (modelSelect) localStorage.setItem('GEMINI_MODEL', modelSelect.value);
+    settingsModal?.classList.remove('active');
+  });
 
-    openSettingsBtn?.addEventListener('click', () => settingsModal?.classList.add('active'));
-    closeSettingsBtn?.addEventListener('click', () => settingsModal?.classList.remove('active'));
+  // Test Key Handler
+  const testKeyBtn = document.getElementById('test-key-btn');
+  const keyFeedback = document.getElementById('key-test-feedback');
 
-    saveSettingsBtn?.addEventListener('click', () => {
-      if (apiKeyInput) localStorage.setItem('GEMINI_API_KEY', apiKeyInput.value.trim());
-      if (modelSelect) localStorage.setItem('GEMINI_MODEL', modelSelect.value);
-      settingsModal?.classList.remove('active');
-    });
-
-    // Test Key Handler
-    const testKeyBtn = document.getElementById('test-key-btn');
-    const keyFeedback = document.getElementById('key-test-feedback');
-
-    testKeyBtn?.addEventListener('click', async () => {
-      const testKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-      if (!testKey) {
-        if (keyFeedback) {
-          keyFeedback.style.color = '#a1a1aa';
-          keyFeedback.innerText = 'Please enter an authorization key to test.';
-        }
-        return;
-      }
-
-      testKeyBtn.disabled = true;
-      testKeyBtn.innerText = 'Pinging...';
+  testKeyBtn?.addEventListener('click', async () => {
+    const testKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+    if (!testKey) {
       if (keyFeedback) {
         keyFeedback.style.color = '#a1a1aa';
-        keyFeedback.innerText = 'Testing connection...';
+        keyFeedback.innerText = 'Please enter an authorization key to test.';
       }
+      return;
+    }
 
-      try {
-        const resp = await sessionFetch('/api/vla/test_key', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: testKey, model: modelSelect ? modelSelect.value : 'gemini-2.5-flash', session_id: sessionId }),
-        });
-        const data = await resp.json();
-        if (data.valid) {
-          if (keyFeedback) {
-            keyFeedback.style.color = '#ffffff';
-            keyFeedback.innerText = '✓ ' + data.message;
-          }
-        } else {
-          if (keyFeedback) {
-            keyFeedback.style.color = '#a1a1aa';
-            keyFeedback.innerText = '✗ ' + (data.message || 'Validation failed');
-          }
+    testKeyBtn.disabled = true;
+    testKeyBtn.innerText = 'Pinging...';
+    if (keyFeedback) {
+      keyFeedback.style.color = '#a1a1aa';
+      keyFeedback.innerText = 'Testing connection...';
+    }
+
+    try {
+      const resp = await sessionFetch('/api/vla/test_key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: testKey, model: modelSelect ? modelSelect.value : 'gemini-2.5-flash', session_id: sessionId }),
+      });
+      const data = await resp.json();
+      if (data.valid) {
+        if (keyFeedback) {
+          keyFeedback.style.color = '#ffffff';
+          keyFeedback.innerText = '✓ ' + data.message;
         }
-      } catch (err) {
+      } else {
         if (keyFeedback) {
           keyFeedback.style.color = '#a1a1aa';
-          keyFeedback.innerText = '✗ Network error: ' + err.message;
+          keyFeedback.innerText = '✗ ' + (data.message || 'Validation failed');
         }
-      } finally {
-        testKeyBtn.disabled = false;
-        testKeyBtn.innerText = 'Test Key';
       }
-    });
-
-    // 11. Sensor HUD Switcher: Live 30 FPS WebGL perspective cameras for OVERHEAD / WRIST / DEPTH,
-    //     and backend 2D frontier map PNG polling for MAP mode.
-    const vlaImg = document.getElementById('vla-pip-img');
-    const vlaCanvas = document.getElementById('vla-pip-canvas');
-    let currentFeedType = 'rgb';
-    const btnFeedRgb = document.getElementById('btn-feed-rgb');
-    const btnFeedWrist = document.getElementById('btn-feed-wrist');
-    const btnFeedDepth = document.getElementById('btn-feed-depth');
-    const btnFeedMap = document.getElementById('btn-feed-map');
-    const sensorTypeTag = document.getElementById('hud-sensor-type-tag');
-
-    const hudFeedConfigs = [
-      { btn: btnFeedRgb, type: 'rgb', tag: 'OVERHEAD RGB' },
-      { btn: btnFeedWrist, type: 'wrist', tag: 'WRIST (EYE-IN-HAND)' },
-      { btn: btnFeedDepth, type: 'depth', tag: 'METRIC DEPTH' },
-      { btn: btnFeedMap, type: 'map', tag: 'FRONTIER MAP' },
-    ];
-
-    const syncFeedVisibility = () => {
-      const isMap = currentFeedType === 'map';
-      if (simCanvas) simCanvas.hudFeedMode = currentFeedType;
-      if (vlaCanvas) vlaCanvas.style.display = isMap ? 'none' : 'block';
-      if (vlaImg) vlaImg.style.display = isMap ? 'block' : 'none';
-    };
-
-    const refreshMapImg = () => {
-      if (!vlaImg || currentFeedType !== 'map') return;
-      const nextImg = new Image();
-      nextImg.onload = () => {
-        if (currentFeedType === 'map') vlaImg.src = nextImg.src;
-      };
-      nextImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
-    };
-
-    hudFeedConfigs.forEach((cfg) => {
-      if (!cfg.btn) return;
-      cfg.btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        hudFeedConfigs.forEach((c) => c.btn?.classList.remove('active'));
-        cfg.btn.classList.add('active');
-        currentFeedType = cfg.type;
-        if (sensorTypeTag) sensorTypeTag.innerText = cfg.tag;
-        syncFeedVisibility();
-        if (currentFeedType === 'map') {
-          refreshMapImg();
-        }
-      });
-    });
-
-    syncFeedVisibility();
-    setInterval(refreshMapImg, 500);
-
-    // 11b. Main Big-Screen Multi-View Manager (1 = full view, 2 = 2-way split, 3 = 3-way split)
-    const splitGrid = document.getElementById('split-screen-grid');
-    const screenButtons = Array.from(document.querySelectorAll('.screen-btn[data-screen]'));
-    const screenLayoutBadge = document.getElementById('screen-layout-badge');
-    const SCREEN_LABELS = {
-      studio: 'STUDIO 3D',
-      rgb: 'OVERHEAD RGB',
-      wrist: 'WRIST (EYE-IN-HAND)',
-      depth: 'METRIC DEPTH',
-    };
-    let selectedMainScreens = ['studio'];
-
-    const renderScreenLayout = () => {
-      if (!splitGrid) return;
-      // Filter out any stale 'map' selection if persisted
-      selectedMainScreens = selectedMainScreens.filter(s => s !== 'map');
-      if (selectedMainScreens.length === 0) selectedMainScreens = ['studio'];
-
-      const count = selectedMainScreens.length;
-      splitGrid.className = `split-${Math.min(4, Math.max(1, count))}`;
-
-      screenButtons.forEach((btn) => {
-        const s = btn.getAttribute('data-screen');
-        btn.classList.toggle('active', selectedMainScreens.includes(s));
-      });
-
-      if (screenLayoutBadge) {
-        if (count === 1) screenLayoutBadge.innerText = '1 VIEW';
-        else if (count <= 3) screenLayoutBadge.innerText = `${count} SPLIT`;
-        else screenLayoutBadge.innerText = `${count} GRID`;
+    } catch (err) {
+      if (keyFeedback) {
+        keyFeedback.style.color = '#a1a1aa';
+        keyFeedback.innerText = '✗ Network error: ' + err.message;
       }
-
-      splitGrid.innerHTML = '';
-      const isDefaultStudio = count === 1 && selectedMainScreens[0] === 'studio';
-
-      selectedMainScreens.forEach((screenType) => {
-        const pane = document.createElement('div');
-        pane.className = 'split-pane';
-        pane.setAttribute('data-screen', screenType);
-
-        if (!isDefaultStudio) {
-          const chip = document.createElement('div');
-          chip.className = 'split-pane-chip';
-
-          const dot = document.createElement('span');
-          dot.className = `split-pane-dot dot-${screenType}`;
-          chip.appendChild(dot);
-
-          const txt = document.createElement('span');
-          txt.innerText = SCREEN_LABELS[screenType] || screenType.toUpperCase();
-          chip.appendChild(txt);
-
-          if (count > 1) {
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'split-pane-close';
-            closeBtn.type = 'button';
-            closeBtn.title = `Close ${SCREEN_LABELS[screenType] || screenType}`;
-            closeBtn.innerText = '×';
-            closeBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              toggleMainScreen(screenType);
-            });
-            chip.appendChild(closeBtn);
-          }
-          pane.appendChild(chip);
-        }
-
-        splitGrid.appendChild(pane);
-      });
-
-      if (simCanvas && typeof simCanvas.setMainScreens === 'function') {
-        simCanvas.setMainScreens(selectedMainScreens, () => splitGrid.querySelectorAll('.split-pane'));
-      }
-    };
-
-    const toggleMainScreen = (screenType) => {
-      const idx = selectedMainScreens.indexOf(screenType);
-      if (idx !== -1) {
-        if (selectedMainScreens.length <= 1) return; // Always keep at least 1 feed on main screen
-        selectedMainScreens.splice(idx, 1);
-      } else {
-        selectedMainScreens.push(screenType);
-      }
-      renderScreenLayout();
-    };
-
-    screenButtons.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const s = btn.getAttribute('data-screen');
-        if (s) toggleMainScreen(s);
-      });
-    });
-
-    renderScreenLayout();
-
-    // 12. Auto-execute command if passed via URL ?cmd=...
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialCmd = urlParams.get('cmd');
-    if (initialCmd && cmdInput) {
-      cmdInput.value = initialCmd;
-      setTimeout(() => {
-        submitCommand(initialCmd);
-      }, 1200);
+    } finally {
+      testKeyBtn.disabled = false;
+      testKeyBtn.innerText = 'Test Key';
     }
+  });
 
-    // 13. Responsive Drawer & Viewport Controls (Mobile & Laptop Adaptation)
-    const appLayout = document.getElementById('app-layout');
-    const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
-    const btnCloseSidebar = document.getElementById('btn-close-sidebar');
-    const telemetryPanel = document.getElementById('telemetry-panel');
-    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-    const btnPipToggle = document.getElementById('btn-pip-toggle');
-    const cameraHudPip = document.getElementById('camera-hud-pip');
+  // 11. Sensor HUD Switcher: Live 30 FPS WebGL perspective cameras for OVERHEAD / WRIST / DEPTH,
+  //     and backend 2D frontier map PNG polling for MAP mode.
+  const vlaImg = document.getElementById('vla-pip-img');
+  const vlaCanvas = document.getElementById('vla-pip-canvas');
+  let currentFeedType = 'rgb';
+  const btnFeedRgb = document.getElementById('btn-feed-rgb');
+  const btnFeedWrist = document.getElementById('btn-feed-wrist');
+  const btnFeedDepth = document.getElementById('btn-feed-depth');
+  const btnFeedMap = document.getElementById('btn-feed-map');
+  const sensorTypeTag = document.getElementById('hud-sensor-type-tag');
 
-    function openMobileDrawer() {
-      telemetryPanel?.classList.add('drawer-open');
-      sidebarBackdrop?.classList.add('active');
-      document.body.style.overflow = 'hidden';
-    }
+  const hudFeedConfigs = [
+    { btn: btnFeedRgb, type: 'rgb', tag: 'OVERHEAD RGB' },
+    { btn: btnFeedWrist, type: 'wrist', tag: 'WRIST (EYE-IN-HAND)' },
+    { btn: btnFeedDepth, type: 'depth', tag: 'METRIC DEPTH' },
+    { btn: btnFeedMap, type: 'map', tag: 'FRONTIER MAP' },
+  ];
 
-    function closeMobileDrawer() {
-      telemetryPanel?.classList.remove('drawer-open');
-      sidebarBackdrop?.classList.remove('active');
-      document.body.style.overflow = '';
-    }
+  const syncFeedVisibility = () => {
+    const isMap = currentFeedType === 'map';
+    if (simCanvas) simCanvas.hudFeedMode = currentFeedType;
+    if (vlaCanvas) vlaCanvas.style.display = isMap ? 'none' : 'block';
+    if (vlaImg) vlaImg.style.display = isMap ? 'block' : 'none';
+  };
 
-    function toggleSidebar() {
-      if (window.innerWidth <= 768) {
-        if (telemetryPanel?.classList.contains('drawer-open')) {
-          closeMobileDrawer();
-        } else {
-          openMobileDrawer();
-        }
-      } else {
-        appLayout?.classList.toggle('sidebar-collapsed');
-        btnToggleSidebar?.classList.toggle('active', !appLayout?.classList.contains('sidebar-collapsed'));
-        // Notify Three.js renderer to instantly resize canvas to available space
-        setTimeout(() => {
-          window.dispatchEvent(new Event('resize'));
-        }, 50);
-      }
-    }
+  const refreshMapImg = () => {
+    if (!vlaImg || currentFeedType !== 'map') return;
+    const nextImg = new Image();
+    nextImg.onload = () => {
+      if (currentFeedType === 'map') vlaImg.src = nextImg.src;
+    };
+    nextImg.src = `/api/vla/map_image?session_id=${encodeURIComponent(sessionId)}&annotated=true&t=${Date.now()}`;
+  };
 
-    btnToggleSidebar?.addEventListener('click', toggleSidebar);
-    btnCloseSidebar?.addEventListener('click', closeMobileDrawer);
-    sidebarBackdrop?.addEventListener('click', closeMobileDrawer);
-
-    // Close drawer with Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        closeMobileDrawer();
-      }
-    });
-
-    // Toggle Camera PiP minimization
-    btnPipToggle?.addEventListener('click', (e) => {
+  hudFeedConfigs.forEach((cfg) => {
+    if (!cfg.btn) return;
+    cfg.btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      cameraHudPip?.classList.toggle('minimized');
-      const isMin = cameraHudPip?.classList.contains('minimized');
-      btnPipToggle.innerHTML = isMin
-        ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>'
-        : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
-      if (!isMin) {
-        refreshMapImg();
-      }
-    });
-
-    // Clicking on minimized bottom-left pill expands it
-    cameraHudPip?.addEventListener('click', (e) => {
-      if (cameraHudPip.classList.contains('minimized') && !e.target.closest('button')) {
-        cameraHudPip.classList.remove('minimized');
-        if (btnPipToggle) {
-          btnPipToggle.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
-        }
+      hudFeedConfigs.forEach((c) => c.btn?.classList.remove('active'));
+      cfg.btn.classList.add('active');
+      currentFeedType = cfg.type;
+      if (sensorTypeTag) sensorTypeTag.innerText = cfg.tag;
+      syncFeedVisibility();
+      if (currentFeedType === 'map') {
         refreshMapImg();
       }
     });
   });
+
+  syncFeedVisibility();
+  setInterval(refreshMapImg, 500);
+
+  // 11b. Main Big-Screen Multi-View Manager (1 = full view, 2 = 2-way split, 3 = 3-way split)
+  const splitGrid = document.getElementById('split-screen-grid');
+  const screenButtons = Array.from(document.querySelectorAll('.screen-btn[data-screen]'));
+  const screenLayoutBadge = document.getElementById('screen-layout-badge');
+  const SCREEN_LABELS = {
+    studio: 'STUDIO 3D',
+    rgb: 'OVERHEAD RGB',
+    wrist: 'WRIST (EYE-IN-HAND)',
+    depth: 'METRIC DEPTH',
+  };
+  let selectedMainScreens = ['studio'];
+
+  const renderScreenLayout = () => {
+    if (!splitGrid) return;
+    // Filter out any stale 'map' selection if persisted
+    selectedMainScreens = selectedMainScreens.filter(s => s !== 'map');
+    if (selectedMainScreens.length === 0) selectedMainScreens = ['studio'];
+
+    const count = selectedMainScreens.length;
+    splitGrid.className = `split-${Math.min(4, Math.max(1, count))}`;
+
+    screenButtons.forEach((btn) => {
+      const s = btn.getAttribute('data-screen');
+      btn.classList.toggle('active', selectedMainScreens.includes(s));
+    });
+
+    if (screenLayoutBadge) {
+      if (count === 1) screenLayoutBadge.innerText = '1 VIEW';
+      else if (count <= 3) screenLayoutBadge.innerText = `${count} SPLIT`;
+      else screenLayoutBadge.innerText = `${count} GRID`;
+    }
+
+    splitGrid.innerHTML = '';
+    const isDefaultStudio = count === 1 && selectedMainScreens[0] === 'studio';
+
+    selectedMainScreens.forEach((screenType) => {
+      const pane = document.createElement('div');
+      pane.className = 'split-pane';
+      pane.setAttribute('data-screen', screenType);
+
+      if (!isDefaultStudio) {
+        const chip = document.createElement('div');
+        chip.className = 'split-pane-chip';
+
+        const dot = document.createElement('span');
+        dot.className = `split-pane-dot dot-${screenType}`;
+        chip.appendChild(dot);
+
+        const txt = document.createElement('span');
+        txt.innerText = SCREEN_LABELS[screenType] || screenType.toUpperCase();
+        chip.appendChild(txt);
+
+        if (count > 1) {
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'split-pane-close';
+          closeBtn.type = 'button';
+          closeBtn.title = `Close ${SCREEN_LABELS[screenType] || screenType}`;
+          closeBtn.innerText = '×';
+          closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMainScreen(screenType);
+          });
+          chip.appendChild(closeBtn);
+        }
+        pane.appendChild(chip);
+      }
+
+      splitGrid.appendChild(pane);
+    });
+
+    if (simCanvas && typeof simCanvas.setMainScreens === 'function') {
+      simCanvas.setMainScreens(selectedMainScreens, () => splitGrid.querySelectorAll('.split-pane'));
+    }
+  };
+
+  const toggleMainScreen = (screenType) => {
+    const idx = selectedMainScreens.indexOf(screenType);
+    if (idx !== -1) {
+      if (selectedMainScreens.length <= 1) return; // Always keep at least 1 feed on main screen
+      selectedMainScreens.splice(idx, 1);
+    } else {
+      selectedMainScreens.push(screenType);
+    }
+    renderScreenLayout();
+  };
+
+  screenButtons.forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const s = btn.getAttribute('data-screen');
+      if (s) toggleMainScreen(s);
+    });
+  });
+
+  renderScreenLayout();
+
+  // 12. Auto-execute command if passed via URL ?cmd=...
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialCmd = urlParams.get('cmd');
+  if (initialCmd && cmdInput) {
+    cmdInput.value = initialCmd;
+    setTimeout(() => {
+      submitCommand(initialCmd);
+    }, 1200);
+  }
+
+  // 13. Responsive Drawer & Viewport Controls (Mobile & Laptop Adaptation)
+  const appLayout = document.getElementById('app-layout');
+  const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+  const btnCloseSidebar = document.getElementById('btn-close-sidebar');
+  const telemetryPanel = document.getElementById('telemetry-panel');
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+  const btnPipToggle = document.getElementById('btn-pip-toggle');
+  const cameraHudPip = document.getElementById('camera-hud-pip');
+
+  function openMobileDrawer() {
+    telemetryPanel?.classList.add('drawer-open');
+    sidebarBackdrop?.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMobileDrawer() {
+    telemetryPanel?.classList.remove('drawer-open');
+    sidebarBackdrop?.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  function toggleSidebar() {
+    if (window.innerWidth <= 768) {
+      if (telemetryPanel?.classList.contains('drawer-open')) {
+        closeMobileDrawer();
+      } else {
+        openMobileDrawer();
+      }
+    } else {
+      appLayout?.classList.toggle('sidebar-collapsed');
+      btnToggleSidebar?.classList.toggle('active', !appLayout?.classList.contains('sidebar-collapsed'));
+      // Notify Three.js renderer to instantly resize canvas to available space
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
+    }
+  }
+
+  btnToggleSidebar?.addEventListener('click', toggleSidebar);
+  btnCloseSidebar?.addEventListener('click', closeMobileDrawer);
+  sidebarBackdrop?.addEventListener('click', closeMobileDrawer);
+
+  // Close drawer with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileDrawer();
+    }
+  });
+
+  // Toggle Camera PiP minimization
+  btnPipToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cameraHudPip?.classList.toggle('minimized');
+    const isMin = cameraHudPip?.classList.contains('minimized');
+    btnPipToggle.innerHTML = isMin
+      ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>'
+      : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+    if (!isMin) {
+      refreshMapImg();
+    }
+  });
+
+  // Clicking on minimized bottom-left pill expands it
+  cameraHudPip?.addEventListener('click', (e) => {
+    if (cameraHudPip.classList.contains('minimized') && !e.target.closest('button')) {
+      cameraHudPip.classList.remove('minimized');
+      if (btnPipToggle) {
+        btnPipToggle.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+      }
+      refreshMapImg();
+    }
+  });
+});
 
