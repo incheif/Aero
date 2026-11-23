@@ -41,7 +41,7 @@ def open_browser_delayed(url: str, delay: float = 1.2):
 def main():
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", 8000))
-    display_url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
+    display_url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/studio"
 
     print("========================================================================")
     print("[*] AERO: Agentic Execution for Robotic Operations")
