@@ -1692,16 +1692,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 5. Preset Action Chips
+  // 5. Preset Action Chips: Populate input bar and wait for user to press Enter or Execute
   document.querySelectorAll('.prompt-chip').forEach((chip) => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('.prompt-chip').forEach((c) => c.classList.remove('active'));
       chip.classList.add('active');
       const prompt = chip.getAttribute('data-prompt');
-      if (prompt) {
+      if (prompt && cmdInput) {
         cmdInput.value = prompt;
         cmdInput.focus();
-        submitCommand(prompt);
+        cmdInput.setSelectionRange(prompt.length, prompt.length);
       }
     });
   });
@@ -1821,8 +1821,9 @@ document.addEventListener('DOMContentLoaded', () => {
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       cmdInput.value = transcript;
+      cmdInput.focus();
+      cmdInput.setSelectionRange(transcript.length, transcript.length);
       micBtn.style.color = '';
-      submitCommand(transcript);
     };
 
     recognition.onerror = () => {
@@ -2053,14 +2054,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderScreenLayout();
 
-  // 12. Auto-execute command if passed via URL ?cmd=...
+  // 12. Pre-fill command input if passed via URL ?cmd=... (wait for user to press Enter/Execute)
   const urlParams = new URLSearchParams(window.location.search);
   const initialCmd = urlParams.get('cmd');
   if (initialCmd && cmdInput) {
     cmdInput.value = initialCmd;
-    setTimeout(() => {
-      submitCommand(initialCmd);
-    }, 1200);
+    cmdInput.focus();
+    cmdInput.setSelectionRange(initialCmd.length, initialCmd.length);
   }
 
   // 13. Responsive Drawer & Viewport Controls (Mobile & Laptop Adaptation)
