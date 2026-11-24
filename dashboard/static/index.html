@@ -245,6 +245,13 @@
 
       <!-- Essential Playground Challenge Chips (Clean icons, no emojis) -->
       <div class="chips-row">
+        <button class="prompt-chip active" data-prompt="wave hi">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+          </svg>
+          <span>Wave Hi</span>
+        </button>
         <button class="prompt-chip"
           data-prompt="Make a structure with 2 blocks in the first layer and 2 blocks on top of it.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -282,13 +289,6 @@
           </svg>
           <span>Block Train</span>
         </button>
-        <button class="prompt-chip" data-prompt="Wave high to greet me.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path
-              d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
-          </svg>
-          <span>Wave High</span>
-        </button>
         <button class="prompt-chip" data-prompt="Point at the blue cube.">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
@@ -312,7 +312,7 @@
           <polyline points="9 18 15 12 9 6"></polyline>
         </svg>
         <input type="text" id="command-input"
-          placeholder="Command arm ('make 2x2 structure', 'unstack', 'build pyramid', 'wave')..."
+          placeholder='e.g. "wave hi"'
           autocomplete="off" />
         <button class="send-btn" id="send-command-btn">
           <span>Execute</span>
@@ -399,6 +399,20 @@
           <div class="thought-box" id="vla-thought-box" style="resize: vertical;">
             Ready. Enter an instruction to begin.
           </div>
+
+          <!-- Latest Execution Log Block -->
+          <div class="latest-log-card-block" id="latest-execution-log-block">
+            <div class="latest-log-header">
+              <span class="latest-log-label">LATEST EXECUTION LOG</span>
+              <div class="latest-log-meta">
+                <span class="latest-log-badge" id="latest-log-badge">SYSTEM</span>
+                <span class="latest-log-time" id="latest-log-time">--:--:--</span>
+              </div>
+            </div>
+            <div class="latest-log-title" id="latest-log-title">Manipulator ready</div>
+            <div class="latest-log-detail" id="latest-log-detail">SO-100 5-DOF kinematics &amp; physics simulation initialized.</div>
+          </div>
+
           <div class="plan-progress-container">
             <div class="progress-header">
               <span>Action Progress</span>
@@ -614,91 +628,31 @@
             <span class="ws-section-desc">Select vibrant engineering palette</span>
           </div>
           <div class="ws-theme-grid">
-            <!-- 1. Cyberpunk Neon -->
-            <button class="ws-theme-card" data-theme="cyberpunk" id="theme-btn-cyberpunk">
+            <!-- 1. Cyberpunk Neon (Dark 1) -->
+            <button class="ws-theme-card active" data-theme="cyberpunk" id="theme-btn-cyberpunk">
               <div class="ws-theme-preview theme-preview-cyberpunk">
                 <div class="preview-bar"></div>
                 <div class="preview-accent"></div>
               </div>
               <div class="ws-theme-info">
                 <span class="ws-theme-name">Cyberpunk Neon</span>
-                <span class="ws-theme-desc">Electric cyan &amp; hot pink magenta</span>
+                <span class="ws-theme-desc">Electric cyan &amp; hot pink magenta (Dark)</span>
               </div>
             </button>
 
-            <!-- 2. Solar Amber -->
-            <button class="ws-theme-card" data-theme="solar-amber" id="theme-btn-solar-amber">
-              <div class="ws-theme-preview theme-preview-solar-amber">
-                <div class="preview-bar"></div>
-                <div class="preview-accent"></div>
-              </div>
-              <div class="ws-theme-info">
-                <span class="ws-theme-name">Solar Amber</span>
-                <span class="ws-theme-desc">Radiant amber-gold &amp; flame orange</span>
-              </div>
-            </button>
-
-            <!-- 3. Emerald Synth -->
-            <button class="ws-theme-card" data-theme="emerald-synth" id="theme-btn-emerald-synth">
-              <div class="ws-theme-preview theme-preview-emerald-synth">
-                <div class="preview-bar"></div>
-                <div class="preview-accent"></div>
-              </div>
-              <div class="ws-theme-info">
-                <span class="ws-theme-name">Emerald Synth</span>
-                <span class="ws-theme-desc">Luminous emerald &amp; cyber mint</span>
-              </div>
-            </button>
-
-            <!-- 4. Electric Indigo -->
-            <button class="ws-theme-card" data-theme="electric-indigo" id="theme-btn-electric-indigo">
-              <div class="ws-theme-preview theme-preview-electric-indigo">
-                <div class="preview-bar"></div>
-                <div class="preview-accent"></div>
-              </div>
-              <div class="ws-theme-info">
-                <span class="ws-theme-name">Electric Indigo</span>
-                <span class="ws-theme-desc">Deep amethyst &amp; ultraviolet</span>
-              </div>
-            </button>
-
-            <!-- 5. Graphite (Classic) -->
-            <button class="ws-theme-card active" data-theme="graphite" id="theme-btn-graphite">
-              <div class="ws-theme-preview theme-preview-graphite">
-                <div class="preview-bar"></div>
-                <div class="preview-accent"></div>
-              </div>
-              <div class="ws-theme-info">
-                <span class="ws-theme-name">Graphite</span>
-                <span class="ws-theme-desc">Charcoal &amp; slate, cyan accent</span>
-              </div>
-            </button>
-
-            <!-- 6. Midnight -->
+            <!-- 2. Midnight Navy (Dark 2) -->
             <button class="ws-theme-card" data-theme="midnight" id="theme-btn-midnight">
               <div class="ws-theme-preview theme-preview-midnight">
                 <div class="preview-bar"></div>
                 <div class="preview-accent"></div>
               </div>
               <div class="ws-theme-info">
-                <span class="ws-theme-name">Midnight</span>
-                <span class="ws-theme-desc">Deep navy, cool blue accent</span>
+                <span class="ws-theme-name">Midnight Navy</span>
+                <span class="ws-theme-desc">Deep navy &amp; cool blue accent (Dark)</span>
               </div>
             </button>
 
-            <!-- 7. High Contrast -->
-            <button class="ws-theme-card" data-theme="high-contrast" id="theme-btn-high-contrast">
-              <div class="ws-theme-preview theme-preview-high-contrast">
-                <div class="preview-bar"></div>
-                <div class="preview-accent"></div>
-              </div>
-              <div class="ws-theme-info">
-                <span class="ws-theme-name">High Contrast</span>
-                <span class="ws-theme-desc">Sharpened contrast &amp; borders</span>
-              </div>
-            </button>
-
-            <!-- 8. Light Precision -->
+            <!-- 3. Light Precision (Light 1) -->
             <button class="ws-theme-card" data-theme="light" id="theme-btn-light">
               <div class="ws-theme-preview theme-preview-light">
                 <div class="preview-bar"></div>
@@ -706,7 +660,19 @@
               </div>
               <div class="ws-theme-info">
                 <span class="ws-theme-name">Light Precision</span>
-                <span class="ws-theme-desc">Clean light grey &amp; cobalt</span>
+                <span class="ws-theme-desc">Clean light grey &amp; cobalt (Light)</span>
+              </div>
+            </button>
+
+            <!-- 4. Solar Daylight (Light 2) -->
+            <button class="ws-theme-card" data-theme="solar-light" id="theme-btn-solar-light">
+              <div class="ws-theme-preview theme-preview-solar-light">
+                <div class="preview-bar"></div>
+                <div class="preview-accent"></div>
+              </div>
+              <div class="ws-theme-info">
+                <span class="ws-theme-name">Solar Daylight</span>
+                <span class="ws-theme-desc">Warm alabaster &amp; amber gold (Light)</span>
               </div>
             </button>
           </div>
@@ -792,8 +758,8 @@
   <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/OrbitControls.js"></script>
   <!-- Application & Viewport Scripts -->
-  <script src="/js/sim_canvas_3d.js?v=5.7"></script>
-  <script src="/js/app.js?v=5.7"></script>
+  <script src="/js/sim_canvas_3d.js?v=5.8"></script>
+  <script src="/js/app.js?v=5.8"></script>
 </body>
 
 </html>

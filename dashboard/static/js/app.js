@@ -52,8 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('[Telemetry] Initial REST sync fallback:', err.message);
     });
 
-  // 1B. Adaptive Studio Appearance & Themes Manager
-  const ALL_THEMES = ['cyberpunk', 'solar-amber', 'emerald-synth', 'electric-indigo', 'graphite', 'midnight', 'high-contrast', 'light'];
+  // 1B. Adaptive Studio Appearance & Themes Manager (2 Dark, 2 Light)
+  const ALL_THEMES = ['cyberpunk', 'midnight', 'light', 'solar-light'];
 
   class WorkspaceManager {
     constructor(canvas) {
@@ -78,10 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
     init() {
       // 1. Restore Theme
       let savedTheme = localStorage.getItem('AERO_THEME');
-      if (savedTheme === 'dark') savedTheme = 'graphite';
+      if (savedTheme === 'dark' || savedTheme === 'graphite' || savedTheme === 'high-contrast') savedTheme = 'midnight';
+      if (savedTheme === 'solar-amber') savedTheme = 'solar-light';
       if (!savedTheme || !ALL_THEMES.includes(savedTheme)) {
         savedTheme = document.documentElement.getAttribute('data-theme') || 'cyberpunk';
       }
+      if (!ALL_THEMES.includes(savedTheme)) savedTheme = 'cyberpunk';
       this.setTheme(savedTheme, false);
 
       // Label settings button
@@ -112,6 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setTheme(theme, save = true) {
+      if (!ALL_THEMES.includes(theme)) {
+        theme = 'cyberpunk';
+      }
       this.theme = theme;
       document.documentElement.setAttribute('data-theme', theme);
 
@@ -119,6 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.ws-theme-card').forEach(card => {
         card.classList.toggle('active', card.getAttribute('data-theme') === theme);
       });
+
+      // Update header toggle button label
+      const isLight = (theme === 'light' || theme === 'solar-light');
+      const btnThemeLabel = document.getElementById('btn-theme-label');
+      if (btnThemeLabel) btnThemeLabel.textContent = isLight ? 'Dark' : 'Light';
 
       // Update Three.js scene lighting & background
       if (this.simCanvas && typeof this.simCanvas.setTheme === 'function') {
@@ -242,10 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      // Header Theme Quick-Toggle (cycles through vibrant and classic themes)
+      // Header Theme Quick-Toggle (toggles between Dark [cyberpunk] and Light [light])
       this.btnToggleTheme?.addEventListener('click', () => {
-        const currentIndex = ALL_THEMES.indexOf(this.theme);
-        const nextTheme = ALL_THEMES[(currentIndex + 1) % ALL_THEMES.length];
+        const isCurrentlyLight = (this.theme === 'light' || this.theme === 'solar-light');
+        const nextTheme = isCurrentlyLight ? 'cyberpunk' : 'light';
         this.setTheme(nextTheme, true);
       });
 
@@ -1134,8 +1144,45 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
+    function updateLatestExecutionLogCard(log) {
+      if (!log) return;
+      const elBadge = document.getElementById('latest-log-badge');
+      const elTime = document.getElementById('latest-log-time');
+      const elTitle = document.getElementById('latest-log-title');
+      const elDetail = document.getElementById('latest-log-detail');
+
+      if (elBadge) {
+        elBadge.textContent = (log.badge || log.category || 'INFO').toUpperCase();
+        const cat = (log.category || '').toLowerCase();
+        if (cat === 'error' || cat === 'fail' || cat === 'rejected') {
+          elBadge.style.color = '#ef4444';
+          elBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+          elBadge.style.background = 'rgba(239, 68, 68, 0.12)';
+        } else if (cat === 'success' || cat === 'done' || cat === 'completed') {
+          elBadge.style.color = '#10b981';
+          elBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          elBadge.style.background = 'rgba(16, 185, 129, 0.12)';
+        } else if (cat === 'command' || cat === 'vla' || cat === 'started') {
+          elBadge.style.color = 'var(--accent-color)';
+          elBadge.style.borderColor = 'var(--accent-border)';
+          elBadge.style.background = 'var(--accent-subtle)';
+        } else {
+          elBadge.style.color = '';
+          elBadge.style.borderColor = '';
+          elBadge.style.background = '';
+        }
+      }
+      if (elTime) elTime.textContent = log.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (elTitle) elTitle.textContent = log.what || log.title || log.message || 'Execution Step';
+      if (elDetail) elDetail.textContent = log.how || log.detail || log.details || log.explanation || '';
+    }
+    window.updateLatestExecutionLogCard = updateLatestExecutionLogCard;
+
     function updateLogsFromTelemetry(incomingLogs) {
       if (!incomingLogs || incomingLogs.length === 0) return;
+
+      // Update Latest Execution Log block in Agent Execution Card
+      updateLatestExecutionLogCard(incomingLogs[incomingLogs.length - 1]);
 
       // Fast signature check to avoid DOM thrashing when logs haven't changed
       const sig = incomingLogs.map(l => l.id).join(',');
@@ -1246,16 +1293,18 @@ document.addEventListener('DOMContentLoaded', () => {
       let hasNew = false;
       for (const n of narratives) {
         if (!existingIds.has(n.id)) {
-          localLogs.push({
+          const logItem = {
             id: n.id,
             timestamp: n.timestamp,
             category: n.category,
             badge: (n.category || 'event').toUpperCase(),
             what: n.title,
             how: n.explanation,
-          });
+          };
+          localLogs.push(logItem);
           existingIds.add(n.id);
           hasNew = true;
+          updateLatestExecutionLogCard(logItem);
         }
       }
       if (hasNew && activeTab === 'logs') {
@@ -1550,7 +1599,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.prompt-chip').forEach(c => c.classList.add('chip-disabled'));
       } else {
         cmdInput.disabled = false;
-        cmdInput.placeholder = "Command arm ('make 2x2 structure', 'unstack', 'build pyramid', 'wave')...";
+        cmdInput.placeholder = 'e.g. "wave hi"';
         if (sendBtn) {
           sendBtn.disabled = false;
           sendBtn.innerHTML = '<span>Execute</span>';
@@ -1595,7 +1644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chatDot.style.background = '#38bdf8';
       }
 
-      // Insert immediate "EXECUTION STARTED" log in Execution Story tab
+      // Insert immediate "EXECUTION STARTED" log in Execution Story tab & Agent Execution card
       const startLog = {
         id: 'local_start_' + Date.now(),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -1605,6 +1654,7 @@ document.addEventListener('DOMContentLoaded', () => {
         how: 'Reasoning pipeline engaged · Capturing overhead RGB perception & solving 5-DOF IK waypoints. Motion initiating shortly.',
       };
       localLogs.push(startLog);
+      updateLatestExecutionLogCard(startLog);
       if (activeTab === 'logs') {
         renderLogs();
       }
@@ -1764,6 +1814,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (progFill) progFill.style.width = '0%';
       if (progText) progText.innerText = 'Idle';
+
+      const resetLog = {
+        id: 'local_reset_' + Date.now(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        category: 'reset',
+        badge: 'HALTED',
+        what: 'Arm halted and reset to baseline',
+        how: 'Execution stopped immediately. Kinematics and physics restored to initial playground state.',
+      };
+      localLogs.push(resetLog);
+      updateLatestExecutionLogCard(resetLog);
 
       // 3. Post to server to immediately halt all active controllers and restore simulation baseline
       try {
