@@ -152,6 +152,158 @@
   --shadow-white-glow: 0 0 18px rgba(56, 189, 248, 0.4);
 }
 
+/* ==========================================================================
+   Vibrant Theme 1: Cyberpunk Neon (Electric Cyan & Hot Pink Magenta)
+   ========================================================================== */
+[data-theme="cyberpunk"] {
+  --bg-primary: #080312;
+  --bg-secondary: #0f0622;
+  --bg-card: rgba(18, 9, 36, 0.92);
+  --bg-card-hover: rgba(28, 14, 56, 0.96);
+
+  --accent-color: #00f0ff;
+  --accent-rgb: 0, 240, 255;
+  --accent-subtle: rgba(0, 240, 255, 0.18);
+  --accent-border: rgba(0, 240, 255, 0.55);
+
+  --border-glass: rgba(255, 0, 128, 0.24);
+  --border-glass-bright: rgba(0, 240, 255, 0.60);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --mono-white: #ffffff;
+  --mono-100: #fdf2f8;
+  --mono-200: #fce7f3;
+  --mono-300: #f5d0fe;
+  --mono-400: #e879f9;
+  --mono-500: #c084fc;
+  --mono-600: #818cf8;
+  --mono-700: #4f46e5;
+  --mono-800: #312e81;
+  --mono-900: #1e1b4b;
+  --mono-950: #0a0416;
+
+  --text-main: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-dim: #c084fc;
+
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(0, 240, 255, 0.25);
+  --shadow-white-glow: 0 0 20px rgba(0, 240, 255, 0.45);
+}
+
+/* ==========================================================================
+   Vibrant Theme 2: Solar Amber (Radiant Golden Amber & Flame Orange)
+   ========================================================================== */
+[data-theme="solar-amber"] {
+  --bg-primary: #100b05;
+  --bg-secondary: #191209;
+  --bg-card: rgba(28, 19, 10, 0.92);
+  --bg-card-hover: rgba(42, 28, 14, 0.96);
+
+  --accent-color: #f59e0b;
+  --accent-rgb: 245, 158, 11;
+  --accent-subtle: rgba(245, 158, 11, 0.20);
+  --accent-border: rgba(245, 158, 11, 0.55);
+
+  --border-glass: rgba(251, 191, 36, 0.22);
+  --border-glass-bright: rgba(245, 158, 11, 0.60);
+  --border-subtle: rgba(245, 158, 11, 0.08);
+
+  --mono-white: #ffffff;
+  --mono-100: #fffbeb;
+  --mono-200: #fef3c7;
+  --mono-300: #fde68a;
+  --mono-400: #fcd34d;
+  --mono-500: #fbbf24;
+  --mono-600: #f59e0b;
+  --mono-700: #d97706;
+  --mono-800: #b45309;
+  --mono-900: #78350f;
+  --mono-950: #451a03;
+
+  --text-main: #fffbeb;
+  --text-muted: #fde68a;
+  --text-dim: #f59e0b;
+
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(245, 158, 11, 0.25);
+  --shadow-white-glow: 0 0 20px rgba(245, 158, 11, 0.45);
+}
+
+/* ==========================================================================
+   Vibrant Theme 3: Emerald Synth (Luminous Electric Emerald & Cyber Mint)
+   ========================================================================== */
+[data-theme="emerald-synth"] {
+  --bg-primary: #04100b;
+  --bg-secondary: #081a13;
+  --bg-card: rgba(10, 30, 22, 0.92);
+  --bg-card-hover: rgba(16, 46, 34, 0.96);
+
+  --accent-color: #10b981;
+  --accent-rgb: 16, 185, 129;
+  --accent-subtle: rgba(16, 185, 129, 0.20);
+  --accent-border: rgba(16, 185, 129, 0.55);
+
+  --border-glass: rgba(52, 211, 153, 0.20);
+  --border-glass-bright: rgba(16, 185, 129, 0.60);
+  --border-subtle: rgba(16, 185, 129, 0.08);
+
+  --mono-white: #ffffff;
+  --mono-100: #ecfdf5;
+  --mono-200: #d1fae5;
+  --mono-300: #a7f3d0;
+  --mono-400: #6ee7b7;
+  --mono-500: #34d399;
+  --mono-600: #10b981;
+  --mono-700: #059669;
+  --mono-800: #047857;
+  --mono-900: #065f46;
+  --mono-950: #064e3b;
+
+  --text-main: #ecfdf5;
+  --text-muted: #a7f3d0;
+  --text-dim: #34d399;
+
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(16, 185, 129, 0.25);
+  --shadow-white-glow: 0 0 20px rgba(16, 185, 129, 0.45);
+}
+
+/* ==========================================================================
+   Vibrant Theme 4: Electric Indigo (Deep Amethyst & Ultraviolet)
+   ========================================================================== */
+[data-theme="electric-indigo"] {
+  --bg-primary: #070919;
+  --bg-secondary: #0c102b;
+  --bg-card: rgba(14, 19, 48, 0.92);
+  --bg-card-hover: rgba(22, 29, 72, 0.96);
+
+  --accent-color: #6366f1;
+  --accent-rgb: 99, 102, 241;
+  --accent-subtle: rgba(99, 102, 241, 0.20);
+  --accent-border: rgba(99, 102, 241, 0.55);
+
+  --border-glass: rgba(129, 140, 248, 0.22);
+  --border-glass-bright: rgba(99, 102, 241, 0.60);
+  --border-subtle: rgba(99, 102, 241, 0.08);
+
+  --mono-white: #ffffff;
+  --mono-100: #eef2ff;
+  --mono-200: #e0e7ff;
+  --mono-300: #c7d2fe;
+  --mono-400: #a5b4fc;
+  --mono-500: #818cf8;
+  --mono-600: #6366f1;
+  --mono-700: #4f46e5;
+  --mono-800: #4338ca;
+  --mono-900: #3730a3;
+  --mono-950: #1e1b4b;
+
+  --text-main: #eef2ff;
+  --text-muted: #c7d2fe;
+  --text-dim: #818cf8;
+
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(99, 102, 241, 0.25);
+  --shadow-white-glow: 0 0 20px rgba(99, 102, 241, 0.45);
+}
+
 /* Theme Toggle Button Icons */
 .theme-icon-sun {
   display: block;
@@ -557,7 +709,7 @@ body {
 #app-layout {
   display: grid;
   grid-template-rows: 56px 1fr auto;
-  grid-template-columns: 1fr var(--sidebar-width, 440px);
+  grid-template-columns: 1fr var(--sidebar-width, 360px);
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -1244,7 +1396,7 @@ header {
 }
 
 /* Command Bar (Bottom) */
-/* Unified Conversational Mission Dock (Bottom) */
+/* Unified Conversational Command Bar (Bottom) */
 #command-bar-container {
   grid-column: 1 / 2;
   grid-row: 3 / 4;
@@ -1252,13 +1404,45 @@ header {
   background: rgba(9, 9, 11, 0.95);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-glass);
-  padding: 8px 20px 10px 20px;
+  padding: 6px 16px 8px 16px;
   z-index: 40;
   display: flex;
   flex-direction: column;
-  max-height: 250px;
+  max-height: 88px;
   overflow: hidden;
   transition: max-height 0.25s ease;
+}
+
+#command-input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+}
+
+.prompt-chip.chip-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.btn-reset-baseline {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(245, 158, 11, 0.18)) !important;
+  border: 1px solid rgba(239, 68, 68, 0.55) !important;
+  color: #fca5a5 !important;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-reset-baseline:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.35), rgba(245, 158, 11, 0.28)) !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45) !important;
+  transform: translateY(-1px);
 }
 
 /* Interactive Resizer Handles (Smooth & Tactile) */
@@ -3561,77 +3745,9 @@ body.resizing-active iframe {
    AERO Studio: Adaptive Workspace System & Presentation Layer
    ========================================================================== */
 
-/* Workspace Layout Modes */
-#app-layout.mode-engineering {
-  --sidebar-width: 480px;
-}
-
-#app-layout.mode-engineering #command-bar-container {
-  height: 220px;
-}
-
-#app-layout.mode-developer {
-  --sidebar-width: 440px;
-}
-
-#app-layout.mode-minimal {
-  grid-template-columns: 1fr !important;
-}
-
-#app-layout.mode-minimal #telemetry-panel,
-#app-layout.mode-minimal #sidebar-resizer {
-  display: none !important;
-}
-
-#app-layout.mode-minimal #command-bar-container {
-  height: 68px !important;
-}
-
-#app-layout.mode-minimal .dock-header-right,
-#app-layout.mode-minimal .prompt-chips-scroll {
-  display: none !important;
-}
-
-/* Mode D: Presentation Mode (100% Maximized Simulation Viewport) */
-#app-layout.mode-presentation {
-  grid-template-columns: 1fr !important;
-  grid-template-rows: 1fr !important;
-  height: 100vh !important;
-  width: 100vw !important;
-  overflow: hidden !important;
-}
-
-#app-layout.mode-presentation header,
-#app-layout.mode-presentation #telemetry-panel,
-#app-layout.mode-presentation #sidebar-resizer,
-#app-layout.mode-presentation #command-bar-container,
-#app-layout.mode-presentation #camera-hud-pip,
-#app-layout.mode-presentation #stage-quick-metrics,
-#app-layout.mode-presentation #stage-status-hud {
-  display: none !important;
-}
-
-#app-layout.mode-presentation #main-stage {
-  height: 100vh !important;
-  width: 100vw !important;
-  position: relative;
-}
-
-#app-layout.mode-presentation #viewport-container {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-#app-layout.mode-presentation #presentation-top-hud {
-  display: flex !important;
-}
-
-#app-layout.mode-presentation #presentation-bottom-bar {
-  display: flex !important;
-}
-
-#app-layout.mode-presentation #btn-exit-presentation {
-  display: inline-flex !important;
+/* Unified Single Mode: Merged Engineering & Developer */
+#app-layout {
+  --sidebar-width: 360px;
 }
 
 /* Individual Panel Visibility Customization */
@@ -4025,6 +4141,78 @@ body.resizing-active iframe {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.ws-theme-preview.theme-preview-cyberpunk {
+  background: #080312;
+  border: 1px solid rgba(0, 240, 255, 0.45);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+.ws-theme-preview.theme-preview-cyberpunk .preview-bar {
+  background: #ff007f;
+  height: 6px;
+  border-radius: 3px;
+  width: 50%;
+}
+.ws-theme-preview.theme-preview-cyberpunk .preview-accent {
+  background: #00f0ff;
+  height: 6px;
+  border-radius: 3px;
+  width: 45%;
+}
+
+.ws-theme-preview.theme-preview-solar-amber {
+  background: #100b05;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+.ws-theme-preview.theme-preview-solar-amber .preview-bar {
+  background: #b45309;
+  height: 6px;
+  border-radius: 3px;
+  width: 50%;
+}
+.ws-theme-preview.theme-preview-solar-amber .preview-accent {
+  background: #f59e0b;
+  height: 6px;
+  border-radius: 3px;
+  width: 45%;
+}
+
+.ws-theme-preview.theme-preview-emerald-synth {
+  background: #04100b;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+.ws-theme-preview.theme-preview-emerald-synth .preview-bar {
+  background: #065f46;
+  height: 6px;
+  border-radius: 3px;
+  width: 50%;
+}
+.ws-theme-preview.theme-preview-emerald-synth .preview-accent {
+  background: #10b981;
+  height: 6px;
+  border-radius: 3px;
+  width: 45%;
+}
+
+.ws-theme-preview.theme-preview-electric-indigo {
+  background: #070919;
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+}
+.ws-theme-preview.theme-preview-electric-indigo .preview-bar {
+  background: #3730a3;
+  height: 6px;
+  border-radius: 3px;
+  width: 50%;
+}
+.ws-theme-preview.theme-preview-electric-indigo .preview-accent {
+  background: #6366f1;
+  height: 6px;
+  border-radius: 3px;
+  width: 45%;
 }
 
 .ws-theme-preview.theme-preview-graphite {

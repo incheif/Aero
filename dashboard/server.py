@@ -303,8 +303,8 @@ class UserSession:
         dets = self.localizer.localize(self.detector.detect(obs), obs)
         tracks = self.tracker.update(dets)
         self.mapper.update_from_perception(tracks, robot_obs)
-        self.vla_agent.execution_status = "RESTING"
-        self.vla_agent.latest_thought = "Arm returned to rest configuration. Ready for new command."
+        self.vla_agent.execution_status = "IDLE"
+        self.vla_agent.latest_thought = "Arm halted and returned to baseline pose. Ready for new command."
         self.supervisor.reset()
         self.narrator_agent.flush_pending()
         self.failure_detector.reset()

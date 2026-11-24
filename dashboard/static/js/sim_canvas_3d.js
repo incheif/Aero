@@ -305,7 +305,51 @@ class SimCanvas3D {
     let hemiGround = 0x161b22;
     let hemiIntensity = 0.75;
 
-    if (themeName === 'midnight') {
+    if (themeName === 'cyberpunk') {
+      bgColor = 0x080312;
+      floorColor = 0x05020c;
+      tableColor = 0x150928;
+      trimColor = 0x00f0ff;
+      grid1 = 0x00f0ff;
+      grid2 = 0x2d0b4d;
+      ambIntensity = 0.55;
+      hemiSky = 0x00f0ff;
+      hemiGround = 0x2d0b4d;
+      hemiIntensity = 0.90;
+    } else if (themeName === 'solar-amber') {
+      bgColor = 0x100b05;
+      floorColor = 0x0a0703;
+      tableColor = 0x201509;
+      trimColor = 0xf59e0b;
+      grid1 = 0xf59e0b;
+      grid2 = 0x451a03;
+      ambIntensity = 0.55;
+      hemiSky = 0xfde68a;
+      hemiGround = 0x301505;
+      hemiIntensity = 0.85;
+    } else if (themeName === 'emerald-synth') {
+      bgColor = 0x04100b;
+      floorColor = 0x020a07;
+      tableColor = 0x082017;
+      trimColor = 0x00ff88;
+      grid1 = 0x00ff88;
+      grid2 = 0x064e3b;
+      ambIntensity = 0.55;
+      hemiSky = 0x6ee7b7;
+      hemiGround = 0x052e20;
+      hemiIntensity = 0.85;
+    } else if (themeName === 'electric-indigo') {
+      bgColor = 0x070919;
+      floorColor = 0x040510;
+      tableColor = 0x0e1436;
+      trimColor = 0x6366f1;
+      grid1 = 0x818cf8;
+      grid2 = 0x1e1b4b;
+      ambIntensity = 0.50;
+      hemiSky = 0xc7d2fe;
+      hemiGround = 0x111638;
+      hemiIntensity = 0.80;
+    } else if (themeName === 'midnight') {
       bgColor = 0x080c14;
       floorColor = 0x05080e;
       tableColor = 0x0f172a;
