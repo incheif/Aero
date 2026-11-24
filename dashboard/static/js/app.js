@@ -432,9 +432,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let ws = null;
   let isConnected = false;
   let isSuspended = false;
+  let isEvicted = false;
 
   function connectWebSocket() {
-    if (isSuspended) return;
+    if (isSuspended || isEvicted) return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws?session_id=${encodeURIComponent(sessionId)}`;
 
@@ -449,6 +450,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === 'session_evicted') {
+          handleSessionEvicted(data);
+          return;
+        }
         if (data.type === 'session_suspended' || data.is_suspended) {
           handleSessionSuspended(data);
           return;
@@ -463,8 +468,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       isConnected = false;
+      if (event && event.code === 4001) {
+        isEvicted = true;
+      }
+      if (isEvicted) {
+        updateConnectionStatus(false, 'SESSION CLOSED (MAX 5)');
+        return;
+      }
       if (!isSuspended) {
         updateConnectionStatus(false);
         console.warn('[WebSocket] Disconnected. Reconnecting in 1.5s...');
@@ -476,6 +488,48 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('[WebSocket] Error:', err);
       ws.close();
     };
+  }
+
+  function handleSessionEvicted(data) {
+    isEvicted = true;
+    isConnected = false;
+    updateConnectionStatus(false, 'SESSION CLOSED (MAX 5)');
+    showEvictedBanner(data && data.reason ? data.reason : 'Session closed: server reached maximum limit of 5 concurrent sessions.');
+  }
+
+  function showEvictedBanner(reason) {
+    let banner = document.getElementById('session-evicted-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'session-evicted-banner';
+      banner.className = 'session-suspended-banner';
+      banner.innerHTML = `
+        <div class="suspended-banner-content">
+          <div class="suspended-banner-icon" style="color: #ef4444;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          <div class="suspended-banner-text">
+            <strong>Session Closed (Max 5 Limit)</strong>
+            <span>${escapeHtml(reason || 'Session closed because the server reached the maximum limit of 5 concurrent sessions.')}</span>
+          </div>
+          <button id="btn-reconnect-evicted" class="btn-resume-session" style="background: #ef4444; color: #fff;">Reconnect</button>
+        </div>
+      `;
+      document.body.appendChild(banner);
+      document.getElementById('btn-reconnect-evicted')?.addEventListener('click', reconnectEvictedSession);
+    }
+    banner.style.display = 'flex';
+  }
+
+  function reconnectEvictedSession() {
+    isEvicted = false;
+    const banner = document.getElementById('session-evicted-banner');
+    if (banner) banner.style.display = 'none';
+    connectWebSocket();
   }
 
   function handleSessionSuspended(data) {

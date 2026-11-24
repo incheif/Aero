@@ -146,6 +146,7 @@ class UserSession:
         self.recent_logs: list[Dict[str, Any]] = []
         self.pending_logs: list[Dict[str, Any]] = []
         self.created_at: float = time.time()
+        self.first_connected_at: Optional[float] = None
         self.session_start_time: float = time.time()
         self.last_active: float = time.time()
         self.is_suspended: bool = False
@@ -222,6 +223,37 @@ class UserSession:
                 await ws.send_json(notification)
             except Exception:
                 self.websockets.discard(ws)
+
+    async def close_connections(self, reason: str = "Maximum of 5 sessions reached. Earliest connection closed."):
+        """Closes all active WebSockets and halts running tasks for this session."""
+        for ws in list(self.websockets):
+            try:
+                await ws.send_json({
+                    "type": "session_evicted",
+                    "reason": reason,
+                    "session_id": self.session_id,
+                })
+                await ws.close(code=4001, reason="Session limit exceeded")
+            except Exception:
+                pass
+            finally:
+                self.websockets.discard(ws)
+        self.controller.stop()
+        self.orchestrator.stop_task()
+        self.color_seek_active = False
+        self.explorer.is_exploring = False
+
+    def close_connections_sync(self, reason: str = "Maximum of 5 sessions reached. Earliest connection closed."):
+        """Synchronously schedules WebSocket closure in active event loop, if running."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.close_connections(reason))
+        except RuntimeError:
+            self.controller.stop()
+            self.orchestrator.stop_task()
+            self.color_seek_active = False
+            self.explorer.is_exploring = False
+            self.websockets.clear()
 
     def resume(self):
         """Resumes a suspended session and resets the 25-minute timer."""
@@ -873,16 +905,79 @@ class UserSession:
 
 
 class SessionManager:
-    """Registry managing active and idle user sessions."""
+    """Registry managing active and idle user sessions with a maximum capacity of 5."""
+    MAX_SESSIONS: int = 5
 
-    def __init__(self):
+    def __init__(self, max_sessions: int = 5):
+        self.MAX_SESSIONS = max_sessions
         self.sessions: Dict[str, UserSession] = {}
+
+    def get_candidate_to_evict(self, exclude_sid: Optional[str] = None) -> Optional[UserSession]:
+        """
+        Finds the session to evict when capacity exceeds MAX_SESSIONS:
+        1. Prioritize idle sessions with 0 websockets and no active tasks (oldest created_at).
+        2. Otherwise, select the session whose connection was opened earliest (first connected).
+        """
+        candidates = [s for s in self.sessions.values() if s.session_id != exclude_sid]
+        if not candidates:
+            return None
+
+        # 1. Look for idle sessions with no open websockets and no active tasks
+        idle_sessions = [
+            s for s in candidates
+            if len(s.websockets) == 0 and not s.controller.is_active and not s.orchestrator.is_task_active
+        ]
+        if idle_sessions:
+            return min(idle_sessions, key=lambda s: s.created_at)
+
+        # 2. All sessions have connections or tasks: evict the one whose connection was opened earliest
+        return min(
+            candidates,
+            key=lambda s: s.first_connected_at if s.first_connected_at is not None else s.created_at
+        )
+
+    async def ensure_capacity(self, incoming_session_id: Optional[str] = None):
+        """Asynchronously evicts the earliest opened session if at or above MAX_SESSIONS."""
+        sid = (incoming_session_id or "default").strip()
+        if sid in self.sessions:
+            return
+
+        while len(self.sessions) >= self.MAX_SESSIONS:
+            victim = self.get_candidate_to_evict(exclude_sid=sid)
+            if not victim:
+                break
+            victim_id = victim.session_id
+            print(f"[*] Max sessions ({self.MAX_SESSIONS}) exceeded. Closing earliest opened session: {victim_id}")
+            await victim.close_connections(
+                f"Maximum of {self.MAX_SESSIONS} concurrent sessions reached. Earliest connection ({victim_id}) was closed."
+            )
+            if victim_id in self.sessions:
+                del self.sessions[victim_id]
+
+    def ensure_capacity_sync(self, incoming_session_id: Optional[str] = None):
+        """Synchronously evicts the earliest opened session if at or above MAX_SESSIONS."""
+        sid = (incoming_session_id or "default").strip()
+        if sid in self.sessions:
+            return
+
+        while len(self.sessions) >= self.MAX_SESSIONS:
+            victim = self.get_candidate_to_evict(exclude_sid=sid)
+            if not victim:
+                break
+            victim_id = victim.session_id
+            print(f"[*] Max sessions ({self.MAX_SESSIONS}) exceeded. Closing earliest opened session: {victim_id}")
+            victim.close_connections_sync(
+                f"Maximum of {self.MAX_SESSIONS} concurrent sessions reached. Earliest connection ({victim_id}) was closed."
+            )
+            if victim_id in self.sessions:
+                del self.sessions[victim_id]
 
     def get_or_create(self, session_id: Optional[str]) -> UserSession:
         sid = (session_id or "default").strip()
         if not sid:
             sid = "default"
         if sid not in self.sessions:
+            self.ensure_capacity_sync(sid)
             self.sessions[sid] = UserSession(sid)
         sess = self.sessions[sid]
         sess.last_active = time.time()
@@ -917,13 +1012,13 @@ color_seek = default_session.color_seek
 recent_logs = default_session.recent_logs
 
 def log_event(category: str, badge: str, what: str, how: str):
-    return default_session.log_event(category, badge, what, how)
+    return session_manager.get_or_create("default").log_event(category, badge, what, how)
 
 def handle_reset():
-    return default_session.handle_reset()
+    return session_manager.get_or_create("default").handle_reset()
 
 async def handle_vla_command(cmd: str):
-    return await default_session.handle_vla_command(cmd)
+    return await session_manager.get_or_create("default").handle_vla_command(cmd)
 
 def extract_session_id(request: Request, body_session_id: Optional[str] = None) -> str:
     if body_session_id and body_session_id.strip():
@@ -1006,9 +1101,12 @@ app = FastAPI(title="AERO: Agentic Execution for Robotic Operations", lifespan=l
 # WebSocket Endpoint with Session ID Support
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    session_id = websocket.query_params.get("session_id") or "default"
+    session_id = (websocket.query_params.get("session_id") or "default").strip()
     resume_flag = websocket.query_params.get("resume")
+    await session_manager.ensure_capacity(session_id)
     sess = session_manager.get_or_create(session_id)
+    if sess.first_connected_at is None:
+        sess.first_connected_at = time.time()
     if resume_flag in ("1", "true", "yes"):
         sess.resume()
     await websocket.accept()
@@ -1374,6 +1472,7 @@ async def api_session_info(request: Request):
     return {
         "session_id": sid,
         "active_sessions_count": len(session_manager.sessions),
+        "max_sessions": session_manager.MAX_SESSIONS,
         "websockets_count": len(sess.websockets),
         "has_api_key": bool(sess.vla_agent.api_key),
         "is_suspended": sess.is_suspended,
