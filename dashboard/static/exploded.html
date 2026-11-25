@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERO | Robot Internal Anatomy & Exploded View</title>
+  <meta name="description" content="Interactive 3D exploded view of the SO-100 robotic arm: inspect internal Feetech STS3215 motors, 1:345 steel reduction gears, magnetic encoders, and daisy-chained serial bus wiring harness.">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/css/exploded.css?v=1.0">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- 3D WebGL Canvas -->
+  <canvas id="gl" aria-label="Interactive 3D Exploded View of the SO-100 Robot Arm. Drag to orbit, scroll to zoom, click parts to inspect."></canvas>
+
+  <!-- Pinned Leader Line Labels Overlay -->
+  <div class="labels" aria-hidden="true"></div>
+
+  <!-- Header Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/home" class="brand-badge">
+        <img src="/logo.png" alt="AERO Logo">
+        <span class="title">AERO</span>
+        <span class="sub">ANATOMY 3D</span>
+      </a>
+      <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+        <span>SO-100 5-DOF MANIPULATOR</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <a href="/home" class="nav-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span>Home</span>
+      </a>
+      <a href="/studio" class="nav-btn primary">
+        <span>Launch 3D Studio</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Quick Camera Presets (Left Side) -->
+  <div class="view-presets">
+    <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); text-transform: uppercase; padding: 4px 6px;">Focus</span>
+    <button class="preset-btn active" data-preset="iso">Assembly</button>
+    <button class="preset-btn" data-preset="base">Base &amp; ID 1</button>
+    <button class="preset-btn" data-preset="shoulder">Shoulder &amp; ID 2</button>
+    <button class="preset-btn" data-preset="wrist">Elbow &amp; Wrist</button>
+    <button class="preset-btn" data-preset="gripper">Gripper &amp; Jaws</button>
+  </div>
+
+  <!-- Bottom Interactive Controls Dock -->
+  <div class="controls-dock">
+    <div class="control-group">
+      <div class="control-label">
+        <span class="name">Explode</span>
+        <span class="val" id="explode-val">0%</span>
+      </div>
+      <input id="explode" class="range-slider" type="range" min="0" max="1" step="0.001" value="0" title="Take the arm apart to view internal parts">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span class="name">Section Cut</span>
+        <span class="val" id="cut-val">0%</span>
+      </div>
+      <input id="cut" class="range-slider" type="range" min="0" max="1" step="0.001" value="0" title="Cut away outer casing with a cross-section plane">
+    </div>
+
+    <div class="divider"></div>
+
+    <button id="xray" class="dock-btn" aria-pressed="false" title="Make outer shells translucent glass to reveal motors inside">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+        <path d="M2 12h20"></path>
+      </svg>
+      <span>X-Ray Casing</span>
+    </button>
+
+    <button id="autorotate" class="dock-btn active" title="Toggle automatic turntable rotation">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+      <span>Auto-Orbit</span>
+    </button>
+
+    <button id="reset-camera" class="dock-btn" title="Reset camera view to default framing">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+        <path d="M3 3v5h5"></path>
+      </svg>
+      <span>Reset</span>
+    </button>
+  </div>
+
+  <!-- Part Inspector Card (Click or Hover Component) -->
+  <aside class="inspector-card" id="inspector-card">
+    <div class="inspector-header">
+      <div>
+        <div class="inspector-title" id="inspector-title">Base Yaw Actuator STS3215 (ID 1)</div>
+        <div class="inspector-category" id="inspector-category">Smart Serial Bus Servo</div>
+      </div>
+      <button class="btn-close-inspector" id="btn-close-inspector" title="Close Panel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="spec-grid" id="inspector-specs">
+      <div class="spec-box">
+        <div class="spec-key">Model</div>
+        <div class="spec-val">Feetech STS3215</div>
+      </div>
+      <div class="spec-box">
+        <div class="spec-key">Stall Torque</div>
+        <div class="spec-val">30 kg·cm @ 12V</div>
+      </div>
+      <div class="spec-box">
+        <div class="spec-key">Reduction</div>
+        <div class="spec-val">1:345 Metal Gear</div>
+      </div>
+      <div class="spec-box">
+        <div class="spec-key">Encoder</div>
+        <div class="spec-val">12-Bit Magnetic</div>
+      </div>
+    </div>
+
+    <div class="spec-desc" id="inspector-desc">
+      High-torque magnetic encoder serial bus servo driving joint articulation. Features contactless absolute positioning, multi-turn tracking, and integrated temperature and current telemetry.
+    </div>
+
+    <!-- Wiring Legend Section -->
+    <div class="wiring-legend">
+      <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); text-transform: uppercase;">Daisy-Chain Bus Harness</span>
+      <div class="wiring-row">
+        <span class="wire-badge" style="background: var(--wire-power);"></span>
+        <span>RED: +12.0 VDC High-Current Rail</span>
+      </div>
+      <div class="wiring-row">
+        <span class="wire-badge" style="background: #64748b;"></span>
+        <span>BLACK: Common Power &amp; Signal GND</span>
+      </div>
+      <div class="wiring-row">
+        <span class="wire-badge" style="background: var(--wire-signal);"></span>
+        <span>CYAN: TTL UART Half-Duplex (1 Mbps)</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Exploded Arm Logic -->
+  <script type="module" src="/js/exploded_arm.js?v=1.0"></script>
+</body>
+</html>

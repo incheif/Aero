@@ -1510,6 +1510,16 @@ async def serve_studio():
     return HTMLResponse(content="<h1>Studio file not found</h1>", status_code=404)
 
 
+@app.get("/exploded", response_class=HTMLResponse)
+@app.get("/anatomy", response_class=HTMLResponse)
+async def serve_exploded():
+    exploded_file = os.path.join(static_dir, "exploded.html")
+    if os.path.exists(exploded_file):
+        with open(exploded_file, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Exploded View file not found</h1>", status_code=404)
+
+
 @app.get("/logs", response_class=HTMLResponse)
 async def serve_logs():
     logs_file = os.path.join(static_dir, "logs.html")

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Inside an electric motor</title>
+  <script type="importmap">
+    { "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    } }
+  </script>
+  <style>
+    :root { --paper: #eeeae2; --ink: #1d1c1a; --muted: #6f6a62; --accent: #e8642c; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font: 14px/1.4 ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+    canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+    .labels { position: fixed; inset: 0; }
+    .label { padding: 2px 0; font-size: 13px; }
+    .label b { display: block; font-weight: 600; letter-spacing: .01em; }
+    .label span { display: block; color: var(--muted); font-size: 12px; }
+    .label.focus b { color: var(--accent); }
+    .leader { fill: none; stroke: rgba(29, 28, 26, .45); stroke-width: 1; }
+    .leader.focus { stroke: var(--accent); stroke-width: 1.5; }
+    header { position: fixed; left: 50%; top: 22px; transform: translateX(-50%); text-align: center; pointer-events: none; }
+    header h1 { margin: 0; font-size: clamp(18px, 2.2vw, 26px); font-weight: 650; letter-spacing: -.01em; }
+    header p { margin: 4px 0 0; color: var(--muted); }
+    .panel { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 18px; align-items: center;
+      padding: 10px 16px; border-radius: 14px; background: rgba(255, 255, 255, .72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .06); }
+    .panel label { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+    .panel input[type="range"] { width: 140px; accent-color: var(--accent); }
+    .panel button { appearance: none; border: 0; border-radius: 8px; padding: 8px 12px; min-height: 36px; font: inherit; font-size: 13px; background: rgba(0, 0, 0, .06); color: var(--ink); cursor: pointer; }
+    .panel button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+    @media (max-width: 640px) { .panel { flex-wrap: wrap; width: calc(100% - 24px); justify-content: center; gap: 10px; } .labels { display: none; } }
+  </style>
+</head>
+<body>
+  <canvas id="gl" aria-label="An electric motor in 3D. Drag to turn it; use the controls to take it apart."></canvas>
+  <div class="labels" aria-hidden="true"></div>
+  <header><h1>Inside an electric motor</h1><p>Drag to turn · hover a part</p></header>
+  <div class="panel">
+    <label>Explode <input id="explode" type="range" min="0" max="1" step="0.001" value="0"></label>
+    <label>Section <input id="cut" type="range" min="0" max="1" step="0.001" value="0"></label>
+    <button id="xray" aria-pressed="false">X-ray</button>
+  </div>
+  <script type="module" src="./motor.js"></script>
+</body>
+</html>

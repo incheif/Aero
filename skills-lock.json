@@ -1,11 +1,18 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
+    "exploded-view": {
+      "source": "Moh4696/open-3d-skills",
+      "commit": "53beb899e77f65d50160a3765f36f5ddb8b3c19b",
+      "sourceType": "github",
+      "skillPath": "skills/exploded-view/SKILL.md",
+      "computedHash": "d38867e16185466d3d77ce5afc310558cc196766cbaa2ffd8dd5e9c0d5894f85"
+    },
     "hallmark": {
       "source": "nutlope/hallmark",
       "sourceType": "github",
       "skillPath": "skills/hallmark/SKILL.md",
-      "computedHash": "6d53b2b609e05849c1dd0fc53e37daa7515089d5880c15e7e885c86e8b814e9c"
+      "computedHash": "c5ae622ff654348da6e650400a17f7b28a3ad0b3a1be3944c1213101e71d6346"
     }
   }
 }
