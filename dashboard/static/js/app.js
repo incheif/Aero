@@ -1145,45 +1145,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    function updateLatestExecutionLogCard(log) {
-      if (!log) return;
-      const elBadge = document.getElementById('latest-log-badge');
-      const elTime = document.getElementById('latest-log-time');
-      const elTitle = document.getElementById('latest-log-title');
-      const elDetail = document.getElementById('latest-log-detail');
-
-      if (elBadge) {
-        elBadge.textContent = (log.badge || log.category || 'INFO').toUpperCase();
-        const cat = (log.category || '').toLowerCase();
-        if (cat === 'error' || cat === 'fail' || cat === 'rejected') {
-          elBadge.style.color = '#ef4444';
-          elBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-          elBadge.style.background = 'rgba(239, 68, 68, 0.12)';
-        } else if (cat === 'success' || cat === 'done' || cat === 'completed') {
-          elBadge.style.color = '#10b981';
-          elBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          elBadge.style.background = 'rgba(16, 185, 129, 0.12)';
-        } else if (cat === 'command' || cat === 'vla' || cat === 'started') {
-          elBadge.style.color = 'var(--accent-color)';
-          elBadge.style.borderColor = 'var(--accent-border)';
-          elBadge.style.background = 'var(--accent-subtle)';
-        } else {
-          elBadge.style.color = '';
-          elBadge.style.borderColor = '';
-          elBadge.style.background = '';
-        }
-      }
-      if (elTime) elTime.textContent = log.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      if (elTitle) elTitle.textContent = log.what || log.title || log.message || 'Execution Step';
-      if (elDetail) elDetail.textContent = log.how || log.detail || log.details || log.explanation || '';
-    }
-    window.updateLatestExecutionLogCard = updateLatestExecutionLogCard;
-
     function updateLogsFromTelemetry(incomingLogs) {
       if (!incomingLogs || incomingLogs.length === 0) return;
-
-      // Update Latest Execution Log block in Agent Execution Card
-      updateLatestExecutionLogCard(incomingLogs[incomingLogs.length - 1]);
 
       // Fast signature check to avoid DOM thrashing when logs haven't changed
       const sig = incomingLogs.map(l => l.id).join(',');
@@ -1305,7 +1268,6 @@ document.addEventListener('DOMContentLoaded', () => {
           localLogs.push(logItem);
           existingIds.add(n.id);
           hasNew = true;
-          updateLatestExecutionLogCard(logItem);
         }
       }
       if (hasNew && activeTab === 'logs') {
@@ -1655,7 +1617,6 @@ document.addEventListener('DOMContentLoaded', () => {
         how: 'Reasoning pipeline engaged · Capturing overhead RGB perception & solving 5-DOF IK waypoints. Motion initiating shortly.',
       };
       localLogs.push(startLog);
-      updateLatestExecutionLogCard(startLog);
       if (activeTab === 'logs') {
         renderLogs();
       }
@@ -1825,7 +1786,6 @@ document.addEventListener('DOMContentLoaded', () => {
         how: 'Execution stopped immediately. Kinematics and physics restored to initial playground state.',
       };
       localLogs.push(resetLog);
-      updateLatestExecutionLogCard(resetLog);
 
       // 3. Post to server to immediately halt all active controllers and restore simulation baseline
       try {
