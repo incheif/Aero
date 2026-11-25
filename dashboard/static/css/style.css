@@ -7,7 +7,8 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root,
-[data-theme="graphite"] {
+[data-theme="graphite"],
+[data-theme="monochrome"] {
   --bg-primary: #121316;
   --bg-secondary: #181a1f;
   --bg-card: rgba(24, 26, 31, 0.88);
@@ -154,43 +155,43 @@
 }
 
 /* ==========================================================================
-   Dark Theme 1: Cyberpunk Neon (Electric Cyan & Hot Pink Magenta)
+   Dark Theme 1: Monochromatic Noir (Obsidian, Charcoal & Slate)
    ========================================================================== */
 [data-theme="cyberpunk"],
 [data-theme="emerald-synth"],
 [data-theme="electric-indigo"] {
-  --bg-primary: #080312;
-  --bg-secondary: #0f0622;
-  --bg-card: rgba(18, 9, 36, 0.92);
-  --bg-card-hover: rgba(28, 14, 56, 0.96);
+  --bg-primary: #121316;
+  --bg-secondary: #181a1f;
+  --bg-card: rgba(24, 26, 31, 0.88);
+  --bg-card-hover: rgba(32, 35, 42, 0.95);
 
-  --accent-color: #00f0ff;
-  --accent-rgb: 0, 240, 255;
-  --accent-subtle: rgba(0, 240, 255, 0.18);
-  --accent-border: rgba(0, 240, 255, 0.55);
+  --accent-color: #06b6d4;
+  --accent-rgb: 6, 182, 212;
+  --accent-subtle: rgba(6, 182, 212, 0.12);
+  --accent-border: rgba(6, 182, 212, 0.32);
 
-  --border-glass: rgba(255, 0, 128, 0.24);
-  --border-glass-bright: rgba(0, 240, 255, 0.60);
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glass-bright: rgba(255, 255, 255, 0.22);
+  --border-subtle: rgba(255, 255, 255, 0.04);
 
   --mono-white: #ffffff;
-  --mono-100: #fdf2f8;
-  --mono-200: #fce7f3;
-  --mono-300: #f5d0fe;
-  --mono-400: #e879f9;
-  --mono-500: #c084fc;
-  --mono-600: #818cf8;
-  --mono-700: #4f46e5;
-  --mono-800: #312e81;
-  --mono-900: #1e1b4b;
-  --mono-950: #0a0416;
+  --mono-100: #f4f4f5;
+  --mono-200: #e4e4e7;
+  --mono-300: #d4d4d8;
+  --mono-400: #a1a1aa;
+  --mono-500: #71717a;
+  --mono-600: #52525b;
+  --mono-700: #3f3f46;
+  --mono-800: #27272a;
+  --mono-900: #18181b;
+  --mono-950: #09090b;
 
-  --text-main: #f8fafc;
-  --text-muted: #e2e8f0;
-  --text-dim: #c084fc;
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
 
-  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(0, 240, 255, 0.25);
-  --shadow-white-glow: 0 0 20px rgba(0, 240, 255, 0.45);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-white-glow: 0 0 16px rgba(6, 182, 212, 0.22);
 }
 
 /* Backward compatibility alias for high-contrast */
@@ -4054,22 +4055,22 @@ body.resizing-active iframe {
   justify-content: space-between;
 }
 
-.ws-theme-preview.theme-preview-cyberpunk {
-  background: #080312;
-  border: 1px solid rgba(0, 240, 255, 0.45);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+.ws-theme-preview.theme-preview-graphite {
+  background: #121316;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.15);
 }
-.ws-theme-preview.theme-preview-cyberpunk .preview-bar {
-  background: #ff007f;
+.ws-theme-preview.theme-preview-graphite .preview-bar {
+  background: #27272a;
   height: 6px;
   border-radius: 3px;
-  width: 50%;
+  width: 60%;
 }
-.ws-theme-preview.theme-preview-cyberpunk .preview-accent {
-  background: #00f0ff;
+.ws-theme-preview.theme-preview-graphite .preview-accent {
+  background: #06b6d4;
   height: 6px;
   border-radius: 3px;
-  width: 45%;
+  width: 35%;
 }
 
 .ws-theme-preview.theme-preview-midnight {

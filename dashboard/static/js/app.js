@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
   // 1B. Adaptive Studio Appearance & Themes Manager (2 Dark, 2 Light)
-  const ALL_THEMES = ['cyberpunk', 'midnight', 'light', 'solar-light'];
+  const ALL_THEMES = ['graphite', 'midnight', 'light', 'solar-light'];
 
   class WorkspaceManager {
     constructor(canvas) {
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
       this.btnToggleTheme = document.getElementById('btn-toggle-theme');
 
       // Defaults
-      this.theme = 'cyberpunk';
+      this.theme = 'graphite';
       this.panels = { sidebar: true, dock: true, pip: true };
       this.overlays = { axes: false, trails: true, frustums: false, boxes: false, grid: true };
 
@@ -78,12 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
     init() {
       // 1. Restore Theme
       let savedTheme = localStorage.getItem('AERO_THEME');
-      if (savedTheme === 'dark' || savedTheme === 'graphite' || savedTheme === 'high-contrast') savedTheme = 'midnight';
+      if (savedTheme === 'dark' || savedTheme === 'cyberpunk') savedTheme = 'graphite';
+      if (savedTheme === 'high-contrast') savedTheme = 'midnight';
       if (savedTheme === 'solar-amber') savedTheme = 'solar-light';
       if (!savedTheme || !ALL_THEMES.includes(savedTheme)) {
-        savedTheme = document.documentElement.getAttribute('data-theme') || 'cyberpunk';
+        savedTheme = document.documentElement.getAttribute('data-theme') || 'graphite';
       }
-      if (!ALL_THEMES.includes(savedTheme)) savedTheme = 'cyberpunk';
+      if (!ALL_THEMES.includes(savedTheme)) savedTheme = 'graphite';
       this.setTheme(savedTheme, false);
 
       // Label settings button
@@ -115,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setTheme(theme, save = true) {
       if (!ALL_THEMES.includes(theme)) {
-        theme = 'cyberpunk';
+        theme = 'graphite';
       }
       this.theme = theme;
       document.documentElement.setAttribute('data-theme', theme);
@@ -214,11 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     resetDefaults() {
-      this.theme = 'cyberpunk';
+      this.theme = 'graphite';
       this.panels = { sidebar: true, dock: true, pip: true };
       this.overlays = { axes: false, trails: true, frustums: false, boxes: false, grid: true };
 
-      this.setTheme('cyberpunk', true);
+      this.setTheme('graphite', true);
       this.applyPanels(true);
       this.applyOverlays(true);
     }
@@ -252,10 +253,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      // Header Theme Quick-Toggle (toggles between Dark [cyberpunk] and Light [light])
+      // Header Theme Quick-Toggle (toggles between Dark [graphite] and Light [light])
       this.btnToggleTheme?.addEventListener('click', () => {
         const isCurrentlyLight = (this.theme === 'light' || this.theme === 'solar-light');
-        const nextTheme = isCurrentlyLight ? 'cyberpunk' : 'light';
+        const nextTheme = isCurrentlyLight ? 'graphite' : 'light';
         this.setTheme(nextTheme, true);
       });
 

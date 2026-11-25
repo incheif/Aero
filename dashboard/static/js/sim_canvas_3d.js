@@ -293,30 +293,30 @@ class SimCanvas3D {
   }
 
   setTheme(themeName) {
-    this.currentTheme = themeName || 'cyberpunk';
-    let bgColor = 0x080312;
-    let floorColor = 0x05020c;
-    let tableColor = 0x150928;
-    let trimColor = 0x00f0ff;
-    let grid1 = 0x00f0ff;
-    let grid2 = 0x2d0b4d;
-    let ambIntensity = 0.55;
-    let hemiSky = 0x00f0ff;
-    let hemiGround = 0x2d0b4d;
-    let hemiIntensity = 0.90;
+    this.currentTheme = themeName || 'graphite';
+    let bgColor = 0x0e1117;
+    let floorColor = 0x090c12;
+    let tableColor = 0x161b24;
+    let trimColor = 0x222b38;
+    let grid1 = 0x384454;
+    let grid2 = 0x161b22;
+    let ambIntensity = 0.45;
+    let hemiSky = 0xcfd8dc;
+    let hemiGround = 0x161b22;
+    let hemiIntensity = 0.75;
 
-    if (themeName === 'cyberpunk' || themeName === 'emerald-synth' || themeName === 'electric-indigo') {
-      bgColor = 0x080312;
-      floorColor = 0x05020c;
-      tableColor = 0x150928;
-      trimColor = 0x00f0ff;
-      grid1 = 0x00f0ff;
-      grid2 = 0x2d0b4d;
-      ambIntensity = 0.55;
-      hemiSky = 0x00f0ff;
-      hemiGround = 0x2d0b4d;
-      hemiIntensity = 0.90;
-    } else if (themeName === 'midnight' || themeName === 'graphite' || themeName === 'high-contrast') {
+    if (themeName === 'graphite' || themeName === 'monochrome' || themeName === 'cyberpunk') {
+      bgColor = 0x0e1117;
+      floorColor = 0x090c12;
+      tableColor = 0x161b24;
+      trimColor = 0x222b38;
+      grid1 = 0x384454;
+      grid2 = 0x161b22;
+      ambIntensity = 0.45;
+      hemiSky = 0xcfd8dc;
+      hemiGround = 0x161b22;
+      hemiIntensity = 0.75;
+    } else if (themeName === 'midnight' || themeName === 'high-contrast') {
       bgColor = 0x080c14;
       floorColor = 0x05080e;
       tableColor = 0x0f172a;
