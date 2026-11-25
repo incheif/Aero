@@ -9,7 +9,7 @@
     content="AERO (Agentic Execution for Robotic Operations): Autonomous robotic manipulation studio combining Vision Language Action, 3D Semantic Spatial SLAM, Rapier3D physics aligned kinematics, and real time Three.js WebGL studio.">
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="stylesheet" href="/css/home.css?v=15.0">
+  <link rel="stylesheet" href="/css/home.css?v=16.0">
 </head>
 
 <body id="top">
@@ -64,9 +64,14 @@
           <div class="suspense-line" id="suspense-line-1">
             <span class="suspense-tag">SYSTEM STATE: STANDBY</span>
             <p class="suspense-text">Beyond pre programmed trajectories.</p>
-            <a href="/studio" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; padding: 7px 16px; border-radius: 999px; text-decoration: none; font-size: 0.78rem; font-weight: 600; font-family: var(--font-mono); backdrop-filter: blur(8px); transition: all 0.2s ease;">
-              <span>✦ Launch 3D Studio &amp; Perception Tracking →</span>
-            </a>
+            <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap;">
+              <a href="/studio" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; padding: 7px 16px; border-radius: 999px; text-decoration: none; font-size: 0.78rem; font-weight: 600; font-family: var(--font-mono); backdrop-filter: blur(8px); transition: all 0.2s ease;">
+                <span>✦ Launch 3D Studio &amp; Perception Tracking →</span>
+              </a>
+              <button class="btn-skip-inline" id="btn-skip-intro" title="Skip animation and go directly to Studio button">
+                <span>Skip Animation ↓</span>
+              </button>
+            </div>
           </div>
         </div>
         <div class="scroll-indicator suspense-indicator" id="suspense-indicator">
@@ -77,6 +82,16 @@
           </svg>
         </div>
       </div>
+
+      <!-- Floating Skip to Studio Button during animation -->
+      <button class="btn-skip-to-studio" id="btn-skip-to-studio" title="Skip animation and go directly to Studio button">
+        <span>Skip to Studio</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="7 13 12 18 17 13"></polyline>
+          <polyline points="7 6 12 11 17 6"></polyline>
+        </svg>
+      </button>
 
       <!-- Slide 1: Big AERO (Appears smoothly) -->
       <div class="story-slide" id="slide-aero">
@@ -673,7 +688,7 @@
 
   <!-- Three.js Core and Scroll Robot Storytelling Engine -->
   <script src="/js/vendor/three.min.js"></script>
-  <script src="/js/scroll_robot_story.js?v=11.0"></script>
+  <script src="/js/scroll_robot_story.js?v=12.0"></script>
 </body>
 
 </html>

@@ -375,6 +375,75 @@ body {
   bottom: clamp(24px, 5vh, 50px);
 }
 
+/* Skip to Studio Pill (Floating during animation) */
+.btn-skip-to-studio {
+  position: absolute;
+  bottom: clamp(20px, 3.5vh, 32px);
+  right: clamp(20px, 3.5vw, 36px);
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(18, 19, 22, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.40);
+  border-radius: 999px;
+  color: #38bdf8;
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(0.72rem, 1.1vh, 0.82rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 14px rgba(56, 189, 248, 0.22);
+  transition: all 0.25s ease;
+  user-select: none;
+}
+
+.btn-skip-to-studio:hover {
+  background: rgba(56, 189, 248, 0.20);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7), 0 0 20px rgba(56, 189, 248, 0.45);
+  transform: translateY(-2px);
+}
+
+.btn-skip-to-studio:active {
+  transform: translateY(0);
+}
+
+.btn-skip-to-studio svg {
+  transition: transform 0.2s ease;
+}
+
+.btn-skip-to-studio:hover svg {
+  transform: translateY(2px);
+}
+
+.btn-skip-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #cbd5e1;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.btn-skip-inline:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 /* Slide 1: Monumental AERO (Falling from sky & slamming into ground) */
 #slide-aero {
   z-index: 8;

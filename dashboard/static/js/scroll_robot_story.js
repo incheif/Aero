@@ -39,6 +39,22 @@
     const storyCommandsWrap = document.getElementById('commands');
     const storyCommandsHeader = document.getElementById('story-commands-header');
     const storyCmdCards = Array.from(document.querySelectorAll('.story-cmd-card'));
+    const btnSkipToStudio = document.getElementById('btn-skip-to-studio');
+    const btnSkipIntro = document.getElementById('btn-skip-intro');
+
+    function jumpToStudioButton(e) {
+      if (e) e.preventDefault();
+      const totalScrollable = storyContainer.offsetHeight - window.innerHeight;
+      const targetScroll = storyContainer.offsetTop + totalScrollable * 0.92;
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    }
+
+    if (btnSkipToStudio) {
+      btnSkipToStudio.addEventListener('click', jumpToStudioButton);
+    }
+    if (btnSkipIntro) {
+      btnSkipIntro.addEventListener('click', jumpToStudioButton);
+    }
 
     // 1. Setup Three.js Scene
     const scene = new THREE.Scene();
@@ -588,6 +604,17 @@
 
     // 8. Synchronize HTML Slide Visibility & Animation
     function updateSlides(p) {
+      // Skip Button Visibility: fades out once the user reaches slide-ctas (p >= 0.88)
+      if (btnSkipToStudio) {
+        if (p >= 0.88) {
+          btnSkipToStudio.style.opacity = '0';
+          btnSkipToStudio.style.pointerEvents = 'none';
+        } else {
+          btnSkipToStudio.style.opacity = '1';
+          btnSkipToStudio.style.pointerEvents = 'auto';
+        }
+      }
+
       // Suspense Thriller Vignette Overlay
       if (suspenseOverlay) {
         if (p < 0.10) {
