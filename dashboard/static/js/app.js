@@ -1586,6 +1586,24 @@ document.addEventListener('DOMContentLoaded', () => {
       setExecutionBlocked(true, `Executing: "${text}"... Please wait or press Reset`);
 
       // Immediate UI feedback so user immediately knows execution has started
+      const thoughtBox = document.getElementById('vla-thought-box');
+      const vlaBadge = document.getElementById('vla-status-badge');
+      const progFill = document.getElementById('vla-progress-fill');
+      if (thoughtBox) {
+        thoughtBox.innerText = `Executing: "${text}"...\nSynthesizing spatial trajectory & analyzing perception.`;
+        thoughtBox.classList.remove('rejected', 'gesture');
+      }
+      if (vlaBadge) {
+        vlaBadge.innerText = 'EXECUTING';
+        vlaBadge.className = 'thought-status-badge';
+        vlaBadge.style.color = '#09090b';
+        vlaBadge.style.backgroundColor = '#ffffff';
+        vlaBadge.style.borderColor = '#ffffff';
+      }
+      if (progFill) {
+        progFill.style.width = '10%';
+      }
+
       const dockFb = document.getElementById('dock-feedback-text');
       const dockContainer = document.getElementById('dock-agent-feedback');
       const stateBadge = document.getElementById('chat-state-badge');

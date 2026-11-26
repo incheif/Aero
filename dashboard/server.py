@@ -364,6 +364,8 @@ class UserSession:
         self.manual_mode = False
         self.last_active = time.time()
         self.session_start_time = time.time()
+        self.vla_agent.execution_status = "EXECUTING"
+        self.vla_agent.latest_thought = f"Executing: \"{cmd}\"...\nSynthesizing spatial trajectory & analyzing perception."
 
         self.log_event(
             "vla",
