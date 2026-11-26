@@ -874,12 +874,12 @@ addEventListener('resize', () => {
 // ----------------------------------------------------------------
 // 9. MANUAL ARM KINEMATIC CONTROL ENGINE
 // ----------------------------------------------------------------
-// Default Standby Posture
+// Default Standby Posture (Realistic forward-ready posture)
 const currentJoints = {
   baseYaw: 0.0,
-  shoulderPitch: 0.35,  // ~20°
-  elbowPitch: -0.78,    // ~-45°
-  wristPitch: -0.35,    // ~-20°
+  shoulderPitch: 0.52,  // ~30°
+  elbowPitch: 0.58,     // ~33°
+  wristPitch: -0.25,    // ~-14°
   wristRoll: 0.0,
   gripper: 1.0          // Open
 };
@@ -887,13 +887,17 @@ const currentJoints = {
 const targetJoints = { ...currentJoints };
 
 // Preset Poses
+// With links extending along +Y in Three.js and rotating around local +X:
+// Positive pitch bends forward and downward toward the table surface.
+// For Grasp Down: shoulder (48°) + elbow (72°) + wrist (54°) = 174° (~pi rad)
+// reaching down with end-effector pointing vertically down at tabletop blocks.
 const PRESET_POSES = {
-  standby: { baseYaw: 0.0, shoulderPitch: 0.35, elbowPitch: -0.78, wristPitch: -0.35, wristRoll: 0.0, gripper: 1.0 },
-  wave:    { baseYaw: 0.25, shoulderPitch: 0.78, elbowPitch: -0.52, wristPitch: 0.52, wristRoll: 0.35, gripper: 1.0 },
-  reach:   { baseYaw: 0.0, shoulderPitch: 0.85, elbowPitch: -0.35, wristPitch: -0.50, wristRoll: 0.0, gripper: 0.8 },
-  grasp:   { baseYaw: 0.0, shoulderPitch: 1.05, elbowPitch: -0.80, wristPitch: -0.25, wristRoll: 0.0, gripper: 0.0 },
-  zero:    { baseYaw: 0.0, shoulderPitch: 0.0,  elbowPitch: 0.0,   wristPitch: 0.0,   wristRoll: 0.0, gripper: 1.0 },
-  reset:   { baseYaw: 0.0, shoulderPitch: 0.35, elbowPitch: -0.78, wristPitch: -0.35, wristRoll: 0.0, gripper: 1.0 }
+  standby: { baseYaw: 0.0, shoulderPitch: 0.52, elbowPitch: 0.58, wristPitch: -0.25, wristRoll: 0.0, gripper: 1.0 },
+  wave:    { baseYaw: 0.35, shoulderPitch: 0.20, elbowPitch: -0.35, wristPitch: 0.40, wristRoll: 0.52, gripper: 1.0 },
+  reach:   { baseYaw: 0.0, shoulderPitch: 1.05, elbowPitch: 0.42, wristPitch: 0.10, wristRoll: 0.0, gripper: 0.8 },
+  grasp:   { baseYaw: 0.0, shoulderPitch: 0.84, elbowPitch: 1.26, wristPitch: 0.94, wristRoll: 0.0, gripper: 0.0 },
+  zero:    { baseYaw: 0.0, shoulderPitch: 0.0,  elbowPitch: 0.0,  wristPitch: 0.0,   wristRoll: 0.0, gripper: 1.0 },
+  reset:   { baseYaw: 0.0, shoulderPitch: 0.52, elbowPitch: 0.58, wristPitch: -0.25, wristRoll: 0.0, gripper: 1.0 }
 };
 
 // UI Element references
@@ -1018,18 +1022,48 @@ document.querySelectorAll('.btn-pose').forEach((btn) => {
   });
 });
 
-// Telemetry Integration
+// Telemetry Integration & Coordinate Frame Conversion
+// Simulation engine uses horizontal reference (0 = +X), while Exploded View uses vertical reference (0 = +Y).
+function simToExplodedJoints(simJoints) {
+  const converted = { ...simJoints };
+  if (simJoints.shoulderPitch !== undefined) {
+    converted.shoulderPitch = Math.PI / 2 - simJoints.shoulderPitch;
+  }
+  if (simJoints.elbowPitch !== undefined) {
+    converted.elbowPitch = -simJoints.elbowPitch;
+  }
+  if (simJoints.wristPitch !== undefined) {
+    converted.wristPitch = -simJoints.wristPitch;
+  }
+  return converted;
+}
+
+function explodedToSimJoints(expJoints) {
+  const converted = { ...expJoints };
+  if (expJoints.shoulderPitch !== undefined) {
+    converted.shoulderPitch = Math.PI / 2 - expJoints.shoulderPitch;
+  }
+  if (expJoints.elbowPitch !== undefined) {
+    converted.elbowPitch = -expJoints.elbowPitch;
+  }
+  if (expJoints.wristPitch !== undefined) {
+    converted.wristPitch = -expJoints.wristPitch;
+  }
+  return converted;
+}
+
 async function fetchSimTelemetry() {
   try {
     const res = await fetch('/api/telemetry');
     if (!res.ok) return;
     const data = await res.json();
     if (data.joints) {
-      if (data.joints.baseYaw !== undefined) targetJoints.baseYaw = data.joints.baseYaw;
-      if (data.joints.shoulderPitch !== undefined) targetJoints.shoulderPitch = data.joints.shoulderPitch;
-      if (data.joints.elbowPitch !== undefined) targetJoints.elbowPitch = data.joints.elbowPitch;
-      if (data.joints.wristPitch !== undefined) targetJoints.wristPitch = data.joints.wristPitch;
-      if (data.joints.wristRoll !== undefined) targetJoints.wristRoll = data.joints.wristRoll;
+      const exp = simToExplodedJoints(data.joints);
+      if (exp.baseYaw !== undefined) targetJoints.baseYaw = exp.baseYaw;
+      if (exp.shoulderPitch !== undefined) targetJoints.shoulderPitch = exp.shoulderPitch;
+      if (exp.elbowPitch !== undefined) targetJoints.elbowPitch = exp.elbowPitch;
+      if (exp.wristPitch !== undefined) targetJoints.wristPitch = exp.wristPitch;
+      if (exp.wristRoll !== undefined) targetJoints.wristRoll = exp.wristRoll;
       if (data.gripper !== undefined) targetJoints.gripper = data.gripper;
       updateSliderUI();
     }
@@ -1040,13 +1074,14 @@ async function fetchSimTelemetry() {
 
 async function sendPoseToSim() {
   try {
+    const simJoints = explodedToSimJoints(targetJoints);
     const payload = {
       joints: {
-        baseYaw: targetJoints.baseYaw,
-        shoulderPitch: targetJoints.shoulderPitch,
-        elbowPitch: targetJoints.elbowPitch,
-        wristPitch: targetJoints.wristPitch,
-        wristRoll: targetJoints.wristRoll
+        baseYaw: simJoints.baseYaw,
+        shoulderPitch: simJoints.shoulderPitch,
+        elbowPitch: simJoints.elbowPitch,
+        wristPitch: simJoints.wristPitch,
+        wristRoll: simJoints.wristRoll
       },
       gripper: targetJoints.gripper
     };
