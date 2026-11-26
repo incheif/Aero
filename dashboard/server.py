@@ -1508,7 +1508,7 @@ async def serve_studio():
     studio_file = os.path.join(static_dir, "index.html")
     if os.path.exists(studio_file):
         with open(studio_file, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            return HTMLResponse(content=f.read(), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return HTMLResponse(content="<h1>Studio file not found</h1>", status_code=404)
 
 
