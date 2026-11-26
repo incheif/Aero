@@ -112,7 +112,126 @@
       </svg>
       <span>Reset</span>
     </button>
+
+    <div class="divider"></div>
+
+    <button id="btn-manual-control" class="dock-btn" aria-pressed="false" title="Toggle Manual Arm Joint Kinematics Control Panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+      <span>Manual Control</span>
+    </button>
   </div>
+
+  <!-- Manual Arm Joint Control Panel (Flyout / Floating Modal) -->
+  <aside class="manual-control-panel collapsed" id="manual-control-panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Manual Arm Control</div>
+        <div class="panel-subtitle">6-DOF Forward Kinematics &amp; Gripper</div>
+      </div>
+      <button class="btn-close-panel" id="btn-close-manual" title="Close Panel">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Live Sim Telemetry Sync Bar -->
+    <div class="sync-bar">
+      <div class="sync-info">
+        <span class="sync-dot" id="sim-sync-dot"></span>
+        <span id="sim-sync-text">Simulation Telemetry</span>
+      </div>
+      <div class="sync-actions">
+        <button class="btn-subtle" id="btn-fetch-sim" title="Import current robot posture from simulation">Sync from Sim</button>
+        <button class="btn-subtle highlight" id="btn-send-sim" title="Send manual pose to physics simulation">Send to Sim</button>
+      </div>
+    </div>
+
+    <!-- Sliders for each joint -->
+    <div class="joint-sliders-list">
+      <!-- Base Yaw J1 -->
+      <div class="joint-slider-row">
+        <div class="joint-row-header">
+          <span class="joint-name">J1 · Base Yaw (ID 1)</span>
+          <span class="joint-val" id="val-base-yaw">0.0°</span>
+        </div>
+        <div class="joint-slider-control">
+          <input type="range" class="joint-range" id="slider-base-yaw" min="-180" max="180" step="0.5" value="0">
+        </div>
+      </div>
+
+      <!-- Shoulder Pitch J2 -->
+      <div class="joint-slider-row">
+        <div class="joint-row-header">
+          <span class="joint-name">J2 · Shoulder Pitch (ID 2)</span>
+          <span class="joint-val" id="val-shoulder-pitch">20.0°</span>
+        </div>
+        <div class="joint-slider-control">
+          <input type="range" class="joint-range" id="slider-shoulder-pitch" min="-90" max="90" step="0.5" value="20">
+        </div>
+      </div>
+
+      <!-- Elbow Pitch J3 -->
+      <div class="joint-slider-row">
+        <div class="joint-row-header">
+          <span class="joint-name">J3 · Elbow Pitch (ID 3)</span>
+          <span class="joint-val" id="val-elbow-pitch">-45.0°</span>
+        </div>
+        <div class="joint-slider-control">
+          <input type="range" class="joint-range" id="slider-elbow-pitch" min="-120" max="120" step="0.5" value="-45">
+        </div>
+      </div>
+
+      <!-- Wrist Pitch J4 -->
+      <div class="joint-slider-row">
+        <div class="joint-row-header">
+          <span class="joint-name">J4 · Wrist Pitch (ID 4)</span>
+          <span class="joint-val" id="val-wrist-pitch">-20.0°</span>
+        </div>
+        <div class="joint-slider-control">
+          <input type="range" class="joint-range" id="slider-wrist-pitch" min="-90" max="90" step="0.5" value="-20">
+        </div>
+      </div>
+
+      <!-- Wrist Roll J5 -->
+      <div class="joint-slider-row">
+        <div class="joint-row-header">
+          <span class="joint-name">J5 · Wrist Roll (ID 5)</span>
+          <span class="joint-val" id="val-wrist-roll">0.0°</span>
+        </div>
+        <div class="joint-slider-control">
+          <input type="range" class="joint-range" id="slider-wrist-roll" min="-180" max="180" step="0.5" value="0">
+        </div>
+      </div>
+
+      <!-- Gripper J6 -->
+      <div class="joint-slider-row">
+        <div class="joint-row-header">
+          <span class="joint-name">J6 · Gripper Clamping (ID 6)</span>
+          <span class="joint-val" id="val-gripper">100% (Open)</span>
+        </div>
+        <div class="joint-slider-control">
+          <input type="range" class="joint-range" id="slider-gripper" min="0" max="100" step="1" value="100">
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Preset Poses -->
+    <div class="pose-presets-section">
+      <div class="section-label">Quick Poses</div>
+      <div class="pose-presets-grid">
+        <button class="btn-pose" data-pose="standby">Standby</button>
+        <button class="btn-pose" data-pose="wave">Wave Hi</button>
+        <button class="btn-pose" data-pose="reach">Reach</button>
+        <button class="btn-pose" data-pose="grasp">Grasp Down</button>
+        <button class="btn-pose" data-pose="zero">Zero / Rest</button>
+        <button class="btn-pose" data-pose="reset">Reset</button>
+      </div>
+    </div>
+  </aside>
 
   <!-- Part Inspector Card (Click or Hover Component) -->
   <aside class="inspector-card" id="inspector-card">
