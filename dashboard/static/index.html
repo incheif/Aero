@@ -470,27 +470,25 @@
           <div class="card-title">
             <span>Controls &amp; Disturbance</span>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <button class="btn-rest-hero btn-reset-baseline" id="btn-rest-main" title="Immediately halt active execution and reset simulation to baseline">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          <div class="controls-disturbance-list">
+            <button class="btn-ctrl-action btn-ctrl-reset" id="btn-rest-main" title="Immediately halt active execution and reset simulation to baseline">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                 <path d="M3 3v5h5" />
               </svg>
-              Reset Baseline (Halt Execution)
+              <span>Reset Baseline (Halt Execution)</span>
             </button>
-            <button class="btn-rest-hero" id="btn-randomize-main"
-              style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            <button class="btn-ctrl-action btn-ctrl-randomize" id="btn-randomize-main" title="Randomize block layout on tabletop">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
                 <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"></path>
               </svg>
-              Randomize Layout (Test Perception)
+              <span>Randomize Layout (Test Perception)</span>
             </button>
-            <button class="btn-rest-hero" id="btn-nudge-block"
-              style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            <button class="btn-ctrl-action btn-ctrl-nudge" id="btn-nudge-block" title="Inject disturbance perturbation to nearest block">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="5 9 2 12 5 15"></polyline>
                 <polyline points="9 5 12 2 15 5"></polyline>
@@ -499,10 +497,9 @@
                 <line x1="2" y1="12" x2="22" y2="12"></line>
                 <line x1="12" y1="2" x2="12" y2="22"></line>
               </svg>
-              Nudge Block (Disturbance Test)
+              <span>Nudge Block (Disturbance Test)</span>
             </button>
-            <span
-              style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center;">
+            <span class="controls-footnote">
               Scatters blocks to random tabletop positions within 5-DOF reach envelope
             </span>
           </div>

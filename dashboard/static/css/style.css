@@ -1339,22 +1339,154 @@ header {
   pointer-events: none !important;
 }
 
-.btn-reset-baseline {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(245, 158, 11, 0.18)) !important;
-  border: 1px solid rgba(239, 68, 68, 0.55) !important;
-  color: #fca5a5 !important;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.02em;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+/* Controls & Disturbance Action Buttons */
+.controls-disturbance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.btn-reset-baseline:hover {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.35), rgba(245, 158, 11, 0.28)) !important;
-  border-color: #ef4444 !important;
-  color: #ffffff !important;
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45) !important;
+.btn-ctrl-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 1px solid transparent;
+  outline: none;
+  user-select: none;
+}
+
+.btn-ctrl-action:hover {
   transform: translateY(-1px);
+}
+
+.btn-ctrl-action:active {
+  transform: translateY(0);
+}
+
+.btn-ctrl-action svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.btn-ctrl-action:hover svg {
+  transform: scale(1.08);
+}
+
+/* 1. Reset Baseline (Refined Safety / Emergency Rose-Coral Action) */
+.btn-ctrl-reset {
+  background: rgba(244, 63, 94, 0.08);
+  border-color: rgba(244, 63, 94, 0.24);
+  color: #fda4af;
+}
+
+.btn-ctrl-reset svg {
+  color: #fb7185;
+}
+
+.btn-ctrl-reset:hover {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: rgba(244, 63, 94, 0.48);
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(244, 63, 94, 0.22);
+}
+
+/* 2. Randomize Layout (Sleek Theme Cyan Action) */
+.btn-ctrl-randomize {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.24);
+  color: #bae6fd;
+}
+
+.btn-ctrl-randomize svg {
+  color: #38bdf8;
+}
+
+.btn-ctrl-randomize:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.48);
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(56, 189, 248, 0.22);
+}
+
+/* 3. Nudge Block (Warm Amber Disturbance Perturbation) */
+.btn-ctrl-nudge {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.24);
+  color: #fde68a;
+}
+
+.btn-ctrl-nudge svg {
+  color: #f59e0b;
+}
+
+.btn-ctrl-nudge:hover {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.48);
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.22);
+}
+
+/* Light Theme Adaptations */
+:is([data-theme="light"], [data-theme="solar-light"]) .btn-ctrl-reset {
+  background: rgba(225, 29, 72, 0.06);
+  border-color: rgba(225, 29, 72, 0.22);
+  color: #be123c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+:is([data-theme="light"], [data-theme="solar-light"]) .btn-ctrl-reset:hover {
+  background: rgba(225, 29, 72, 0.12);
+  border-color: rgba(225, 29, 72, 0.4);
+  color: #9f1239;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.15);
+}
+
+:is([data-theme="light"], [data-theme="solar-light"]) .btn-ctrl-randomize {
+  background: rgba(2, 132, 199, 0.06);
+  border-color: rgba(2, 132, 199, 0.22);
+  color: #0369a1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+:is([data-theme="light"], [data-theme="solar-light"]) .btn-ctrl-randomize:hover {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.4);
+  color: #0c4a6e;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.15);
+}
+
+:is([data-theme="light"], [data-theme="solar-light"]) .btn-ctrl-nudge {
+  background: rgba(217, 119, 6, 0.06);
+  border-color: rgba(217, 119, 6, 0.22);
+  color: #b45309;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+:is([data-theme="light"], [data-theme="solar-light"]) .btn-ctrl-nudge:hover {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(217, 119, 6, 0.4);
+  color: #78350f;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.15);
+}
+
+.controls-footnote {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 /* Interactive Resizer Handles (Smooth & Tactile) */
