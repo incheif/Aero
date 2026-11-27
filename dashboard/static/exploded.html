@@ -56,16 +56,6 @@
     </div>
   </header>
 
-  <!-- Quick Camera Presets (Left Side) -->
-  <div class="view-presets">
-    <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); text-transform: uppercase; padding: 4px 6px;">Focus</span>
-    <button class="preset-btn active" data-preset="iso">Assembly</button>
-    <button class="preset-btn" data-preset="base">Base &amp; ID 1</button>
-    <button class="preset-btn" data-preset="shoulder">Shoulder &amp; ID 2</button>
-    <button class="preset-btn" data-preset="wrist">Elbow &amp; Wrist</button>
-    <button class="preset-btn" data-preset="gripper">Gripper &amp; Jaws</button>
-  </div>
-
   <!-- Bottom Interactive Controls Dock -->
   <div class="controls-dock">
     <div class="control-group">
@@ -115,7 +105,7 @@
 
     <div class="divider"></div>
 
-    <button id="btn-manual-control" class="dock-btn" aria-pressed="false" title="Toggle Manual Arm Joint Kinematics Control Panel">
+    <button id="btn-manual-control" class="dock-btn active" aria-pressed="true" title="Toggle Manual Arm Joint Kinematics Control Panel">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
       </svg>
@@ -123,8 +113,8 @@
     </button>
   </div>
 
-  <!-- Manual Arm Joint Control Panel (Flyout / Floating Modal) -->
-  <aside class="manual-control-panel collapsed" id="manual-control-panel">
+  <!-- Manual Arm Joint Control Panel (Open by Default) -->
+  <aside class="manual-control-panel" id="manual-control-panel">
     <div class="panel-header">
       <div>
         <div class="panel-title">Manual Arm Control</div>
@@ -136,18 +126,6 @@
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-    </div>
-
-    <!-- Live Sim Telemetry Sync Bar -->
-    <div class="sync-bar">
-      <div class="sync-info">
-        <span class="sync-dot" id="sim-sync-dot"></span>
-        <span id="sim-sync-text">Simulation Telemetry</span>
-      </div>
-      <div class="sync-actions">
-        <button class="btn-subtle" id="btn-fetch-sim" title="Import current robot posture from simulation">Sync from Sim</button>
-        <button class="btn-subtle highlight" id="btn-send-sim" title="Send manual pose to physics simulation">Send to Sim</button>
-      </div>
     </div>
 
     <!-- Sliders for each joint -->
@@ -290,6 +268,6 @@
   </aside>
 
   <!-- Exploded Arm Logic -->
-  <script type="module" src="/js/exploded_arm.js?v=2.1"></script>
+  <script type="module" src="/js/exploded_arm.js?v=2.2"></script>
 </body>
 </html>

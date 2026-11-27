@@ -855,14 +855,6 @@ function resetCameraView(preset = 'iso') {
 
 resetCamBtn?.addEventListener('click', () => resetCameraView('iso'));
 
-document.querySelectorAll('.preset-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    resetCameraView(btn.dataset.preset);
-  });
-});
-
 resetCameraView('iso');
 
 addEventListener('resize', () => {
@@ -922,9 +914,6 @@ const valWristRoll = document.getElementById('val-wrist-roll');
 
 const sliderGripper = document.getElementById('slider-gripper');
 const valGripper = document.getElementById('val-gripper');
-
-const btnFetchSim = document.getElementById('btn-fetch-sim');
-const btnSendSim = document.getElementById('btn-send-sim');
 
 function setManualPanelOpen(open) {
   manualPanel.classList.toggle('collapsed', !open);
@@ -1022,91 +1011,10 @@ document.querySelectorAll('.btn-pose').forEach((btn) => {
   });
 });
 
-// Telemetry Integration & Coordinate Frame Conversion
-// Simulation engine uses horizontal reference (0 = +X), while Exploded View uses vertical reference (0 = +Y).
-function simToExplodedJoints(simJoints) {
-  const converted = { ...simJoints };
-  if (simJoints.shoulderPitch !== undefined) {
-    converted.shoulderPitch = Math.PI / 2 - simJoints.shoulderPitch;
-  }
-  if (simJoints.elbowPitch !== undefined) {
-    converted.elbowPitch = -simJoints.elbowPitch;
-  }
-  if (simJoints.wristPitch !== undefined) {
-    converted.wristPitch = -simJoints.wristPitch;
-  }
-  return converted;
-}
-
-function explodedToSimJoints(expJoints) {
-  const converted = { ...expJoints };
-  if (expJoints.shoulderPitch !== undefined) {
-    converted.shoulderPitch = Math.PI / 2 - expJoints.shoulderPitch;
-  }
-  if (expJoints.elbowPitch !== undefined) {
-    converted.elbowPitch = -expJoints.elbowPitch;
-  }
-  if (expJoints.wristPitch !== undefined) {
-    converted.wristPitch = -expJoints.wristPitch;
-  }
-  return converted;
-}
-
-async function fetchSimTelemetry() {
-  try {
-    const res = await fetch('/api/telemetry');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.joints) {
-      const exp = simToExplodedJoints(data.joints);
-      if (exp.baseYaw !== undefined) targetJoints.baseYaw = exp.baseYaw;
-      if (exp.shoulderPitch !== undefined) targetJoints.shoulderPitch = exp.shoulderPitch;
-      if (exp.elbowPitch !== undefined) targetJoints.elbowPitch = exp.elbowPitch;
-      if (exp.wristPitch !== undefined) targetJoints.wristPitch = exp.wristPitch;
-      if (exp.wristRoll !== undefined) targetJoints.wristRoll = exp.wristRoll;
-      if (data.gripper !== undefined) targetJoints.gripper = data.gripper;
-      updateSliderUI();
-    }
-  } catch (e) {
-    console.warn('Sim telemetry fetch failed:', e);
-  }
-}
-
-async function sendPoseToSim() {
-  try {
-    const simJoints = explodedToSimJoints(targetJoints);
-    const payload = {
-      joints: {
-        baseYaw: simJoints.baseYaw,
-        shoulderPitch: simJoints.shoulderPitch,
-        elbowPitch: simJoints.elbowPitch,
-        wristPitch: simJoints.wristPitch,
-        wristRoll: simJoints.wristRoll
-      },
-      gripper: targetJoints.gripper
-    };
-    const res = await fetch('/api/sim/teleop', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      const dot = document.getElementById('sim-sync-dot');
-      if (dot) {
-        dot.style.background = '#38bdf8';
-        setTimeout(() => { dot.style.background = '#10b981'; }, 600);
-      }
-    }
-  } catch (e) {
-    console.warn('Sim teleop send failed:', e);
-  }
-}
-
-btnFetchSim?.addEventListener('click', fetchSimTelemetry);
-btnSendSim?.addEventListener('click', sendPoseToSim);
-
 // Initialize UI
 updateSliderUI();
+// Ensure manual control panel is open by default
+setManualPanelOpen(true);
 
 // ----------------------------------------------------------------
 // 10. RENDER & KINEMATICS ANIMATION LOOP
