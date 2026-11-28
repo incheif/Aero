@@ -220,7 +220,7 @@ class InstructionInterpreter:
         # -------------------------------------------------------------
         # B. TOWER HEIGHT / LAYER COUNT FEASIBILITY: Maximum 5 Layers
         # -------------------------------------------------------------
-        if not any(w in cmd for w in ("pyramid", "pyramind", "distinct tower", "distinct towers", "separate tower", "separate towers", "different tower", "different towers")):
+        if not any(w in cmd for w in ("pyramid", "pyramind", "stair", "stairs", "staircase", "step", "steps", "distinct tower", "distinct towers", "separate tower", "separate towers", "different tower", "different towers")):
             layer_matches = re.findall(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|hundred)\s*(?:blocks?|layers?|cubes?|tiers?|levels?)\s*(?:high|tall)?\b", cmd)
             layer_matches += re.findall(r"\b(?:tower|stack)\s*(?:of\s*)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b", cmd)
             layer_matches += re.findall(r"\b(?:height|tall|high)\s*(?:of\s*)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b", cmd)
@@ -649,10 +649,12 @@ class InstructionInterpreter:
             }
 
         # -------------------------------------------------------------
-        # 8B. MULTI-TOWERS ASSEMBLY (2 to 5 Distinct Towers)
+        # 8B. MULTI-TOWERS & STAIRCASE ASSEMBLY (2 to 5 Distinct Towers / Stepped Stairs)
         # -------------------------------------------------------------
+        is_stairs = any(w in cmd for w in ("stairs", "staircase", "stairway", "stair", "steps", "stepped columns"))
         is_multi_towers = (
-            any(p in cmd for p in (
+            is_stairs
+            or any(p in cmd for p in (
                 "2 towers", "two towers", "dual towers", "dual tower",
                 "two distinct towers", "2 distinct towers",
                 "two separate towers", "2 separate towers",
@@ -667,9 +669,22 @@ class InstructionInterpreter:
             or bool(re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd))
         )
         if is_multi_towers:
-            m_towers = re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd)
-            num_towers = parse_num_token(m_towers.group(1)) if m_towers else 2
-            distribution = parse_tower_distribution(cmd, num_towers)
+            if is_stairs:
+                # Parse explicit stairs distribution or default to [1, 2, 3] (6 blocks)
+                stair_nums = []
+                for m in re.findall(r"\b(\d+|one|two|three|four|five|six)\s*(?:blocks?|cubes?|layers?|tiers?|steps?)?\b", cmd):
+                    v = parse_num_token(m)
+                    if v is not None and v > 0:
+                        stair_nums.append(v)
+                if len(stair_nums) >= 2 and sum(stair_nums) <= MAX_PHYSICAL_BLOCKS:
+                    distribution = stair_nums
+                else:
+                    distribution = [1, 2, 3]
+                num_towers = len(distribution)
+            else:
+                m_towers = re.search(r"\b(2|two|3|three|4|four|5|five)\s+(?:distinct\s+|separate\s+|different\s+)?towers?\b", cmd)
+                num_towers = parse_num_token(m_towers.group(1)) if m_towers else 2
+                distribution = parse_tower_distribution(cmd, num_towers)
 
             known_colors = [
                 ("red", "block_magenta", "Red Cube"),
@@ -708,9 +723,18 @@ class InstructionInterpreter:
             desc_parts = []
             for i, tb in enumerate(tower_blocks_list):
                 names = [AVAILABLE_BLOCKS.get(b, {}).get("name", b) for b in tb]
-                desc_parts.append(f"Tower {i+1} ({len(tb)} blocks: [{', '.join(names)}])")
+                desc_parts.append(f"Step {i+1} ({len(tb)} block{'s' if len(tb) > 1 else ''}: [{', '.join(names)}])" if is_stairs else f"Tower {i+1} ({len(tb)} blocks: [{', '.join(names)}])")
 
             action = "STACK_DUAL_TOWERS" if len(tower_blocks_list) == 2 else "STACK_MULTI_TOWERS"
+            thought = (
+                f"Interpreted request for a {len(tower_blocks_list)}-step staircase structure ({' + '.join(str(d) for d in distribution)} blocks total). "
+                f"Spatial layout: {'; '.join(desc_parts)}. "
+                f"Assembling ascending stepped columns with elevated collision clearance."
+                if is_stairs else
+                f"Interpreted request for {len(tower_blocks_list)} distinct towers ({' + '.join(str(d) for d in distribution)} blocks). "
+                f"Spatial layout: {'; '.join(desc_parts)}. "
+                f"Kinematic paths will maintain elevated collision clearance over previously assembled towers."
+            )
             return {
                 "is_possible": True,
                 "status": "OK",
@@ -720,11 +744,7 @@ class InstructionInterpreter:
                 "tower_blocks_list": tower_blocks_list,
                 "tower_a_blocks": tower_blocks_list[0] if len(tower_blocks_list) > 0 else [],
                 "tower_b_blocks": tower_blocks_list[1] if len(tower_blocks_list) > 1 else [],
-                "thought": (
-                    f"Interpreted request for {len(tower_blocks_list)} distinct towers ({' + '.join(str(d) for d in distribution)} blocks). "
-                    f"Spatial layout: {'; '.join(desc_parts)}. "
-                    f"Kinematic paths will maintain elevated collision clearance over previously assembled towers."
-                ),
+                "thought": thought,
             }
 
         # -------------------------------------------------------------
