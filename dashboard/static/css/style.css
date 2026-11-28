@@ -1320,8 +1320,9 @@ header {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  max-height: 88px;
-  overflow: hidden;
+  min-height: 84px;
+  max-height: 140px;
+  overflow: visible;
   transition: max-height 0.25s ease;
 }
 
@@ -1858,18 +1859,40 @@ body.resizing-active iframe {
   border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 0.85rem;
-  cursor: pointer;
+  cursor: pointer !important;
   display: flex;
   align-items: center;
   gap: 6px;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 10;
+  pointer-events: auto !important;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+
+.send-btn * {
+  pointer-events: none;
 }
 
 .send-btn:hover {
   background: var(--mono-200);
   box-shadow: var(--shadow-white-glow);
   transform: translateY(-1px);
+}
+
+.send-btn:active {
+  transform: translateY(1px);
+}
+
+.send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Right Side Panel / Minimal Telemetry */

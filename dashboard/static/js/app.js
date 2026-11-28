@@ -1565,7 +1565,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cmdInput.placeholder = 'e.g. "wave hi"';
         if (sendBtn) {
           sendBtn.disabled = false;
-          sendBtn.innerHTML = '<span>Execute</span>';
+          sendBtn.innerHTML = '<span>Execute</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
         }
         document.querySelectorAll('.prompt-chip').forEach(c => c.classList.remove('chip-disabled'));
       }
@@ -1685,10 +1685,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    sendBtn.addEventListener('click', () => submitCommand());
-    cmdInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submitCommand();
-    });
+    if (sendBtn) {
+      sendBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        submitCommand();
+      });
+      sendBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+    }
+    if (cmdInput) {
+      cmdInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitCommand();
+        }
+      });
+    }
 
     // 5. Preset Action Chips: Populate input bar and wait for user to press Enter or Execute
     document.querySelectorAll('.prompt-chip').forEach((chip) => {
